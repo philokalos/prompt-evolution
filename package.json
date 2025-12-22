@@ -1,0 +1,32 @@
+{
+  "name": "prompt-evolution",
+  "version": "0.1.0",
+  "description": "AI 코딩 어시스턴트 대화 분석 및 프롬프트 진화 시스템",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "prompt-evolution": "./dist/cli.js",
+    "pe": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/cli.ts",
+    "start": "node dist/cli.js",
+    "parse": "tsx src/cli.ts parse",
+    "test": "vitest"
+  },
+  "keywords": [
+    "prompt",
+    "ai",
+    "claude",
+    "analysis",
+    "productivity"
+  ],
+  "author": "Kyeol",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^25.0.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
