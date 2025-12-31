@@ -26,47 +26,14 @@ export default function GuidebookPage() {
   const { data: insights, isLoading, error } = useInsights({ period: '30d' });
   const [selectedCategory, setSelectedCategory] = useState<TaskCategory | 'all'>('all');
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary"></div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="card">
-        <p className="text-red-400">Error loading guidebook data: {error.message}</p>
-      </div>
-    );
-  }
-
+  // Extract data (hooks must be called unconditionally)
   const selfImprovement = insights?.selfImprovement;
+  const allExamples = selfImprovement?.rewriteExamples ?? [];
 
-  if (!selfImprovement) {
-    return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold">My Guidebook</h2>
-        <div className="card">
-          <p className="text-gray-400">
-            No self-improvement data available yet. Import and analyze more conversations to get personalized feedback.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  const topWeaknesses = selfImprovement.areasForImprovement.slice(0, 3);
-  const allExamples = selfImprovement.rewriteExamples;
-  const weeklyGoals = selfImprovement.weeklyGoals;
-  const progressTrend = selfImprovement.progressTrend;
-  const summary = selfImprovement.summary;
-
-  // Get unique categories from examples
+  // Get unique categories from examples (must be before any returns)
   const availableCategories = useMemo(() => {
     const categories = new Set(allExamples.map(e => e.category));
-    return Array.from(categories).sort();
+    return Array.from(categories).sort() as TaskCategory[];
   }, [allExamples]);
 
   // Filter examples by selected category
@@ -83,6 +50,40 @@ export default function GuidebookPage() {
     }
     return stats;
   }, [allExamples]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="card">
+        <p className="text-red-400">Error loading guidebook data: {error.message}</p>
+      </div>
+    );
+  }
+
+  if (!selfImprovement) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold">My Guidebook</h2>
+        <div className="card">
+          <p className="text-gray-400">
+            No self-improvement data available yet. Import and analyze more conversations to get personalized feedback.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const topWeaknesses = selfImprovement.areasForImprovement.slice(0, 3);
+  const weeklyGoals = selfImprovement.weeklyGoals;
+  const progressTrend = selfImprovement.progressTrend;
+  const summary = selfImprovement.summary;
 
   return (
     <div className="space-y-8">
