@@ -1,12 +1,30 @@
+import { useState, useMemo } from 'react';
 import { useInsights } from '@/hooks/useInsights';
 import WeaknessCard from '@/components/guidebook/WeaknessCard';
 import PromptComparison from '@/components/guidebook/PromptComparison';
 import WeeklyGoalCard from '@/components/guidebook/WeeklyGoalCard';
 import ProgressChart from '@/components/guidebook/ProgressChart';
-import { AlertTriangle, FileEdit, Target, TrendingUp } from 'lucide-react';
+import { AlertTriangle, FileEdit, Target, TrendingUp, Filter } from 'lucide-react';
+import type { TaskCategory } from '@/api/client';
+
+const categoryLabels: Record<TaskCategory, string> = {
+  'code-generation': 'Code Generation',
+  'code-review': 'Code Review',
+  'bug-fix': 'Bug Fix',
+  'refactoring': 'Refactoring',
+  'explanation': 'Explanation',
+  'documentation': 'Documentation',
+  'testing': 'Testing',
+  'architecture': 'Architecture',
+  'deployment': 'Deployment',
+  'data-analysis': 'Data Analysis',
+  'general': 'General',
+  'unknown': 'Unknown',
+};
 
 export default function GuidebookPage() {
   const { data: insights, isLoading, error } = useInsights({ period: '30d' });
+  const [selectedCategory, setSelectedCategory] = useState<TaskCategory | 'all'>('all');
 
   if (isLoading) {
     return (
@@ -40,10 +58,31 @@ export default function GuidebookPage() {
   }
 
   const topWeaknesses = selfImprovement.areasForImprovement.slice(0, 3);
-  const rewriteExamples = selfImprovement.rewriteExamples.slice(0, 3);
+  const allExamples = selfImprovement.rewriteExamples;
   const weeklyGoals = selfImprovement.weeklyGoals;
   const progressTrend = selfImprovement.progressTrend;
   const summary = selfImprovement.summary;
+
+  // Get unique categories from examples
+  const availableCategories = useMemo(() => {
+    const categories = new Set(allExamples.map(e => e.category));
+    return Array.from(categories).sort();
+  }, [allExamples]);
+
+  // Filter examples by selected category
+  const filteredExamples = useMemo(() => {
+    if (selectedCategory === 'all') return allExamples;
+    return allExamples.filter(e => e.category === selectedCategory);
+  }, [allExamples, selectedCategory]);
+
+  // Category distribution stats
+  const categoryStats = useMemo(() => {
+    const stats = new Map<TaskCategory, number>();
+    for (const example of allExamples) {
+      stats.set(example.category, (stats.get(example.category) || 0) + 1);
+    }
+    return stats;
+  }, [allExamples]);
 
   return (
     <div className="space-y-8">
@@ -92,19 +131,64 @@ export default function GuidebookPage() {
 
       {/* Section 2: Prompt Corrections */}
       <section>
-        <div className="flex items-center gap-2 mb-4">
-          <FileEdit className="text-accent-secondary" size={24} />
-          <h3 className="text-xl font-semibold">Prompt Corrections</h3>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <FileEdit className="text-accent-secondary" size={24} />
+            <h3 className="text-xl font-semibold">Prompt Corrections</h3>
+            <span className="text-sm text-gray-500">
+              ({filteredExamples.length} of {allExamples.length} examples)
+            </span>
+          </div>
         </div>
-        {rewriteExamples.length > 0 ? (
+
+        {/* Category Filter */}
+        {allExamples.length > 0 && (
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Filter className="text-gray-400" size={16} />
+              <span className="text-sm text-gray-400">Filter by category:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setSelectedCategory('all')}
+                className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                  selectedCategory === 'all'
+                    ? 'bg-accent-secondary text-white'
+                    : 'bg-dark-hover text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                All ({allExamples.length})
+              </button>
+              {availableCategories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setSelectedCategory(cat)}
+                  className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                    selectedCategory === cat
+                      ? 'bg-accent-secondary text-white'
+                      : 'bg-dark-hover text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  {categoryLabels[cat]} ({categoryStats.get(cat) || 0})
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {filteredExamples.length > 0 ? (
           <div className="space-y-6">
-            {rewriteExamples.map((example, index) => (
-              <PromptComparison key={index} example={example} />
+            {filteredExamples.map((example, index) => (
+              <PromptComparison key={`${example.category}-${index}`} example={example} />
             ))}
           </div>
         ) : (
           <div className="card">
-            <p className="text-gray-400">No rewrite examples available yet.</p>
+            <p className="text-gray-400">
+              {allExamples.length === 0
+                ? 'No rewrite examples available yet.'
+                : 'No examples in this category.'}
+            </p>
           </div>
         )}
       </section>
