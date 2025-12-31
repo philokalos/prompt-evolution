@@ -1,0 +1,37 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom base styles */
+@layer base {
+  body {
+    @apply bg-dark-bg text-gray-100 antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  code,
+  pre {
+    font-family: 'JetBrains Mono', Consolas, monospace;
+  }
+}
+
+/* Custom component styles */
+@layer components {
+  .card {
+    @apply bg-dark-surface border border-dark-border rounded-lg p-4;
+  }
+
+  .card-hover {
+    @apply card transition-colors hover:border-dark-hover;
+  }
+
+  .btn-primary {
+    @apply bg-accent-primary text-white px-4 py-2 rounded-lg font-medium
+           hover:bg-opacity-90 transition-colors;
+  }
+
+  .btn-secondary {
+    @apply bg-dark-surface border border-dark-border text-gray-100 px-4 py-2 rounded-lg font-medium
+           hover:bg-dark-hover transition-colors;
+  }
+}

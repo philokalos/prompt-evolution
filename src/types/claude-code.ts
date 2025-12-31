@@ -26,11 +26,18 @@ export interface SystemRecord extends BaseRecord {
   version?: string;
 }
 
+// User message content can be string or array of content blocks
+export type UserContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'tool_result'; tool_use_id: string; content: string };
+
+export type UserContent = string | UserContentBlock[];
+
 export interface UserRecord extends BaseRecord {
   type: 'user';
   message: {
     role: 'user';
-    content: string;
+    content: UserContent;
   };
   cwd?: string;
   gitBranch?: string;

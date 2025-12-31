@@ -5,12 +5,13 @@
 import { readFileSync } from 'fs';
 import { join, basename } from 'path';
 import { homedir } from 'os';
-import type { 
-  ClaudeCodeRecord, 
-  ParsedConversation, 
+import type {
+  ClaudeCodeRecord,
+  ParsedConversation,
   ParsedTurn,
   AssistantContentItem,
   UserRecord,
+  UserContent,
   SummaryRecord
 } from '../types/index.js';
 import type { AssistantRecord } from '../types/assistant.js';
@@ -73,10 +74,15 @@ export function parseSession(projectName: string, sessionFile: string): ParsedCo
     // User 턴
     if (record.type === 'user') {
       const userRecord = record as UserRecord;
+      const content = extractUserContent(userRecord.message.content);
+
+      // 빈 컨텐츠는 스킵
+      if (!content) continue;
+
       turns.push({
         id: userRecord.uuid || '',
         role: 'user',
-        content: userRecord.message.content,
+        content,
         timestamp: new Date(userRecord.timestamp || ''),
         parentId: userRecord.parentUuid || undefined,
       });
@@ -140,6 +146,24 @@ export function parseSession(projectName: string, sessionFile: string): ParsedCo
 }
 
 // 헬퍼 함수들
+
+/**
+ * User content에서 텍스트 추출
+ * - 문자열이면 그대로 반환
+ * - 배열이면 text 타입 블록에서 추출
+ */
+function extractUserContent(content: UserContent): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+
+  // 배열인 경우 text 타입 블록 추출
+  return content
+    .filter((item): item is { type: 'text'; text: string } => item.type === 'text')
+    .map((item) => item.text)
+    .join('\n');
+}
+
 function extractText(content: AssistantContentItem[]): string {
   return content
     .filter((item): item is { type: 'text'; text: string } => item.type === 'text')

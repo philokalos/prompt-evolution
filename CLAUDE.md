@@ -1,62 +1,232 @@
-# Prompt Evolution System
+# CLAUDE.md
 
-## 프로젝트 비전
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**"대화 → 분석 → 라이브러리화 → 프롬프트 자동 개선"** 사이클을 만드는 메타-프롬프팅 플랫폼
+## Project Overview
 
-사용자의 AI 코딩 어시스턴트(Claude Code, Cursor 등)와의 대화를 자동으로 수집하고, 이를 분석하여 프롬프트 패턴을 추출하며, 더 나은 프롬프팅으로 진화시키는 시스템.
+**Prompt Evolution** is a meta-prompting platform that analyzes Claude Code conversations to extract prompt patterns and automatically improve prompting effectiveness.
 
-## 핵심 가치
+**Core Loop**: Capture → Parse → Analyze → Library → Evolve
 
-1. **제로 프릭션 수집**: 사용자가 인지적 노력 없이 모든 대화가 자동 기록됨
-2. **양방향 분석**: 입력(프롬프트)과 출력(AI 응답) 모두 분석
-3. **개인화된 진화**: 개인의 프롬프팅 스타일과 효과적인 패턴을 학습
+**Key Feature**: References official Anthropic Claude prompt engineering best practices (GOLDEN checklist, anti-pattern detection) for empirical prompt quality evaluation.
 
-## 데이터 소스
+## Development Commands
 
-### 현재 확보된 소스
-- **Claude Code**: `~/.claude/projects/` 내 JSONL 파일 (자동 저장됨)
-  - 12개 프로젝트, 364개 세션, 360MB 축적
+```bash
+# CLI Development
+npm run dev                              # Watch mode with tsx
+npm run build                            # TypeScript build
+npm test                                 # Vitest
 
-### 향후 확장 가능 소스
-- Cursor: `~/Library/Application Support/Cursor/`
-- Continue: `~/.continue/sessions/`
-- Claude.ai Web: Browser Extension 필요
+# Single test execution
+npx vitest run src/parser/__tests__/session-parser.test.ts  # Run single test file
+npx vitest -t "pattern"                  # Run tests matching pattern
 
-## 아키텍처 (계획)
+# CLI execution
+npx tsx src/cli.ts <command>             # Development
+npm start <command>                      # Production (after build)
+pe <command>                             # Global install alias
+
+# Dashboard Development
+cd web && npm install                    # Install web dependencies (first time)
+npm run dev:server                       # Express API server (:3001)
+npm run dev:web                          # Vite dev server (:5173)
+npm run build:web                        # Build React frontend
+npm run build:all                        # Build CLI + frontend
+```
+
+### CLI Commands
+
+```bash
+# Discovery
+projects                                 # List Claude Code projects
+sessions <project-id>                    # List sessions in project
+parse <project-id> [session]             # Parse and display conversation
+
+# Database
+import [--incremental]                   # Import sessions to SQLite
+import --project <id>                    # Import specific project
+db-stats                                 # Database statistics
+
+# Analysis
+analyze [--incremental]                  # Run quality signal detection
+analyze --conversation <id>              # Analyze specific conversation
+classify "<text>"                        # Classify single prompt
+classify --all                           # Classify all user turns
+classify --stats                         # Classification statistics
+
+# Reporting
+insights                                 # Generate insights report
+insights --period 7d                     # Filter by period (7d, 30d, 90d, all)
+insights --problems | --strengths        # Filter by type
+report [--output <path>]                 # Generate HTML report
+```
+
+Project ID format: Encoded path with dashes (e.g., `-Users-foo-project`)
+
+### Dashboard API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/stats` | GET | Overall database statistics |
+| `/api/projects` | GET | Project list with per-project stats |
+| `/api/insights` | GET | Insights report (problems, strengths, recommendations) |
+| `/api/trends` | GET | Time-series data for charts |
+| `/api/sync` | POST | Trigger manual data sync |
+| `/api/sync/status` | GET | Sync status and scheduler info |
+
+**Query Parameters**:
+- `period`: 7d, 30d, 90d, all
+- `metric`: volume, effectiveness, quality
+- `groupBy`: day, week, month
+- `project`: Filter by project ID
+
+### Scheduler
+
+Automatic data sync schedule:
+- **Every 30 minutes**: Import new sessions (incremental)
+- **Every 2 hours**: Analyze recent conversations (analyzeRecent)
+- **Daily at 03:00**: Full refresh (fullRefresh)
+
+## Architecture
+
+### Data Flow
 
 ```
-[1] Capture Layer     → 이미 Claude Code가 자동 수집 중
-[2] Parser Layer      → JSONL → 구조화된 대화 데이터
-[3] Analysis Layer    → 패턴 추출, 효과성 평가
-[4] Library Layer     → 프롬프트/응답 패턴 DB
-[5] Evolution Layer   → 개선 제안, A/B 테스트
-[6] Dashboard         → 시각화, 인사이트
+~/.claude/projects/{encoded-path}/*.jsonl
+              ↓
+      Parser Layer (JSONL → ParsedConversation)
+              ↓
+      Database Layer (SQLite ~/.prompt-evolution/data.db)
+              ↓
+      Analysis Layer (Signals, Classification, Scoring)
+              ↓
+      Report Layer (CLI output, HTML reports)
 ```
 
-## 기술 스택 (예정)
+### Core Modules
 
-- Runtime: Node.js / Bun
-- Database: SQLite (로컬 우선)
-- CLI: Commander.js
-- Dashboard: React (추후)
+**`src/parser/`** - JSONL parsing
+- Reads from `~/.claude/projects/`
+- Handles user message content as string OR array (text/tool_result blocks)
 
-## 개발 원칙
+**`src/db/`** - SQLite persistence (better-sqlite3)
+- Schema: conversations, turns, tool_usages, quality_signals, summaries
+- Location: `~/.prompt-evolution/data.db`
+- WAL mode enabled for performance
 
-1. **점진적 발전**: MVP → 검증 → 확장
-2. **로컬 우선**: 프라이버시 보장, 클라우드 의존 없음
-3. **실사용 기반**: 경결 본인이 직접 사용하며 검증
-4. **Vibe Coding**: 빠른 실험, 직관적 개선
+**`src/analysis/`** - Quality analysis
+- `signal-detector.ts`: Detects quality signals (clarifications, corrections, frustration, praise)
+- `classifier.ts`: Rule-based prompt classification (intent + task category)
+- `scorer.ts`: Effectiveness scoring
+- `insights.ts`: Aggregated insights generation (orchestrates all analysis modules)
+- `prompt-library.ts`: Extracts reusable prompt patterns from usage data
+- `guidelines-evaluator.ts`: GOLDEN checklist compliance evaluation (Goal, Output, Limits, Data, Evaluation, Next)
+- `self-improvement.ts`: Personalized learning feedback with Before/After examples
 
-## 현재 상태
+**`src/report/`** - Output generation
+- `html-generator.ts`: Static HTML reports with GOLDEN radar chart, prompt library, self-improvement sections
 
-- [x] 아이디어 정의
-- [x] 데이터 소스 분석 (Claude Code 구조 파악 완료)
-- [ ] PRD 작성
-- [ ] Parser 개발
-- [ ] MVP 구현
+**`src/cli.ts`** - Command entry point
 
----
+**`server/`** - Express API server
+- `index.ts`: Express app entry point
+- `routes/`: API route handlers (stats, insights, projects, trends, sync)
+- `services/`: Business logic (sync-service, scheduler)
+- `middleware/`: Error handling
 
-*Created: 2025-12-19*
-*Owner: Kyeol (philokalos)*
+**`web/`** - React dashboard (Vite + Tailwind)
+- `src/api/`: API client with typed fetch functions
+- `src/hooks/`: React Query hooks (useStats, useInsights, useTrends, etc.)
+- `src/pages/`: Route components (Dashboard, Insights, Trends, Projects, Library)
+- `src/components/`: Reusable UI components (charts, layout)
+
+### Database Schema
+
+| Table | Purpose |
+|-------|---------|
+| conversations | Session metadata, token totals |
+| turns | Individual messages (user/assistant) |
+| tool_usages | Tools used per turn |
+| quality_signals | Detected quality indicators |
+| summaries | Session summaries |
+
+### Classification Types
+
+```typescript
+type PromptIntent = 'command' | 'question' | 'instruction' | 'feedback' | 'context' | 'clarification' | 'unknown';
+
+type TaskCategory = 'code-generation' | 'code-review' | 'bug-fix' | 'refactoring' |
+  'explanation' | 'documentation' | 'testing' | 'architecture' | 'deployment' | 'data-analysis' | 'general' | 'unknown';
+```
+
+### Claude Code JSONL Structure
+
+| Record Type | Key Fields |
+|-------------|------------|
+| `summary` | Session summary text |
+| `system` | System events |
+| `user` | User prompts (content: string \| ContentBlock[]) |
+| `assistant` | AI responses with content array (text, thinking, tool_use), model, usage |
+
+Records linked via `uuid` → `parentUuid`.
+
+### Analysis Modules Integration
+
+The `generateInsights()` function in `insights.ts` orchestrates:
+```typescript
+generateInsights(prompts, {
+  period: '7d',                    // Time filter
+  includeLibrary: true,            // Prompt pattern extraction
+  includeGuidelines: true,         // GOLDEN score evaluation
+  includeSelfImprovement: true,    // Learning feedback
+});
+```
+
+**GOLDEN Checklist** evaluates prompts against:
+- **G**oal: Clear objective stated
+- **O**utput: Expected format specified
+- **L**imits: Constraints defined
+- **D**ata: Context/data provided
+- **E**valuation: Success criteria given
+- **N**ext: Follow-up actions clear
+
+## Data Source
+
+Claude Code stores conversations at:
+```
+~/.claude/projects/{encoded-project-path}/
+├── {session-uuid}.jsonl      # Regular sessions
+└── agent-{hash}.jsonl        # Agent task sessions
+```
+
+## Project Structure
+
+```
+prompt-evolution/
+├── src/                    # CLI + shared core
+│   ├── analysis/           # Insights, classifier, scorer
+│   ├── db/                 # SQLite repositories
+│   ├── parser/             # JSONL parsers
+│   ├── report/             # HTML report generator
+│   ├── types/              # TypeScript definitions
+│   ├── cli.ts              # CLI entry point
+│   └── index.ts            # Shared exports
+│
+├── server/                 # Express API
+│   ├── routes/             # API route handlers
+│   ├── services/           # Sync service, scheduler
+│   ├── middleware/         # Error handler
+│   └── index.ts            # Server entry point
+│
+├── web/                    # React dashboard (Vite)
+│   ├── src/
+│   │   ├── api/            # API client
+│   │   ├── hooks/          # React Query hooks
+│   │   ├── components/     # UI components
+│   │   └── pages/          # Route pages
+│   └── package.json        # Separate dependencies
+│
+├── tsconfig.json           # CLI TypeScript config
+└── tsconfig.server.json    # Server TypeScript config
+```
