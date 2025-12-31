@@ -159,7 +159,10 @@ app.on('before-quit', () => {
 });
 
 app.on('will-quit', () => {
-  globalShortcut.unregisterAll();
+  // Only unregister shortcuts if app was fully ready
+  if (app.isReady()) {
+    globalShortcut.unregisterAll();
+  }
   destroyTray();
 });
 
