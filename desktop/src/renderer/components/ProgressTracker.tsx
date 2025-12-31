@@ -1,10 +1,41 @@
 import { useState, useEffect, useMemo } from 'react';
-import { TrendingUp, TrendingDown, Minus, BarChart3, Target } from 'lucide-react';
+import {
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  BarChart3,
+  Target,
+  Award,
+  Flame,
+  Calendar,
+} from 'lucide-react';
 
 interface ScoreTrendPoint {
   date: string;
   avgScore: number;
   count: number;
+}
+
+interface WeeklyStatPoint {
+  weekStart: string;
+  avgScore: number;
+  count: number;
+  improvement: number;
+}
+
+interface MonthlyStatPoint {
+  month: string;
+  avgScore: number;
+  count: number;
+  gradeDistribution: Record<string, number>;
+}
+
+interface ImprovementAnalysis {
+  overallImprovement: number;
+  bestDimension: string;
+  worstDimension: string;
+  streak: number;
+  milestones: Array<{ type: string; date: string; value: number }>;
 }
 
 interface Stats {
@@ -14,15 +45,26 @@ interface Stats {
   recentTrend: 'improving' | 'stable' | 'declining';
 }
 
-interface ProgressTrackerProps {
-  onClose?: () => void;
-}
+type TimeRange = 'daily' | 'weekly' | 'monthly';
 
-export default function ProgressTracker({ onClose }: ProgressTrackerProps) {
+const DIMENSION_LABELS: Record<string, string> = {
+  goal: '목표',
+  output: '출력',
+  limits: '제약',
+  data: '데이터',
+  evaluation: '평가',
+  next: '다음',
+};
+
+export default function ProgressTracker() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [trend, setTrend] = useState<ScoreTrendPoint[]>([]);
+  const [weeklyStats, setWeeklyStats] = useState<WeeklyStatPoint[]>([]);
+  const [monthlyStats, setMonthlyStats] = useState<MonthlyStatPoint[]>([]);
+  const [improvement, setImprovement] = useState<ImprovementAnalysis | null>(null);
   const [goldenAverages, setGoldenAverages] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState<TimeRange>('daily');
 
   useEffect(() => {
     loadData();
@@ -31,14 +73,21 @@ export default function ProgressTracker({ onClose }: ProgressTrackerProps) {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [statsData, trendData, avgData] = await Promise.all([
-        window.electronAPI.getStats(),
-        window.electronAPI.getScoreTrend(30),
-        window.electronAPI.getGoldenAverages(30),
-      ]);
+      const [statsData, trendData, weeklyData, monthlyData, avgData, improvementData] =
+        await Promise.all([
+          window.electronAPI.getStats(),
+          window.electronAPI.getScoreTrend(30),
+          window.electronAPI.getWeeklyStats(8),
+          window.electronAPI.getMonthlyStats(6),
+          window.electronAPI.getGoldenAverages(30),
+          window.electronAPI.getImprovementAnalysis(),
+        ]);
       setStats(statsData as Stats);
       setTrend(trendData as ScoreTrendPoint[]);
+      setWeeklyStats(weeklyData as WeeklyStatPoint[]);
+      setMonthlyStats(monthlyData as MonthlyStatPoint[]);
       setGoldenAverages(avgData as Record<string, number>);
+      setImprovement(improvementData as ImprovementAnalysis);
     } catch (error) {
       console.error('Failed to load progress data:', error);
     } finally {
@@ -50,21 +99,44 @@ export default function ProgressTracker({ onClose }: ProgressTrackerProps) {
   const chartHeight = 120;
   const chartWidth = 280;
 
+  const chartData = useMemo(() => {
+    switch (timeRange) {
+      case 'weekly':
+        return weeklyStats.map((w) => ({
+          label: w.weekStart.slice(5),
+          value: w.avgScore,
+          count: w.count,
+        }));
+      case 'monthly':
+        return monthlyStats.map((m) => ({
+          label: m.month.slice(5),
+          value: m.avgScore,
+          count: m.count,
+        }));
+      default:
+        return trend.map((t) => ({
+          label: t.date.slice(5),
+          value: t.avgScore,
+          count: t.count,
+        }));
+    }
+  }, [timeRange, trend, weeklyStats, monthlyStats]);
+
   const chartPoints = useMemo(() => {
-    if (trend.length === 0) return '';
+    if (chartData.length === 0) return '';
 
     const maxScore = 100;
     const minScore = 0;
-    const xStep = chartWidth / Math.max(trend.length - 1, 1);
+    const xStep = chartWidth / Math.max(chartData.length - 1, 1);
 
-    return trend
+    return chartData
       .map((point, i) => {
         const x = i * xStep;
-        const y = chartHeight - ((point.avgScore - minScore) / (maxScore - minScore)) * chartHeight;
+        const y = chartHeight - ((point.value - minScore) / (maxScore - minScore)) * chartHeight;
         return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
       })
       .join(' ');
-  }, [trend]);
+  }, [chartData]);
 
   const getTrendIcon = () => {
     switch (stats?.recentTrend) {
@@ -88,6 +160,17 @@ export default function ProgressTracker({ onClose }: ProgressTrackerProps) {
     }
   };
 
+  const formatMilestone = (type: string): string => {
+    switch (type) {
+      case 'first_a_grade':
+        return '첫 A등급 달성';
+      case 'highest_score':
+        return '최고 점수';
+      default:
+        return type;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -99,19 +182,9 @@ export default function ProgressTracker({ onClose }: ProgressTrackerProps) {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <BarChart3 size={20} className="text-accent-primary" />
-          <span className="font-medium">내 진행 상황</span>
-        </div>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="text-sm text-gray-400 hover:text-gray-200"
-          >
-            닫기
-          </button>
-        )}
+      <div className="flex items-center gap-2">
+        <BarChart3 size={20} className="text-accent-primary" />
+        <span className="font-medium">내 진행 상황</span>
       </div>
 
       {/* Summary Stats */}
@@ -123,9 +196,7 @@ export default function ProgressTracker({ onClose }: ProgressTrackerProps) {
           <div className="text-xs text-gray-400">총 분석</div>
         </div>
         <div className="bg-dark-surface rounded-lg p-3 text-center">
-          <div className="text-2xl font-bold">
-            {stats?.averageScore || 0}%
-          </div>
+          <div className="text-2xl font-bold">{stats?.averageScore || 0}%</div>
           <div className="text-xs text-gray-400">평균 점수</div>
         </div>
         <div className="bg-dark-surface rounded-lg p-3 text-center">
@@ -137,10 +208,67 @@ export default function ProgressTracker({ onClose }: ProgressTrackerProps) {
         </div>
       </div>
 
+      {/* Improvement & Streak */}
+      {improvement && (improvement.streak > 0 || improvement.overallImprovement !== 0) && (
+        <div className="grid grid-cols-2 gap-3">
+          {improvement.streak > 0 && (
+            <div className="bg-dark-surface rounded-lg p-3 flex items-center gap-3">
+              <Flame size={24} className="text-orange-400" />
+              <div>
+                <div className="text-lg font-bold">{improvement.streak}일</div>
+                <div className="text-xs text-gray-400">연속 사용</div>
+              </div>
+            </div>
+          )}
+          {improvement.overallImprovement !== 0 && (
+            <div className="bg-dark-surface rounded-lg p-3 flex items-center gap-3">
+              {improvement.overallImprovement > 0 ? (
+                <TrendingUp size={24} className="text-accent-success" />
+              ) : (
+                <TrendingDown size={24} className="text-accent-error" />
+              )}
+              <div>
+                <div className="text-lg font-bold">
+                  {improvement.overallImprovement > 0 ? '+' : ''}
+                  {improvement.overallImprovement}%
+                </div>
+                <div className="text-xs text-gray-400">월간 변화</div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Time Range Selector */}
+      <div className="flex gap-1 p-1 bg-dark-surface rounded-lg">
+        {(['daily', 'weekly', 'monthly'] as TimeRange[]).map((range) => (
+          <button
+            key={range}
+            onClick={() => setTimeRange(range)}
+            className={`flex-1 py-1.5 text-xs rounded-md transition-colors ${
+              timeRange === range
+                ? 'bg-accent-primary text-white'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            {range === 'daily' ? '일별' : range === 'weekly' ? '주별' : '월별'}
+          </button>
+        ))}
+      </div>
+
       {/* Score Trend Chart */}
-      {trend.length > 0 && (
+      {chartData.length > 0 && (
         <div className="bg-dark-surface rounded-lg p-4">
-          <div className="text-sm text-gray-400 mb-3">30일 점수 추이</div>
+          <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
+            <Calendar size={16} />
+            <span>
+              {timeRange === 'daily'
+                ? '30일 점수 추이'
+                : timeRange === 'weekly'
+                ? '8주 점수 추이'
+                : '6개월 점수 추이'}
+            </span>
+          </div>
           <svg
             width={chartWidth}
             height={chartHeight}
@@ -162,6 +290,23 @@ export default function ProgressTracker({ onClose }: ProgressTrackerProps) {
               />
             ))}
 
+            {/* Area fill */}
+            {chartData.length > 1 && (
+              <path
+                d={`${chartPoints} L ${chartWidth} ${chartHeight} L 0 ${chartHeight} Z`}
+                fill="url(#gradient)"
+                opacity="0.3"
+              />
+            )}
+
+            {/* Gradient definition */}
+            <defs>
+              <linearGradient id="gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#6366f1" />
+                <stop offset="100%" stopColor="#6366f1" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+
             {/* Trend line */}
             <path
               d={chartPoints}
@@ -173,26 +318,28 @@ export default function ProgressTracker({ onClose }: ProgressTrackerProps) {
             />
 
             {/* Data points */}
-            {trend.map((point, i) => {
-              const xStep = chartWidth / Math.max(trend.length - 1, 1);
+            {chartData.map((point, i) => {
+              const xStep = chartWidth / Math.max(chartData.length - 1, 1);
               const x = i * xStep;
-              const y = chartHeight - (point.avgScore / 100) * chartHeight;
+              const y = chartHeight - (point.value / 100) * chartHeight;
               return (
                 <circle
                   key={i}
                   cx={x}
                   cy={y}
-                  r="3"
-                  fill={point.avgScore >= 70 ? '#10b981' : point.avgScore >= 50 ? '#f59e0b' : '#ef4444'}
+                  r="4"
+                  fill={
+                    point.value >= 70 ? '#10b981' : point.value >= 50 ? '#f59e0b' : '#ef4444'
+                  }
                   stroke="#0d1117"
-                  strokeWidth="1"
+                  strokeWidth="2"
                 />
               );
             })}
           </svg>
           <div className="flex justify-between text-xs text-gray-500 mt-2">
-            <span>{trend[0]?.date || ''}</span>
-            <span>{trend[trend.length - 1]?.date || ''}</span>
+            <span>{chartData[0]?.label || ''}</span>
+            <span>{chartData[chartData.length - 1]?.label || ''}</span>
           </div>
         </div>
       )}
@@ -201,12 +348,22 @@ export default function ProgressTracker({ onClose }: ProgressTrackerProps) {
       <div className="bg-dark-surface rounded-lg p-4">
         <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
           <Target size={16} />
-          <span>GOLDEN 차원별 평균 (30일)</span>
+          <span>GOLDEN 차원별 평균</span>
+          {improvement && (
+            <span className="ml-auto text-xs">
+              강점:{' '}
+              <span className="text-accent-success">
+                {DIMENSION_LABELS[improvement.bestDimension] || improvement.bestDimension}
+              </span>
+            </span>
+          )}
         </div>
         <div className="space-y-2">
           {Object.entries(goldenAverages).map(([key, value]) => (
             <div key={key} className="flex items-center gap-2">
-              <div className="w-20 text-xs text-gray-400 capitalize">{key}</div>
+              <div className="w-16 text-xs text-gray-400">
+                {DIMENSION_LABELS[key] || key}
+              </div>
               <div className="flex-1 h-2 bg-dark-hover rounded-full overflow-hidden">
                 <div
                   className={`h-full transition-all duration-300 ${
@@ -223,7 +380,37 @@ export default function ProgressTracker({ onClose }: ProgressTrackerProps) {
             </div>
           ))}
         </div>
+        {improvement?.worstDimension && (
+          <div className="mt-3 p-2 bg-accent-warning/10 rounded text-xs text-accent-warning">
+            💡 개선 필요:{' '}
+            {DIMENSION_LABELS[improvement.worstDimension] || improvement.worstDimension} 부분에
+            집중해보세요
+          </div>
+        )}
       </div>
+
+      {/* Milestones */}
+      {improvement?.milestones && improvement.milestones.length > 0 && (
+        <div className="bg-dark-surface rounded-lg p-4">
+          <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
+            <Award size={16} />
+            <span>달성 기록</span>
+          </div>
+          <div className="space-y-2">
+            {improvement.milestones.map((milestone, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between text-sm"
+              >
+                <span>{formatMilestone(milestone.type)}</span>
+                <span className="text-accent-primary font-medium">
+                  {milestone.value}점
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Grade Distribution */}
       {stats?.gradeDistribution && Object.keys(stats.gradeDistribution).length > 0 && (

@@ -255,6 +255,210 @@ function updateWeaknessTracking(scores: Record<string, number>): void {
 }
 
 /**
+ * Get weekly statistics
+ */
+export function getWeeklyStats(weeks = 4): Array<{
+  weekStart: string;
+  avgScore: number;
+  count: number;
+  improvement: number;
+}> {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    WITH weekly_data AS (
+      SELECT
+        DATE(analyzed_at, 'weekday 0', '-6 days') as week_start,
+        AVG(overall_score) as avg_score,
+        COUNT(*) as count
+      FROM prompt_history
+      WHERE analyzed_at >= DATE('now', '-' || ? || ' weeks')
+      GROUP BY week_start
+      ORDER BY week_start ASC
+    )
+    SELECT
+      week_start,
+      avg_score,
+      count,
+      avg_score - LAG(avg_score) OVER (ORDER BY week_start) as improvement
+    FROM weekly_data
+  `);
+
+  const rows = stmt.all(weeks * 7) as Array<{
+    week_start: string;
+    avg_score: number;
+    count: number;
+    improvement: number | null;
+  }>;
+
+  return rows.map(row => ({
+    weekStart: row.week_start,
+    avgScore: Math.round(row.avg_score),
+    count: row.count,
+    improvement: Math.round(row.improvement || 0),
+  }));
+}
+
+/**
+ * Get monthly statistics
+ */
+export function getMonthlyStats(months = 6): Array<{
+  month: string;
+  avgScore: number;
+  count: number;
+  gradeDistribution: Record<string, number>;
+}> {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    SELECT
+      strftime('%Y-%m', analyzed_at) as month,
+      AVG(overall_score) as avg_score,
+      COUNT(*) as count
+    FROM prompt_history
+    WHERE analyzed_at >= DATE('now', '-' || ? || ' months')
+    GROUP BY month
+    ORDER BY month ASC
+  `);
+
+  const rows = stmt.all(months) as Array<{
+    month: string;
+    avg_score: number;
+    count: number;
+  }>;
+
+  // Get grade distribution per month
+  const gradeStmt = db.prepare(`
+    SELECT
+      strftime('%Y-%m', analyzed_at) as month,
+      grade,
+      COUNT(*) as count
+    FROM prompt_history
+    WHERE analyzed_at >= DATE('now', '-' || ? || ' months')
+    GROUP BY month, grade
+  `);
+
+  const gradeRows = gradeStmt.all(months) as Array<{
+    month: string;
+    grade: string;
+    count: number;
+  }>;
+
+  const gradesByMonth: Record<string, Record<string, number>> = {};
+  for (const row of gradeRows) {
+    if (!gradesByMonth[row.month]) {
+      gradesByMonth[row.month] = {};
+    }
+    gradesByMonth[row.month][row.grade] = row.count;
+  }
+
+  return rows.map(row => ({
+    month: row.month,
+    avgScore: Math.round(row.avg_score),
+    count: row.count,
+    gradeDistribution: gradesByMonth[row.month] || {},
+  }));
+}
+
+/**
+ * Get improvement analysis
+ */
+export function getImprovementAnalysis(): {
+  overallImprovement: number;
+  bestDimension: string;
+  worstDimension: string;
+  streak: number;
+  milestones: Array<{ type: string; date: string; value: number }>;
+} {
+  const db = getDatabase();
+
+  // Compare first week vs last week averages
+  const improvementStmt = db.prepare(`
+    WITH first_week AS (
+      SELECT AVG(overall_score) as avg
+      FROM prompt_history
+      WHERE analyzed_at <= DATE('now', '-21 days')
+      AND analyzed_at >= DATE('now', '-28 days')
+    ),
+    last_week AS (
+      SELECT AVG(overall_score) as avg
+      FROM prompt_history
+      WHERE analyzed_at >= DATE('now', '-7 days')
+    )
+    SELECT
+      (SELECT avg FROM last_week) - (SELECT avg FROM first_week) as improvement
+  `);
+  const improvement = improvementStmt.get() as { improvement: number | null };
+
+  // Best/worst dimensions
+  const dimensionStmt = db.prepare(`
+    SELECT
+      AVG(golden_goal) as goal,
+      AVG(golden_output) as output,
+      AVG(golden_limits) as limits,
+      AVG(golden_data) as data,
+      AVG(golden_evaluation) as evaluation,
+      AVG(golden_next) as next
+    FROM prompt_history
+    WHERE analyzed_at >= DATE('now', '-30 days')
+  `);
+  const dimensions = dimensionStmt.get() as Record<string, number>;
+
+  const dimensionEntries = Object.entries(dimensions).filter(([, v]) => v != null);
+  const bestDimension = dimensionEntries.reduce((a, b) => (a[1] > b[1] ? a : b))[0];
+  const worstDimension = dimensionEntries.reduce((a, b) => (a[1] < b[1] ? a : b))[0];
+
+  // Current streak (consecutive days with analyses)
+  const streakStmt = db.prepare(`
+    WITH RECURSIVE dates AS (
+      SELECT DATE('now') as d, 0 as streak
+      UNION ALL
+      SELECT DATE(d, '-1 day'), streak + 1
+      FROM dates
+      WHERE EXISTS (
+        SELECT 1 FROM prompt_history
+        WHERE DATE(analyzed_at) = DATE(d, '-1 day')
+      )
+      AND streak < 100
+    )
+    SELECT MAX(streak) as streak FROM dates
+  `);
+  const streakResult = streakStmt.get() as { streak: number };
+
+  // Milestones (first A grade, highest score, etc)
+  const milestones: Array<{ type: string; date: string; value: number }> = [];
+
+  const firstAStmt = db.prepare(`
+    SELECT DATE(analyzed_at) as date, overall_score as value
+    FROM prompt_history
+    WHERE grade = 'A'
+    ORDER BY analyzed_at ASC
+    LIMIT 1
+  `);
+  const firstA = firstAStmt.get() as { date: string; value: number } | undefined;
+  if (firstA) {
+    milestones.push({ type: 'first_a_grade', date: firstA.date, value: firstA.value });
+  }
+
+  const highestScoreStmt = db.prepare(`
+    SELECT DATE(analyzed_at) as date, MAX(overall_score) as value
+    FROM prompt_history
+  `);
+  const highestScore = highestScoreStmt.get() as { date: string; value: number };
+  if (highestScore.value) {
+    milestones.push({ type: 'highest_score', date: highestScore.date, value: highestScore.value });
+  }
+
+  return {
+    overallImprovement: Math.round(improvement.improvement || 0),
+    bestDimension,
+    worstDimension,
+    streak: streakResult.streak || 0,
+    milestones,
+  };
+}
+
+/**
  * Get statistics summary
  */
 export function getStats(): {

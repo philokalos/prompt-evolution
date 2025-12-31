@@ -14,6 +14,9 @@ import {
   getScoreTrend,
   getGoldenAverages,
   getTopWeaknesses,
+  getWeeklyStats,
+  getMonthlyStats,
+  getImprovementAnalysis,
   getStats,
 } from './db/index.js';
 
@@ -337,6 +340,18 @@ export function registerLearningEngineHandlers(): void {
 
   ipcMain.handle('get-stats', async () => {
     return getStats();
+  });
+
+  ipcMain.handle('get-weekly-stats', async (_event, weeks?: number) => {
+    return getWeeklyStats(weeks || 4);
+  });
+
+  ipcMain.handle('get-monthly-stats', async (_event, months?: number) => {
+    return getMonthlyStats(months || 6);
+  });
+
+  ipcMain.handle('get-improvement-analysis', async () => {
+    return getImprovementAnalysis();
   });
 
   // Initialize by loading modules

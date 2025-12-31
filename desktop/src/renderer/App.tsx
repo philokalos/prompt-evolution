@@ -1,10 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Minus, Copy, BarChart3, AlertTriangle, Lightbulb, ArrowLeft } from 'lucide-react';
+import { X, Minus, Copy, BarChart3, Lightbulb, ArrowLeft } from 'lucide-react';
 import GoldenRadar from './components/GoldenRadar';
 import ProgressTracker from './components/ProgressTracker';
 import PersonalTips from './components/PersonalTips';
+import IssueList from './components/IssueList';
 
-// Placeholder types - will be replaced with actual analysis types
+// Analysis result types
+interface Issue {
+  severity: 'high' | 'medium' | 'low';
+  category: string;
+  message: string;
+  suggestion: string;
+}
+
 interface AnalysisResult {
   overallScore: number;
   grade: 'A' | 'B' | 'C' | 'D' | 'F';
@@ -16,11 +24,7 @@ interface AnalysisResult {
     evaluation: number;
     next: number;
   };
-  issues: Array<{
-    severity: 'high' | 'medium' | 'low';
-    message: string;
-    suggestion: string;
-  }>;
+  issues: Issue[];
   personalTips: string[];
   improvedPrompt?: string;
 }
@@ -28,7 +32,7 @@ interface AnalysisResult {
 type ViewMode = 'analysis' | 'progress' | 'tips';
 
 function App() {
-  const [promptText, setPromptText] = useState('');
+  const [, setPromptText] = useState('');
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -71,6 +75,7 @@ function App() {
         issues: [
           {
             severity: 'medium',
+            category: 'analysis',
             message: '분석 엔진 연결 실패',
             suggestion: '앱을 다시 시작해보세요',
           },
@@ -112,16 +117,6 @@ function App() {
     }
   };
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'high':
-        return 'bg-red-500/20 text-red-400';
-      case 'medium':
-        return 'bg-yellow-500/20 text-yellow-400';
-      default:
-        return 'bg-blue-500/20 text-blue-400';
-    }
-  };
 
   return (
     <div className="window-container h-full flex flex-col text-gray-200">
@@ -194,36 +189,7 @@ function App() {
             </div>
 
             {/* Issues */}
-            {analysis.issues.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <AlertTriangle size={16} className="text-accent-warning" />
-                  <span>발견된 문제 ({analysis.issues.length})</span>
-                </div>
-                {analysis.issues.map((issue, index) => (
-                  <div
-                    key={index}
-                    className="issue-item bg-dark-surface rounded-lg p-3 cursor-pointer"
-                  >
-                    <div className="flex items-start gap-2">
-                      <span
-                        className={`px-2 py-0.5 rounded text-xs ${getSeverityColor(
-                          issue.severity
-                        )}`}
-                      >
-                        {issue.severity === 'high' ? '높음' : issue.severity === 'medium' ? '중간' : '낮음'}
-                      </span>
-                      <div className="flex-1">
-                        <div className="text-sm">{issue.message}</div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          → {issue.suggestion}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <IssueList issues={analysis.issues} />
 
             {/* Personal Tips Preview */}
             {analysis.personalTips.length > 0 && (

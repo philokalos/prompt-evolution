@@ -26,6 +26,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTopWeaknesses: (limit?: number): Promise<unknown[]> =>
     ipcRenderer.invoke('get-top-weaknesses', limit),
   getStats: (): Promise<unknown> => ipcRenderer.invoke('get-stats'),
+  getWeeklyStats: (weeks?: number): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-weekly-stats', weeks),
+  getMonthlyStats: (months?: number): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-monthly-stats', months),
+  getImprovementAnalysis: (): Promise<unknown> =>
+    ipcRenderer.invoke('get-improvement-analysis'),
 
   // Event listeners
   onClipboardText: (callback: (text: string) => void): void => {
@@ -53,6 +59,9 @@ declare global {
       getGoldenAverages: (days?: number) => Promise<Record<string, number>>;
       getTopWeaknesses: (limit?: number) => Promise<unknown[]>;
       getStats: () => Promise<unknown>;
+      getWeeklyStats: (weeks?: number) => Promise<unknown[]>;
+      getMonthlyStats: (months?: number) => Promise<unknown[]>;
+      getImprovementAnalysis: () => Promise<unknown>;
       onClipboardText: (callback: (text: string) => void) => void;
       removeClipboardListener: () => void;
     };
