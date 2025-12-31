@@ -9,16 +9,31 @@ const __dirname = path.dirname(__filename);
 let tray: Tray | null = null;
 
 export function createTray(mainWindow: BrowserWindow): Tray {
-  // Create a simple icon (16x16 for macOS menu bar)
-  // In production, use actual icon files from assets/icons
-  const iconPath = path.join(__dirname, '../../assets/icons/tray-icon.png');
+  // Load tray icon from assets
+  let trayIcon: Electron.NativeImage;
 
-  // Create a simple colored circle as fallback icon
-  const icon = nativeImage.createEmpty();
-  // For development, we'll create a simple template image
-  const trayIcon = process.platform === 'darwin'
-    ? createTemplateIcon()
-    : icon;
+  if (process.platform === 'darwin') {
+    // Use template icon for macOS (supports dark/light mode)
+    const iconPath = path.join(__dirname, '../../assets/icons/trayTemplate.png');
+    const icon2xPath = path.join(__dirname, '../../assets/icons/trayTemplate@2x.png');
+
+    try {
+      // Load with @2x support
+      trayIcon = nativeImage.createFromPath(iconPath);
+      trayIcon.setTemplateImage(true);
+    } catch {
+      // Fallback to generated icon
+      trayIcon = createTemplateIcon();
+    }
+  } else {
+    // Use color icon for Windows/Linux
+    const iconPath = path.join(__dirname, '../../assets/icons/tray.png');
+    try {
+      trayIcon = nativeImage.createFromPath(iconPath);
+    } catch {
+      trayIcon = nativeImage.createEmpty();
+    }
+  }
 
   tray = new Tray(trayIcon);
   tray.setToolTip('PromptLint - 프롬프트 교정');

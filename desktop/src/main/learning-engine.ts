@@ -6,7 +6,7 @@
 
 import * as path from 'path';
 import { fileURLToPath } from 'url';
-import { ipcMain } from 'electron';
+import { app, ipcMain } from 'electron';
 import {
   initializeDatabase,
   saveAnalysis,
@@ -23,8 +23,11 @@ const __dirname = path.dirname(__filename);
 
 // Import analysis modules - built from parent project's src/analysis
 // In development: dist/analysis (built by npm run build:analysis)
-// In production: bundled with the app
-const analysisPath = path.join(__dirname, '../analysis');
+// In production: extraResources/analysis
+const isDev = !app.isPackaged;
+const analysisPath = isDev
+  ? path.join(__dirname, '../analysis')
+  : path.join(process.resourcesPath, 'analysis');
 
 interface GOLDENScore {
   goal: number;
