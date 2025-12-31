@@ -1,19 +1,30 @@
 /**
  * Personal Learning Engine
  * Connects Electron app to existing prompt-evolution analysis modules
+ * Includes history tracking and progress analysis
  */
 
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import { ipcMain } from 'electron';
+import {
+  initializeDatabase,
+  saveAnalysis,
+  getRecentAnalyses,
+  getScoreTrend,
+  getGoldenAverages,
+  getTopWeaknesses,
+  getStats,
+} from './db/index.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Import analysis modules from parent project
-// Note: In production build, these will be bundled or copied to resources
-const analysisPath = path.join(__dirname, '../../../src/analysis');
+// Import analysis modules - built from parent project's src/analysis
+// In development: dist/analysis (built by npm run build:analysis)
+// In production: bundled with the app
+const analysisPath = path.join(__dirname, '../analysis');
 
 interface GOLDENScore {
   goal: number;
@@ -200,6 +211,7 @@ function generateImprovedPrompt(evaluation: GuidelineEvaluation): string | undef
 
 /**
  * Analyze a prompt and return structured result
+ * Also saves to history for progress tracking
  */
 async function analyzePrompt(text: string): Promise<AnalysisResult> {
   // Ensure modules are loaded
@@ -221,7 +233,23 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
       classification = classifyPrompt(text);
     }
 
-    return convertToAnalysisResult(evaluation, classification);
+    const result = convertToAnalysisResult(evaluation, classification);
+
+    // Save to history for progress tracking
+    try {
+      saveAnalysis({
+        promptText: text,
+        overallScore: result.overallScore,
+        grade: result.grade,
+        goldenScores: result.goldenScores,
+        issues: result.issues,
+        improvedPrompt: result.improvedPrompt,
+      });
+    } catch (dbError) {
+      console.warn('[LearningEngine] Failed to save to history:', dbError);
+    }
+
+    return result;
   } catch (error) {
     console.error('[LearningEngine] Analysis error:', error);
     return createFallbackAnalysis(text);
@@ -274,9 +302,38 @@ function createFallbackAnalysis(text: string): AnalysisResult {
  * Register IPC handlers for learning engine
  */
 export function registerLearningEngineHandlers(): void {
+  // Initialize database
+  try {
+    initializeDatabase();
+    console.log('[LearningEngine] Database initialized');
+  } catch (error) {
+    console.error('[LearningEngine] Database initialization failed:', error);
+  }
+
   // Analyze prompt handler
   ipcMain.handle('analyze-prompt', async (_event, text: string) => {
     return analyzePrompt(text);
+  });
+
+  // History handlers
+  ipcMain.handle('get-history', async (_event, limit?: number) => {
+    return getRecentAnalyses(limit || 30);
+  });
+
+  ipcMain.handle('get-score-trend', async (_event, days?: number) => {
+    return getScoreTrend(days || 30);
+  });
+
+  ipcMain.handle('get-golden-averages', async (_event, days?: number) => {
+    return getGoldenAverages(days || 30);
+  });
+
+  ipcMain.handle('get-top-weaknesses', async (_event, limit?: number) => {
+    return getTopWeaknesses(limit || 3);
+  });
+
+  ipcMain.handle('get-stats', async () => {
+    return getStats();
   });
 
   // Initialize by loading modules

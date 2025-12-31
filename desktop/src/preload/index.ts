@@ -15,8 +15,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   hideWindow: (): Promise<boolean> => ipcRenderer.invoke('hide-window'),
   minimizeWindow: (): Promise<boolean> => ipcRenderer.invoke('minimize-window'),
 
-  // Analysis (to be implemented)
+  // Analysis
   analyzePrompt: (text: string): Promise<unknown> => ipcRenderer.invoke('analyze-prompt', text),
+
+  // History & Progress
+  getHistory: (limit?: number): Promise<unknown[]> => ipcRenderer.invoke('get-history', limit),
+  getScoreTrend: (days?: number): Promise<unknown[]> => ipcRenderer.invoke('get-score-trend', days),
+  getGoldenAverages: (days?: number): Promise<Record<string, number>> =>
+    ipcRenderer.invoke('get-golden-averages', days),
+  getTopWeaknesses: (limit?: number): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-top-weaknesses', limit),
+  getStats: (): Promise<unknown> => ipcRenderer.invoke('get-stats'),
 
   // Event listeners
   onClipboardText: (callback: (text: string) => void): void => {
@@ -39,6 +48,11 @@ declare global {
       hideWindow: () => Promise<boolean>;
       minimizeWindow: () => Promise<boolean>;
       analyzePrompt: (text: string) => Promise<unknown>;
+      getHistory: (limit?: number) => Promise<unknown[]>;
+      getScoreTrend: (days?: number) => Promise<unknown[]>;
+      getGoldenAverages: (days?: number) => Promise<Record<string, number>>;
+      getTopWeaknesses: (limit?: number) => Promise<unknown[]>;
+      getStats: () => Promise<unknown>;
       onClipboardText: (callback: (text: string) => void) => void;
       removeClipboardListener: () => void;
     };

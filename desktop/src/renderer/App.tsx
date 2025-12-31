@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Minus, Copy, BarChart3, AlertTriangle, Lightbulb } from 'lucide-react';
+import { X, Minus, Copy, BarChart3, AlertTriangle, Lightbulb, ArrowLeft } from 'lucide-react';
+import GoldenRadar from './components/GoldenRadar';
+import ProgressTracker from './components/ProgressTracker';
+import PersonalTips from './components/PersonalTips';
 
 // Placeholder types - will be replaced with actual analysis types
 interface AnalysisResult {
@@ -22,11 +25,14 @@ interface AnalysisResult {
   improvedPrompt?: string;
 }
 
+type ViewMode = 'analysis' | 'progress' | 'tips';
+
 function App() {
   const [promptText, setPromptText] = useState('');
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('analysis');
 
   // Listen for clipboard text from main process
   useEffect(() => {
@@ -122,8 +128,18 @@ function App() {
       {/* Title Bar */}
       <div className="titlebar flex items-center justify-between px-4 py-3 border-b border-dark-border bg-dark-surface">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold">PromptLint</span>
-          {analysis && (
+          {viewMode !== 'analysis' && (
+            <button
+              onClick={() => setViewMode('analysis')}
+              className="p-1 rounded-md hover:bg-dark-hover transition-colors"
+            >
+              <ArrowLeft size={16} />
+            </button>
+          )}
+          <span className="text-sm font-semibold">
+            {viewMode === 'analysis' ? 'PromptLint' : viewMode === 'progress' ? '내 진행 상황' : '맞춤 팁'}
+          </span>
+          {viewMode === 'analysis' && analysis && (
             <span
               className={`grade-badge text-2xl font-bold ${getGradeColor(analysis.grade)}`}
             >
@@ -149,35 +165,31 @@ function App() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {isAnalyzing ? (
+        {viewMode === 'progress' ? (
+          <ProgressTracker />
+        ) : viewMode === 'tips' ? (
+          <PersonalTips currentTips={analysis?.personalTips} />
+        ) : isAnalyzing ? (
           <div className="flex items-center justify-center h-full">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary"></div>
           </div>
         ) : analysis ? (
           <>
-            {/* GOLDEN Score Summary */}
+            {/* GOLDEN Score Summary with Radar Chart */}
             <div className="bg-dark-surface rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-gray-400">GOLDEN Score</span>
-                <span className="text-lg font-semibold">{analysis.overallScore}%</span>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <span className="text-sm text-gray-400">GOLDEN Score</span>
+                  <div className="text-2xl font-bold">{analysis.overallScore}%</div>
+                </div>
+                <span
+                  className={`grade-badge text-4xl font-bold ${getGradeColor(analysis.grade)}`}
+                >
+                  {analysis.grade}
+                </span>
               </div>
-              <div className="grid grid-cols-6 gap-2 text-center text-xs">
-                {Object.entries(analysis.goldenScores).map(([key, value]) => (
-                  <div key={key}>
-                    <div className="text-gray-500 uppercase">{key[0]}</div>
-                    <div
-                      className={`font-medium ${
-                        value >= 70
-                          ? 'text-accent-success'
-                          : value >= 50
-                          ? 'text-accent-warning'
-                          : 'text-accent-error'
-                      }`}
-                    >
-                      {value}%
-                    </div>
-                  </div>
-                ))}
+              <div className="flex justify-center">
+                <GoldenRadar scores={analysis.goldenScores} size={200} />
               </div>
             </div>
 
@@ -213,15 +225,23 @@ function App() {
               </div>
             )}
 
-            {/* Personal Tips */}
+            {/* Personal Tips Preview */}
             {analysis.personalTips.length > 0 && (
               <div className="space-y-2">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <Lightbulb size={16} className="text-accent-primary" />
-                  <span>맞춤 팁</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Lightbulb size={16} className="text-accent-primary" />
+                    <span>맞춤 팁</span>
+                  </div>
+                  <button
+                    onClick={() => setViewMode('tips')}
+                    className="text-xs text-accent-primary hover:underline"
+                  >
+                    더 보기
+                  </button>
                 </div>
                 <div className="bg-dark-surface rounded-lg p-3 space-y-2">
-                  {analysis.personalTips.map((tip, index) => (
+                  {analysis.personalTips.slice(0, 2).map((tip, index) => (
                     <div key={index} className="flex items-start gap-2 text-sm">
                       <span className="text-accent-secondary">•</span>
                       <span className="text-gray-300">{tip}</span>
@@ -245,19 +265,35 @@ function App() {
       </div>
 
       {/* Footer Actions */}
-      {analysis && (
+      {viewMode === 'analysis' && (
         <div className="p-4 border-t border-dark-border bg-dark-surface">
           <div className="flex gap-2">
-            <button
-              onClick={handleCopyImproved}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-accent-primary hover:bg-accent-primary/90 rounded-lg text-sm font-medium transition-colors"
-            >
-              <Copy size={16} />
-              {copied ? '복사됨!' : '개선된 프롬프트 복사'}
-            </button>
-            <button className="px-4 py-2 bg-dark-hover hover:bg-dark-border rounded-lg text-sm transition-colors">
-              <BarChart3 size={16} />
-            </button>
+            {analysis ? (
+              <>
+                <button
+                  onClick={handleCopyImproved}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-accent-primary hover:bg-accent-primary/90 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <Copy size={16} />
+                  {copied ? '복사됨!' : '개선된 프롬프트 복사'}
+                </button>
+                <button
+                  onClick={() => setViewMode('progress')}
+                  className="px-4 py-2 bg-dark-hover hover:bg-dark-border rounded-lg text-sm transition-colors"
+                  title="내 진행 상황"
+                >
+                  <BarChart3 size={16} />
+                </button>
+              </>
+            ) : (
+              <button
+                onClick={() => setViewMode('progress')}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-dark-hover hover:bg-dark-border rounded-lg text-sm transition-colors"
+              >
+                <BarChart3 size={16} />
+                <span>내 진행 상황 보기</span>
+              </button>
+            )}
           </div>
         </div>
       )}

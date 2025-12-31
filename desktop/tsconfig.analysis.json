@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "ES2020",
+    "moduleResolution": "node",
+    "lib": ["ES2020"],
+    "outDir": "dist/analysis",
+    "rootDir": "../src/analysis",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "declaration": false
+  },
+  "include": ["../src/analysis/**/*.ts"],
+  "exclude": ["node_modules", "../src/analysis/**/*.test.ts"]
+}
