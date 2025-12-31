@@ -5,6 +5,7 @@ import {
   TrendingUp,
   FolderOpen,
   BookOpen,
+  GraduationCap,
 } from 'lucide-react';
 
 const navItems = [
@@ -13,6 +14,7 @@ const navItems = [
   { to: '/trends', label: 'Trends', icon: TrendingUp },
   { to: '/projects', label: 'Projects', icon: FolderOpen },
   { to: '/library', label: 'Library', icon: BookOpen },
+  { to: '/guidebook', label: 'Guidebook', icon: GraduationCap },
 ];
 
 export default function Sidebar() {

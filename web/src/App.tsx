@@ -8,6 +8,7 @@ const InsightsPage = lazy(() => import('./pages/InsightsPage'));
 const TrendsPage = lazy(() => import('./pages/TrendsPage'));
 const ProjectsPage = lazy(() => import('./pages/ProjectsPage'));
 const LibraryPage = lazy(() => import('./pages/LibraryPage'));
+const GuidebookPage = lazy(() => import('./pages/GuidebookPage'));
 
 function LoadingFallback() {
   return (
@@ -27,6 +28,7 @@ function App() {
           <Route path="/trends" element={<TrendsPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/library" element={<LibraryPage />} />
+          <Route path="/guidebook" element={<GuidebookPage />} />
         </Routes>
       </Suspense>
     </Layout>

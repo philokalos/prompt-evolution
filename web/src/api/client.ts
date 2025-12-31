@@ -87,6 +87,104 @@ export interface SyncTriggerResponse {
   duration: number;
 }
 
+// Self-Improvement Types
+export type TaskCategory =
+  | 'code-generation'
+  | 'code-review'
+  | 'bug-fix'
+  | 'refactoring'
+  | 'explanation'
+  | 'documentation'
+  | 'testing'
+  | 'architecture'
+  | 'deployment'
+  | 'data-analysis'
+  | 'general'
+  | 'unknown';
+
+export interface ImprovementArea {
+  area: string;
+  currentScore: number;
+  targetScore: number;
+  gap: number;
+  specificAdvice: string;
+  examples: {
+    before: string;
+    after: string;
+    explanation: string;
+  }[];
+  priority: 'high' | 'medium' | 'low';
+  estimatedImpact: string;
+}
+
+export interface StrengthArea {
+  area: string;
+  score: number;
+  evidence: string[];
+  tip: string;
+}
+
+export interface LearningPriority {
+  rank: number;
+  topic: string;
+  reason: string;
+  resources: {
+    title: string;
+    url: string;
+    type: 'article' | 'video' | 'documentation' | 'tutorial';
+  }[];
+  exercises: string[];
+}
+
+export interface RewriteExample {
+  category: TaskCategory;
+  before: {
+    prompt: string;
+    issues: string[];
+    score: number;
+  };
+  after: {
+    prompt: string;
+    improvements: string[];
+    score: number;
+  };
+  keyChanges: string[];
+}
+
+export interface ProgressPoint {
+  date: string;
+  averageScore: number;
+  promptCount: number;
+  topCategory: TaskCategory;
+}
+
+export interface WeeklyGoal {
+  goal: string;
+  metric: string;
+  currentValue: number;
+  targetValue: number;
+  actionItems: string[];
+  difficulty: 'easy' | 'medium' | 'hard';
+}
+
+export interface ImprovementSummary {
+  overallGrade: 'A' | 'B' | 'C' | 'D' | 'F';
+  mainMessage: string;
+  keyInsights: string[];
+  quickWins: string[];
+  longTermGoals: string[];
+}
+
+export interface SelfImprovementFeedback {
+  areasForImprovement: ImprovementArea[];
+  strengths: StrengthArea[];
+  learningPriorities: LearningPriority[];
+  rewriteExamples: RewriteExample[];
+  progressTrend: ProgressPoint[];
+  weeklyGoals: WeeklyGoal[];
+  summary: ImprovementSummary;
+}
+
 export interface InsightItem {
   title: string;
   description: string;
@@ -119,7 +217,7 @@ export interface InsightsResponse {
   }>;
   promptLibrary: unknown;
   guidelinesSummary: unknown;
-  selfImprovement: unknown;
+  selfImprovement: SelfImprovementFeedback | null;
 }
 
 // API functions
