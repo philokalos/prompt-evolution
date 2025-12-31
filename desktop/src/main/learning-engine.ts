@@ -24,13 +24,15 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Import analysis modules - built from parent project's src/analysis
-// In development: dist/analysis (built by npm run build:analysis)
-// In production: extraResources/analysis
+// Import analysis modules - bundled as CJS for Electron compatibility
+// In development: dist/analysis/analysis-bundle.cjs
+// In production: extraResources/analysis/analysis-bundle.cjs
 const isDev = !app.isPackaged;
 const analysisPath = isDev
   ? path.join(__dirname, '../analysis')
   : path.join(process.resourcesPath, 'analysis');
+const analysisBundlePath = path.join(analysisPath, 'analysis-bundle.cjs');
+const classifierBundlePath = path.join(analysisPath, 'classifier-bundle.cjs');
 
 interface GOLDENScore {
   goal: number;
@@ -100,21 +102,33 @@ let evaluatePromptAgainstGuidelines: ((text: string) => GuidelineEvaluation) | n
 let classifyPrompt: ((text: string) => PromptClassification) | null = null;
 
 /**
- * Dynamically load analysis modules
+ * Load analysis modules from CJS bundle
+ * Uses require() for CJS compatibility in packaged Electron apps
  */
 async function loadAnalysisModules(): Promise<boolean> {
   try {
-    // Try to load the guidelines evaluator
-    const guidelinesModule = await import(
-      path.join(analysisPath, 'guidelines-evaluator.js')
-    );
-    evaluatePromptAgainstGuidelines = guidelinesModule.evaluatePromptAgainstGuidelines;
+    // Check if bundle exists
+    const fs = await import('fs');
+    if (!fs.existsSync(analysisBundlePath)) {
+      console.error('[LearningEngine] Analysis bundle not found at:', analysisBundlePath);
+      return false;
+    }
 
-    // Try to load the classifier
-    const classifierModule = await import(path.join(analysisPath, 'classifier.js'));
-    classifyPrompt = classifierModule.classifyPrompt;
+    // Use createRequire to load CJS modules from ESM context
+    const { createRequire } = await import('module');
+    const require = createRequire(import.meta.url);
 
-    console.log('[LearningEngine] Analysis modules loaded successfully');
+    // Load the bundled analysis module (CJS)
+    const analysisModule = require(analysisBundlePath);
+    evaluatePromptAgainstGuidelines = analysisModule.evaluatePromptAgainstGuidelines;
+
+    // Load classifier if available
+    if (fs.existsSync(classifierBundlePath)) {
+      const classifierModule = require(classifierBundlePath);
+      classifyPrompt = classifierModule.classifyPrompt;
+    }
+
+    console.log('[LearningEngine] Analysis modules loaded successfully from CJS bundle');
     return true;
   } catch (error) {
     console.error('[LearningEngine] Failed to load analysis modules:', error);
