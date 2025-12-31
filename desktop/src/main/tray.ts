@@ -8,35 +8,50 @@ const __dirname = path.dirname(__filename);
 
 let tray: Tray | null = null;
 
+/**
+ * Get the correct assets path for both dev and packaged app
+ * Assets are at ../../assets relative to dist/main/ in both cases
+ * (Electron handles asar paths transparently)
+ */
+function getAssetsPath(): string {
+  // Both dev and packaged: assets is at ../../assets from dist/main
+  return path.join(__dirname, '../../assets');
+}
+
 export function createTray(mainWindow: BrowserWindow): Tray {
   // Load tray icon from assets
   let trayIcon: Electron.NativeImage;
+  const assetsPath = getAssetsPath();
 
   if (process.platform === 'darwin') {
     // Use template icon for macOS (supports dark/light mode)
-    const iconPath = path.join(__dirname, '../../assets/icons/trayTemplate.png');
-    const icon2xPath = path.join(__dirname, '../../assets/icons/trayTemplate@2x.png');
+    const iconPath = path.join(assetsPath, 'icons/trayTemplate.png');
+    const icon2xPath = path.join(assetsPath, 'icons/trayTemplate@2x.png');
 
-    try {
-      // Load with @2x support
-      trayIcon = nativeImage.createFromPath(iconPath);
-      trayIcon.setTemplateImage(true);
-    } catch {
-      // Fallback to generated icon
+    // Try to load icon, fallback to generated if empty
+    trayIcon = nativeImage.createFromPath(iconPath);
+
+    if (trayIcon.isEmpty()) {
+      console.warn('[Tray] Icon not found at:', iconPath, '- using fallback');
       trayIcon = createTemplateIcon();
+    } else {
+      trayIcon.setTemplateImage(true);
     }
   } else {
     // Use color icon for Windows/Linux
-    const iconPath = path.join(__dirname, '../../assets/icons/tray.png');
-    try {
-      trayIcon = nativeImage.createFromPath(iconPath);
-    } catch {
+    const iconPath = path.join(assetsPath, 'icons/tray.png');
+    trayIcon = nativeImage.createFromPath(iconPath);
+
+    if (trayIcon.isEmpty()) {
+      console.warn('[Tray] Icon not found at:', iconPath);
       trayIcon = nativeImage.createEmpty();
     }
   }
 
+  console.log('[Tray] Creating tray with icon size:', trayIcon.getSize());
   tray = new Tray(trayIcon);
   tray.setToolTip('PromptLint - 프롬프트 교정');
+  console.log('[Tray] Tray created successfully');
 
   const contextMenu = Menu.buildFromTemplate([
     {

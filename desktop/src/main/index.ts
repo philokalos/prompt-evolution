@@ -29,12 +29,13 @@ function createWindow(): void {
     height,
     minWidth: 360,
     minHeight: 400,
-    frame: false,
-    transparent: true,
+    frame: false,  // Frameless for custom title bar
+    transparent: false,  // Keep false - transparency causes visibility issues
+    backgroundColor: '#0d1117',  // Match app background
     alwaysOnTop: store.get('alwaysOnTop') as boolean,
-    skipTaskbar: true,
+    skipTaskbar: true,  // Hide from dock (tray app)
     resizable: true,
-    show: false,
+    show: false,  // Show on ready-to-show
     webPreferences: {
       preload: path.join(__dirname, '../preload/index.js'),
       contextIsolation: true,
@@ -50,13 +51,31 @@ function createWindow(): void {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   } else {
     // Production: load from built files
-    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    const htmlPath = path.join(__dirname, '../renderer/index.html');
+    console.log('[Main] Loading renderer from:', htmlPath);
+    mainWindow.loadFile(htmlPath).catch((err) => {
+      console.error('[Main] Failed to load renderer:', err);
+    });
   }
 
   // Show window when ready
   mainWindow.once('ready-to-show', () => {
+    console.log('[Main] Window ready to show');
     mainWindow?.show();
   });
+
+  // Handle renderer errors
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    console.error('[Main] Renderer failed to load:', errorCode, errorDescription);
+  });
+
+  // Force show after timeout as fallback
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isVisible()) {
+      console.log('[Main] Force showing window after timeout');
+      mainWindow.show();
+    }
+  }, 3000);
 
   // Save window bounds on resize
   mainWindow.on('resize', () => {
