@@ -138,8 +138,8 @@ Automatic data sync schedule:
 **`web/`** - React dashboard (Vite + Tailwind)
 - `src/api/`: API client with typed fetch functions
 - `src/hooks/`: React Query hooks (useStats, useInsights, useTrends, etc.)
-- `src/pages/`: Route components (Dashboard, Insights, Trends, Projects, Library)
-- `src/components/`: Reusable UI components (charts, layout)
+- `src/pages/`: Route components (Dashboard, Insights, Trends, Projects, Library, Guidebook)
+- `src/components/`: Reusable UI components (charts, layout, guidebook)
 
 ### Database Schema
 
