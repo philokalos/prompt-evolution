@@ -37,7 +37,7 @@ function createWindow(): void {
     resizable: true,
     show: false,  // Show on ready-to-show
     webPreferences: {
-      preload: path.join(__dirname, '../preload/index.js'),
+      preload: path.join(__dirname, '../preload/index.cjs'),
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
@@ -67,6 +67,22 @@ function createWindow(): void {
   // Handle renderer errors
   mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
     console.error('[Main] Renderer failed to load:', errorCode, errorDescription);
+  });
+
+  // Capture renderer console messages
+  mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    const levelStr = ['verbose', 'info', 'warning', 'error'][level] || 'log';
+    console.log(`[Renderer ${levelStr}] ${message} (${sourceId}:${line})`);
+  });
+
+  // Log when DOM is ready
+  mainWindow.webContents.on('dom-ready', () => {
+    console.log('[Main] DOM ready');
+  });
+
+  // Log when page finishes loading
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('[Main] Page finished loading');
   });
 
   // Force show after timeout as fallback
