@@ -4,22 +4,54 @@ import { fileURLToPath } from 'url';
 import Store from 'electron-store';
 import { createTray, destroyTray } from './tray.js';
 import { registerLearningEngineHandlers } from './learning-engine.js';
+import { captureTextForAnalysis } from './text-selection.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Settings schema
+interface AppSettings {
+  shortcut: string;
+  windowBounds: { width: number; height: number };
+  alwaysOnTop: boolean;
+  hideOnCopy: boolean;
+  language: 'ko' | 'en';
+  showNotifications: boolean;
+}
+
 // Initialize settings store
-const store = new Store({
+const store = new Store<AppSettings>({
   defaults: {
     shortcut: 'CommandOrControl+Shift+P',
     windowBounds: { width: 420, height: 600 },
     alwaysOnTop: true,
+    hideOnCopy: false,
+    language: 'ko',
+    showNotifications: true,
   },
 });
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
+
+// State tracking for improved hotkey behavior
+let lastAnalyzedText = '';
+let isRendererReady = false;
+let pendingText: string | null = null;
+
+/**
+ * Send text to renderer for analysis.
+ * If renderer is not ready, queue the text for later delivery.
+ */
+function sendTextToRenderer(text: string): void {
+  if (isRendererReady && mainWindow) {
+    mainWindow.webContents.send('clipboard-text', text);
+  } else {
+    pendingText = text;
+    console.log('[Main] Renderer not ready, queuing text for later');
+  }
+}
 
 function createWindow(): void {
   const { width, height } = store.get('windowBounds') as { width: number; height: number };
@@ -85,6 +117,12 @@ function createWindow(): void {
     console.log('[Main] Page finished loading');
   });
 
+  // Reset renderer ready state on navigation/reload
+  mainWindow.webContents.on('did-start-navigation', () => {
+    isRendererReady = false;
+    console.log('[Main] Navigation started, resetting renderer ready state');
+  });
+
   // Force show after timeout as fallback
   setTimeout(() => {
     if (mainWindow && !mainWindow.isVisible()) {
@@ -117,17 +155,34 @@ function createWindow(): void {
 function registerShortcut(): void {
   const shortcut = store.get('shortcut') as string;
 
-  globalShortcut.register(shortcut, () => {
-    if (mainWindow) {
-      if (mainWindow.isVisible()) {
-        mainWindow.hide();
+  globalShortcut.register(shortcut, async () => {
+    if (!mainWindow) return;
+
+    // Capture text (tries selection first, then clipboard)
+    const { text: capturedText, source } = await captureTextForAnalysis();
+    console.log(`[Main] Captured text from ${source}:`, capturedText?.substring(0, 50));
+
+    if (mainWindow.isVisible()) {
+      // Window is visible - decide: re-analyze or hide?
+      if (capturedText && capturedText !== lastAnalyzedText) {
+        // New text captured - re-analyze without hiding
+        lastAnalyzedText = capturedText;
+        sendTextToRenderer(capturedText);
+        console.log('[Main] Re-analyzing new text while visible');
       } else {
-        // Read clipboard and send to renderer
-        const clipboardText = clipboard.readText();
-        mainWindow.webContents.send('clipboard-text', clipboardText);
-        mainWindow.show();
-        mainWindow.focus();
+        // Same text or no text - toggle hide
+        mainWindow.hide();
+        console.log('[Main] Hiding window (same text or no text)');
       }
+    } else {
+      // Window hidden - show and analyze
+      if (capturedText) {
+        lastAnalyzedText = capturedText;
+        sendTextToRenderer(capturedText);
+      }
+      mainWindow.show();
+      mainWindow.focus();
+      console.log('[Main] Showing window and analyzing');
     }
   });
 }
@@ -158,6 +213,21 @@ ipcMain.handle('hide-window', () => {
 
 ipcMain.handle('minimize-window', () => {
   mainWindow?.minimize();
+  return true;
+});
+
+// IPC Handler: Renderer ready signal (fixes race condition)
+ipcMain.handle('renderer-ready', () => {
+  isRendererReady = true;
+  console.log('[Main] Renderer signaled ready');
+
+  // Send any pending text that was queued before renderer was ready
+  if (pendingText && mainWindow) {
+    console.log('[Main] Sending pending text to renderer');
+    mainWindow.webContents.send('clipboard-text', pendingText);
+    pendingText = null;
+  }
+
   return true;
 });
 

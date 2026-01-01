@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Minus, BarChart3, Lightbulb, ArrowLeft } from 'lucide-react';
+import { X, Minus, BarChart3, Lightbulb, ArrowLeft, Settings as SettingsIcon, Edit3, Send } from 'lucide-react';
 import GoldenRadar from './components/GoldenRadar';
 import ProgressTracker from './components/ProgressTracker';
 import PersonalTips from './components/PersonalTips';
 import IssueList from './components/IssueList';
 import PromptComparison, { RewriteResult, VariantType } from './components/PromptComparison';
 import ContextIndicator, { SessionContextInfo } from './components/ContextIndicator';
+import Settings from './components/Settings';
 
 // Analysis result types
 interface Issue {
@@ -40,10 +41,19 @@ function App() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('analysis');
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showDirectInput, setShowDirectInput] = useState(false);
+  const [inputText, setInputText] = useState('');
 
   // Listen for clipboard text from main process
   useEffect(() => {
+    // Signal to main process that renderer is ready to receive IPC messages
+    window.electronAPI.signalReady().then(() => {
+      console.log('[Renderer] Signaled ready to main process');
+    });
+
     window.electronAPI.onClipboardText((text) => {
+      console.log('[Renderer] Received clipboard text:', text?.substring(0, 50));
       setOriginalPrompt(text);
       analyzePrompt(text);
     });
@@ -144,6 +154,13 @@ function App() {
         </div>
         <div className="flex items-center gap-1">
           <button
+            onClick={() => setSettingsOpen(true)}
+            className="p-1.5 rounded-md hover:bg-dark-hover transition-colors"
+            title="설정"
+          >
+            <SettingsIcon size={14} />
+          </button>
+          <button
             onClick={handleMinimize}
             className="p-1.5 rounded-md hover:bg-dark-hover transition-colors"
           >
@@ -221,14 +238,73 @@ function App() {
             )}
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-gray-500">
-            <BarChart3 size={48} className="mb-4 opacity-50" />
-            <p className="text-sm">텍스트를 선택하고</p>
-            <p className="text-sm">
-              <kbd className="px-2 py-1 bg-dark-surface rounded text-xs">⌘</kbd> +{' '}
-              <kbd className="px-2 py-1 bg-dark-surface rounded text-xs">⇧</kbd> +{' '}
-              <kbd className="px-2 py-1 bg-dark-surface rounded text-xs">P</kbd>
-            </p>
+          <div className="flex flex-col h-full">
+            {/* Shortcut instructions */}
+            {!showDirectInput && (
+              <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
+                <BarChart3 size={48} className="mb-4 opacity-50" />
+                <div className="text-center space-y-3">
+                  <p className="text-sm font-medium text-gray-300">프롬프트 분석하기</p>
+                  <div className="text-xs space-y-1">
+                    <p className="text-gray-400">텍스트 선택 후</p>
+                    <p>
+                      <kbd className="px-2 py-1 bg-dark-surface rounded text-xs">⌘</kbd> +{' '}
+                      <kbd className="px-2 py-1 bg-dark-surface rounded text-xs">⇧</kbd> +{' '}
+                      <kbd className="px-2 py-1 bg-dark-surface rounded text-xs">P</kbd>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Direct input area */}
+            {showDirectInput && (
+              <div className="flex-1 flex flex-col space-y-3">
+                <textarea
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Cmd/Ctrl + Enter to submit
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && inputText.trim()) {
+                      e.preventDefault();
+                      setOriginalPrompt(inputText);
+                      analyzePrompt(inputText);
+                      setShowDirectInput(false);
+                      setInputText('');
+                    }
+                  }}
+                  placeholder="분석할 프롬프트를 입력하세요... (⌘+Enter로 분석)"
+                  className="flex-1 w-full p-3 bg-dark-hover border border-dark-border rounded-lg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent-primary placeholder-gray-600"
+                  autoFocus
+                />
+                <button
+                  onClick={() => {
+                    if (inputText.trim()) {
+                      setOriginalPrompt(inputText);
+                      analyzePrompt(inputText);
+                      setShowDirectInput(false);
+                      setInputText('');
+                    }
+                  }}
+                  disabled={!inputText.trim()}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-accent-primary hover:bg-accent-primary/80 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
+                >
+                  <Send size={16} />
+                  <span>분석하기</span>
+                </button>
+              </div>
+            )}
+
+            {/* Toggle button */}
+            <div className="pt-4 border-t border-dark-border mt-4">
+              <button
+                onClick={() => setShowDirectInput(!showDirectInput)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs text-gray-400 hover:text-gray-200 hover:bg-dark-hover rounded-lg transition-colors"
+              >
+                <Edit3 size={14} />
+                <span>{showDirectInput ? '단축키로 분석하기' : '직접 입력하기'}</span>
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -257,6 +333,9 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Settings Modal */}
+      <Settings isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }
