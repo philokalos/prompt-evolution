@@ -10,6 +10,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Key Feature**: References official Anthropic Claude prompt engineering best practices (GOLDEN checklist, anti-pattern detection) for empirical prompt quality evaluation.
 
+**Three Components**:
+1. **CLI** (`src/`) - Parse and analyze Claude Code conversations
+2. **Web Dashboard** (`server/` + `web/`) - Express API + React visualization
+3. **Desktop App** (`desktop/`) - Electron app "PromptLint" for real-time analysis (Cmd+Shift+P)
+
 ## Development Commands
 
 ```bash
@@ -32,7 +37,11 @@ cd web && npm install                    # Install web dependencies (first time)
 npm run dev:server                       # Express API server (:3001)
 npm run dev:web                          # Vite dev server (:5173)
 npm run build:web                        # Build React frontend
-npm run build:all                        # Build CLI + frontend
+npm run build:all                        # Build server + frontend
+
+# TypeScript Configs
+tsc                                      # CLI: tsconfig.json
+tsc -p tsconfig.server.json              # Server: separate config
 ```
 
 ### CLI Commands
@@ -200,33 +209,51 @@ Claude Code stores conversations at:
 └── agent-{hash}.jsonl        # Agent task sessions
 ```
 
-## Project Structure
+## Desktop App (PromptLint)
 
+Separate Electron app in `desktop/` with its own `package.json`. See `desktop/CLAUDE.md` for detailed docs.
+
+```bash
+cd desktop
+npm run dev:electron              # Build all + launch Electron
+npm run dist:mac                  # macOS .dmg + .zip
 ```
-prompt-evolution/
-├── src/                    # CLI + shared core
-│   ├── analysis/           # Insights, classifier, scorer
-│   ├── db/                 # SQLite repositories
-│   ├── parser/             # JSONL parsers
-│   ├── report/             # HTML report generator
-│   ├── types/              # TypeScript definitions
-│   ├── cli.ts              # CLI entry point
-│   └── index.ts            # Shared exports
-│
-├── server/                 # Express API
-│   ├── routes/             # API route handlers
-│   ├── services/           # Sync service, scheduler
-│   ├── middleware/         # Error handler
-│   └── index.ts            # Server entry point
-│
-├── web/                    # React dashboard (Vite)
-│   ├── src/
-│   │   ├── api/            # API client
-│   │   ├── hooks/          # React Query hooks
-│   │   ├── components/     # UI components
-│   │   └── pages/          # Route pages
-│   └── package.json        # Separate dependencies
-│
-├── tsconfig.json           # CLI TypeScript config
-└── tsconfig.server.json    # Server TypeScript config
+
+**Key Architecture Points**:
+- Reuses analysis modules from parent `src/analysis/` (bundled as CJS via esbuild)
+- 4 separate tsconfigs: main (ESM), preload (CJS→.cjs), analysis (ESM), renderer (Vite)
+- Preload script must output `.cjs` because package.json has `"type": "module"`
+
+## Important Patterns
+
+### ESM-Only Codebase
+All packages use `"type": "module"`. Import paths must include `.js` extension:
+```typescript
+import { classifyPrompt } from './classifier.js';  // ✓
+import { classifyPrompt } from './classifier';     // ✗
 ```
+
+### User Message Content Format
+Claude Code JSONL stores user content as string OR array - always handle both:
+```typescript
+// In parser/claude-code-parser.ts
+const text = typeof content === 'string'
+  ? content
+  : content.filter(b => b.type === 'text').map(b => b.text).join('\n');
+```
+
+### Analysis Module Orchestration
+`insights.ts` is the main orchestrator that combines all analysis modules:
+```
+insights.ts
+├── classifier.ts      → Intent + category classification
+├── scorer.ts          → Quality and effectiveness scoring
+├── prompt-library.ts  → Pattern extraction
+├── guidelines-evaluator.ts → GOLDEN checklist
+└── self-improvement.ts → Learning feedback
+```
+
+### Three Data Layers
+1. **Raw**: `~/.claude/projects/*.jsonl` (Claude Code source)
+2. **Parsed**: In-memory `ParsedConversation` objects
+3. **Persisted**: SQLite `~/.prompt-evolution/data.db`
