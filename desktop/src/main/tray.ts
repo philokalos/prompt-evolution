@@ -1,5 +1,6 @@
 import { app, Tray, Menu, nativeImage, BrowserWindow } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
 import { fileURLToPath } from 'url';
 
 // ESM-compatible __dirname
@@ -22,11 +23,15 @@ export function createTray(mainWindow: BrowserWindow): Tray {
   // Load tray icon from assets
   let trayIcon: Electron.NativeImage;
   const assetsPath = getAssetsPath();
+  console.log('[Tray] __dirname:', __dirname);
+  console.log('[Tray] Assets path:', assetsPath);
 
   if (process.platform === 'darwin') {
     // Use template icon for macOS (supports dark/light mode)
     const iconPath = path.join(assetsPath, 'icons/trayTemplate.png');
     const icon2xPath = path.join(assetsPath, 'icons/trayTemplate@2x.png');
+    console.log('[Tray] Looking for icon at:', iconPath);
+    console.log('[Tray] Icon file exists:', fs.existsSync(iconPath));
 
     // Try to load icon, fallback to generated if empty
     trayIcon = nativeImage.createFromPath(iconPath);
@@ -35,6 +40,7 @@ export function createTray(mainWindow: BrowserWindow): Tray {
       console.warn('[Tray] Icon not found at:', iconPath, '- using fallback');
       trayIcon = createTemplateIcon();
     } else {
+      console.log('[Tray] Icon loaded successfully, size:', trayIcon.getSize());
       trayIcon.setTemplateImage(true);
     }
   } else {
