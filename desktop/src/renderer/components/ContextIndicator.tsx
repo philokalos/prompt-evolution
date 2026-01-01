@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Folder, GitBranch, Cpu, Clock, ChevronDown, ChevronUp, Zap } from 'lucide-react';
+import { Folder, GitBranch, Cpu, Clock, ChevronDown, ChevronUp, Zap, Monitor, MousePointer } from 'lucide-react';
 
 export interface SessionContextInfo {
   projectPath: string;
@@ -11,6 +11,11 @@ export interface SessionContextInfo {
   recentFiles: string[];
   lastActivity: string | Date;
   gitBranch?: string;
+  // Active window detection fields
+  source?: 'active-window' | 'app-path';
+  ideName?: string;
+  currentFile?: string;
+  confidence?: 'high' | 'medium' | 'low';
 }
 
 interface ContextIndicatorProps {
@@ -49,12 +54,22 @@ export default function ContextIndicator({ context }: ContextIndicatorProps) {
         className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-gradient-to-r from-dark-surface to-dark-hover border border-dark-border hover:border-accent-primary/30 transition-all duration-200 group"
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
-          {/* Active indicator */}
-          {isRecent && (
-            <span className="relative flex h-2 w-2 flex-shrink-0">
+          {/* Source indicator - active window vs app path */}
+          {context.source === 'active-window' ? (
+            <span className="relative flex h-2 w-2 flex-shrink-0" title="활성 창에서 감지됨">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-success opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-success"></span>
             </span>
+          ) : isRecent ? (
+            <span className="relative flex h-2 w-2 flex-shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-warning opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-warning"></span>
+            </span>
+          ) : null}
+
+          {/* IDE icon if detected from active window */}
+          {context.ideName && (
+            <Monitor size={12} className="text-accent-secondary flex-shrink-0" title={`${context.ideName}에서 감지`} />
           )}
 
           {/* Project name */}
@@ -105,6 +120,37 @@ export default function ContextIndicator({ context }: ContextIndicatorProps) {
       {/* Expanded Details */}
       {isExpanded && (
         <div className="mt-1 px-3 py-2 rounded-lg bg-dark-surface/50 border border-dark-border/50 space-y-2">
+          {/* Detection source info */}
+          {context.source && (
+            <div className="flex items-center gap-2 text-xs">
+              <MousePointer size={10} className="text-gray-500" />
+              <span className="text-gray-500">
+                {context.source === 'active-window' ? (
+                  <>
+                    <span className="text-accent-success">●</span> {context.ideName || 'IDE'}에서 감지
+                    {context.confidence && (
+                      <span className="ml-1 text-gray-600">
+                        ({context.confidence === 'high' ? '높은 신뢰도' : context.confidence === 'medium' ? '중간 신뢰도' : '낮은 신뢰도'})
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span className="text-accent-warning">●</span> 앱 경로에서 추정
+                  </>
+                )}
+              </span>
+            </div>
+          )}
+
+          {/* Current file (from active window) */}
+          {context.currentFile && (
+            <div className="flex items-start gap-2">
+              <Monitor size={12} className="text-accent-secondary flex-shrink-0 mt-0.5" />
+              <span className="text-xs text-gray-400 truncate">{context.currentFile}</span>
+            </div>
+          )}
+
           {/* Current Task */}
           {context.currentTask && context.currentTask !== '작업 진행 중' && (
             <div className="flex items-start gap-2">

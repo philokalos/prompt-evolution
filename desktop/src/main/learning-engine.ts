@@ -20,7 +20,13 @@ import {
   getStats,
 } from './db/index.js';
 import { generatePromptVariants, RewriteResult, VariantType } from './prompt-rewriter.js';
-import { getSessionContext, getSessionContextForPath, SessionContext } from './session-context.js';
+import {
+  getSessionContext,
+  getSessionContextForPath,
+  getActiveWindowSessionContext,
+  SessionContext,
+  ActiveSessionContext,
+} from './session-context.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -102,7 +108,7 @@ interface AnalysisResult {
 }
 
 // Re-export for renderer
-export type { RewriteResult, VariantType, SessionContext };
+export type { RewriteResult, VariantType, SessionContext, ActiveSessionContext };
 
 // Cache for loaded modules
 let evaluatePromptAgainstGuidelines: ((text: string) => GuidelineEvaluation) | null = null;
@@ -248,10 +254,14 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
   }
 
   try {
-    // Get session context for enhanced rewriting
-    const sessionContext = getSessionContext();
+    // Get session context for enhanced rewriting (prefer active window detection)
+    const sessionContext = await getActiveWindowSessionContext();
     if (sessionContext) {
-      console.log('[LearningEngine] Session context found:', sessionContext.projectPath);
+      console.log(
+        '[LearningEngine] Session context found:',
+        sessionContext.projectPath,
+        `(source: ${sessionContext.source}, confidence: ${sessionContext.confidence})`
+      );
     }
 
     // Run evaluation
@@ -379,8 +389,13 @@ export function registerLearningEngineHandlers(): void {
     return getImprovementAnalysis();
   });
 
-  // Session context handler
+  // Session context handler (active window based)
   ipcMain.handle('get-session-context', async () => {
+    return getActiveWindowSessionContext();
+  });
+
+  // Legacy session context (app path based)
+  ipcMain.handle('get-session-context-legacy', async () => {
     return getSessionContext();
   });
 

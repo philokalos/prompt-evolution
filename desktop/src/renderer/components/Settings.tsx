@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, Globe, MousePointer2 } from 'lucide-react';
+import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, Globe, MousePointer2, Monitor } from 'lucide-react';
 
 interface AppSettings {
   shortcut: string;
@@ -8,6 +8,8 @@ interface AppSettings {
   language: 'ko' | 'en';
   showNotifications: boolean;
   captureMode: 'auto' | 'selection' | 'clipboard';
+  enableProjectPolling: boolean;
+  pollingIntervalMs: number;
 }
 
 interface SettingsProps {
@@ -127,6 +129,21 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                   자동: 선택 텍스트 우선, 없으면 클립보드 사용
                 </p>
               </div>
+
+              {/* Project Detection */}
+              <div className="flex items-center justify-between py-2">
+                <div className="flex items-center gap-2">
+                  <Monitor size={14} className="text-gray-400" />
+                  <span className="text-sm">활성 프로젝트 감지</span>
+                </div>
+                <ToggleSwitch
+                  checked={settings.enableProjectPolling}
+                  onChange={(v) => updateSetting('enableProjectPolling', v)}
+                />
+              </div>
+              <p className="text-xs text-gray-500 -mt-2">
+                현재 활성 IDE 창의 프로젝트를 자동으로 감지
+              </p>
 
               {/* Always on Top */}
               <div className="flex items-center justify-between py-2">

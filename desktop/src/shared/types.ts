@@ -82,3 +82,37 @@ export interface ProgressPoint {
   averageScore: number;
   promptCount: number;
 }
+
+// Session context from active IDE window
+export interface SessionContext {
+  projectPath: string;
+  projectId: string;
+  sessionId: string;
+  currentTask: string;
+  techStack: string[];
+  recentTools: string[];
+  recentFiles: string[];
+  lastActivity: Date;
+  gitBranch?: string;
+}
+
+export interface ActiveSessionContext extends SessionContext {
+  source: 'active-window' | 'app-path';
+  ideName?: string;
+  currentFile?: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+// Extended analysis result with session context
+export interface AnalysisResultWithContext extends AnalysisResult {
+  sessionContext?: ActiveSessionContext;
+  promptVariants?: RewriteResult[];
+}
+
+export interface RewriteResult {
+  rewrittenPrompt: string;
+  keyChanges: string[];
+  confidence: number;
+  variant: 'conservative' | 'balanced' | 'comprehensive';
+  variantLabel: string;
+}

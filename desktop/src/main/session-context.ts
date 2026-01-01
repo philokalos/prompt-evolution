@@ -7,6 +7,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { homedir } from 'os';
 import { app } from 'electron';
+import { detectActiveProject, type DetectedProject } from './active-window-detector.js';
 
 // Claude Code projects directory
 const CLAUDE_PROJECTS_PATH = path.join(homedir(), '.claude', 'projects');
@@ -359,28 +360,34 @@ function extractToolsAndFiles(records: ClaudeRecord[]): { tools: string[]; files
 }
 
 /**
- * Extract git branch from session (if available)
+ * Extract git branch from project directory
+ * Reads directly from .git/HEAD file for reliability
  */
-function extractGitBranch(records: ClaudeRecord[]): string | undefined {
-  // Look for git status or branch info in tool results
-  // This is a simplified heuristic
-  for (const record of records.slice(-50).reverse()) {
-    const content = record.message?.content;
-    if (!Array.isArray(content)) continue;
+function extractGitBranch(projectPath: string): string | undefined {
+  try {
+    // Try to read .git/HEAD directly
+    const gitHeadPath = path.join(projectPath, '.git', 'HEAD');
 
-    for (const block of content) {
-      if ((block as ToolUseBlock).type === 'tool_use' && (block as ToolUseBlock).name === 'Bash') {
-        const input = (block as ToolUseBlock).input;
-        const command = input?.command;
-        if (typeof command === 'string' && command.includes('git')) {
-          // Could parse git branch output, but keeping simple for now
-          return undefined;
-        }
-      }
+    if (!fs.existsSync(gitHeadPath)) {
+      return undefined;
     }
-  }
 
-  return undefined;
+    const headContent = fs.readFileSync(gitHeadPath, 'utf-8').trim();
+
+    // Format: "ref: refs/heads/branch-name" or commit hash for detached HEAD
+    if (headContent.startsWith('ref: refs/heads/')) {
+      return headContent.replace('ref: refs/heads/', '');
+    }
+
+    // Detached HEAD - return short hash
+    if (/^[a-f0-9]{40}$/.test(headContent)) {
+      return headContent.substring(0, 7) + ' (detached)';
+    }
+
+    return undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -431,8 +438,11 @@ export function extractSessionContext(projectId: string, sessionFile: string): S
       ? new Date(lastRecord.timestamp)
       : new Date();
 
+    // Decode project path for git branch and display
+    const decodedProjectPath = decodeProjectPath(projectId);
+
     const context: SessionContext = {
-      projectPath: decodeProjectPath(projectId),
+      projectPath: decodedProjectPath,
       projectId,
       sessionId: path.basename(sessionFile, '.jsonl'),
       currentTask: extractCurrentTask(records),
@@ -440,7 +450,7 @@ export function extractSessionContext(projectId: string, sessionFile: string): S
       recentTools: tools,
       recentFiles: files,
       lastActivity,
-      gitBranch: extractGitBranch(records),
+      gitBranch: extractGitBranch(decodedProjectPath),
     };
 
     // Update cache
@@ -516,4 +526,136 @@ export function getSessionContextForPath(targetPath: string): SessionContext | n
     console.error('[SessionContext] Error getting context for path:', error);
     return null;
   }
+}
+
+/**
+ * Extended session context with active window info
+ */
+export interface ActiveSessionContext extends SessionContext {
+  source: 'active-window' | 'app-path';
+  ideName?: string;
+  currentFile?: string;
+  confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Get session context from currently active IDE window
+ * Falls back to app path if IDE detection fails
+ */
+export async function getActiveWindowSessionContext(): Promise<ActiveSessionContext | null> {
+  try {
+    // Try to detect active IDE window first
+    const activeProject = await detectActiveProject();
+    console.log('[SessionContext] Active window detection result:', activeProject);
+
+    if (activeProject && activeProject.confidence !== 'low') {
+      console.log('[SessionContext] Using active window project:', activeProject.projectPath, `(${activeProject.ideName})`);
+
+      // Find matching Claude Code project
+      const projectId = findMatchingProject(activeProject.projectPath);
+
+      if (projectId) {
+        const sessionFile = getLatestSession(projectId);
+
+        if (sessionFile) {
+          const baseContext = extractSessionContext(projectId, sessionFile);
+
+          if (baseContext) {
+            return {
+              ...baseContext,
+              source: 'active-window',
+              ideName: activeProject.ideName,
+              currentFile: activeProject.currentFile,
+              confidence: activeProject.confidence,
+            };
+          }
+        }
+      }
+
+      // No Claude Code session, but we have project info
+      // Return minimal context from active window
+      return {
+        projectPath: activeProject.projectPath,
+        projectId: encodeProjectPath(activeProject.projectPath),
+        sessionId: '',
+        currentTask: activeProject.currentFile || '작업 진행 중',
+        techStack: detectTechStackFromPath(activeProject.projectPath),
+        recentTools: [],
+        recentFiles: activeProject.currentFile ? [activeProject.currentFile] : [],
+        lastActivity: new Date(),
+        gitBranch: extractGitBranch(activeProject.projectPath),
+        source: 'active-window',
+        ideName: activeProject.ideName,
+        currentFile: activeProject.currentFile,
+        confidence: activeProject.confidence,
+      };
+    }
+
+    // Fallback to app path based context
+    console.log('[SessionContext] Falling back to app path context');
+    const baseContext = getSessionContext();
+
+    if (baseContext) {
+      return {
+        ...baseContext,
+        source: 'app-path',
+        confidence: 'medium',
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('[SessionContext] Error getting active window context:', error);
+    return null;
+  }
+}
+
+/**
+ * Detect tech stack from project path (for when no Claude session exists)
+ */
+function detectTechStackFromPath(projectPath: string): string[] {
+  const stack = new Set<string>();
+
+  const configChecks: Record<string, string> = {
+    'package.json': 'Node.js',
+    'tsconfig.json': 'TypeScript',
+    'vite.config.ts': 'Vite',
+    'vite.config.js': 'Vite',
+    'next.config.js': 'Next.js',
+    'next.config.ts': 'Next.js',
+    'nuxt.config.ts': 'Nuxt',
+    'tailwind.config.js': 'Tailwind CSS',
+    'tailwind.config.ts': 'Tailwind CSS',
+    'firebase.json': 'Firebase',
+    'Cargo.toml': 'Rust',
+    'go.mod': 'Go',
+    'pyproject.toml': 'Python',
+    'requirements.txt': 'Python',
+    'electron-builder.json': 'Electron',
+    'electron-builder.yml': 'Electron',
+  };
+
+  for (const [file, tech] of Object.entries(configChecks)) {
+    if (fs.existsSync(path.join(projectPath, file))) {
+      stack.add(tech);
+    }
+  }
+
+  // Check for React in package.json
+  const packageJsonPath = path.join(projectPath, 'package.json');
+  if (fs.existsSync(packageJsonPath)) {
+    try {
+      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, 'utf-8'));
+      const deps = { ...pkg.dependencies, ...pkg.devDependencies };
+
+      if (deps.react) stack.add('React');
+      if (deps.vue) stack.add('Vue');
+      if (deps.svelte) stack.add('Svelte');
+      if (deps['@angular/core']) stack.add('Angular');
+    } catch {
+      // Ignore parse errors
+    }
+  }
+
+  return Array.from(stack).slice(0, 5);
 }

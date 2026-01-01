@@ -36,6 +36,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Session context
   getSessionContext: (): Promise<unknown> => ipcRenderer.invoke('get-session-context'),
 
+  // Active project detection
+  getCurrentProject: (): Promise<unknown> => ipcRenderer.invoke('get-current-project'),
+
   // Renderer ready signal (fixes IPC race condition)
   signalReady: (): Promise<boolean> => ipcRenderer.invoke('renderer-ready'),
 
@@ -46,6 +49,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   removeClipboardListener: (): void => {
     ipcRenderer.removeAllListeners('clipboard-text');
+  },
+
+  // Project change event listener
+  onProjectChanged: (callback: (project: unknown) => void): void => {
+    ipcRenderer.on('project-changed', (_event, project) => callback(project));
+  },
+
+  removeProjectListener: (): void => {
+    ipcRenderer.removeAllListeners('project-changed');
   },
 });
 
@@ -69,9 +81,12 @@ declare global {
       getMonthlyStats: (months?: number) => Promise<unknown[]>;
       getImprovementAnalysis: () => Promise<unknown>;
       getSessionContext: () => Promise<unknown>;
+      getCurrentProject: () => Promise<unknown>;
       signalReady: () => Promise<boolean>;
       onClipboardText: (callback: (text: string) => void) => void;
       removeClipboardListener: () => void;
+      onProjectChanged: (callback: (project: unknown) => void) => void;
+      removeProjectListener: () => void;
     };
   }
 }

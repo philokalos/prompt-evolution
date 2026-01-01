@@ -10,6 +10,12 @@ import {
   showAccessibilityPermissionDialog,
   type CaptureMode,
 } from './text-selection.js';
+import {
+  startWindowPolling,
+  stopWindowPolling,
+  detectActiveProject,
+  type DetectedProject,
+} from './active-window-detector.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -24,6 +30,8 @@ interface AppSettings {
   language: 'ko' | 'en';
   showNotifications: boolean;
   captureMode: 'auto' | 'selection' | 'clipboard';
+  enableProjectPolling: boolean;
+  pollingIntervalMs: number;
 }
 
 // Initialize settings store
@@ -36,6 +44,8 @@ const store = new Store<AppSettings>({
     language: 'ko',
     showNotifications: true,
     captureMode: 'auto',
+    enableProjectPolling: true,
+    pollingIntervalMs: 2000,
   },
 });
 
@@ -46,6 +56,7 @@ let isQuitting = false;
 let lastAnalyzedText = '';
 let isRendererReady = false;
 let pendingText: string | null = null;
+let currentProject: DetectedProject | null = null;
 
 /**
  * Send text to renderer for analysis.
@@ -223,6 +234,51 @@ function registerShortcut(): void {
   });
 }
 
+/**
+ * Handle project change detected by polling.
+ * Sends notification to renderer when active project changes.
+ */
+function handleProjectChange(project: DetectedProject | null): void {
+  // Check if project actually changed
+  const prevPath = currentProject?.projectPath;
+  const newPath = project?.projectPath;
+
+  if (prevPath === newPath) return;
+
+  currentProject = project;
+
+  if (project) {
+    console.log(
+      `[Main] Project changed: ${project.projectPath} (${project.ideName}, confidence: ${project.confidence})`
+    );
+  } else {
+    console.log('[Main] No active project detected');
+  }
+
+  // Notify renderer of project change
+  if (isRendererReady && mainWindow) {
+    mainWindow.webContents.send('project-changed', project);
+  }
+}
+
+/**
+ * Start or restart project polling based on settings.
+ */
+function initProjectPolling(): void {
+  const enabled = store.get('enableProjectPolling') as boolean;
+  const interval = store.get('pollingIntervalMs') as number;
+
+  // Stop any existing polling
+  stopWindowPolling();
+
+  if (enabled) {
+    console.log(`[Main] Starting project polling (interval: ${interval}ms)`);
+    startWindowPolling(interval, handleProjectChange);
+  } else {
+    console.log('[Main] Project polling disabled');
+  }
+}
+
 // IPC Handlers
 ipcMain.handle('get-clipboard', () => {
   return clipboard.readText();
@@ -239,7 +295,22 @@ ipcMain.handle('get-settings', () => {
 
 ipcMain.handle('set-setting', (_event, key: string, value: unknown) => {
   store.set(key, value);
+
+  // Restart polling if polling settings changed
+  if (key === 'enableProjectPolling' || key === 'pollingIntervalMs') {
+    initProjectPolling();
+  }
+
   return true;
+});
+
+// IPC Handler: Get current detected project
+ipcMain.handle('get-current-project', async () => {
+  // Return cached project or detect fresh
+  if (currentProject) {
+    return currentProject;
+  }
+  return await detectActiveProject();
 });
 
 ipcMain.handle('hide-window', () => {
@@ -280,6 +351,9 @@ app.whenReady().then(async () => {
   // Register learning engine IPC handlers
   registerLearningEngineHandlers();
 
+  // Start project polling for active window detection
+  initProjectPolling();
+
   // Check accessibility permission for text selection capture
   // This is needed for AppleScript keyboard simulation (Cmd+C)
   const hasAccessibility = checkAccessibilityPermission(false);
@@ -315,6 +389,7 @@ app.on('will-quit', () => {
   if (app.isReady()) {
     globalShortcut.unregisterAll();
   }
+  stopWindowPolling();
   destroyTray();
 });
 

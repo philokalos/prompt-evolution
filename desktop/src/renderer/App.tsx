@@ -7,6 +7,7 @@ import IssueList from './components/IssueList';
 import PromptComparison, { RewriteResult, VariantType } from './components/PromptComparison';
 import ContextIndicator, { SessionContextInfo } from './components/ContextIndicator';
 import Settings from './components/Settings';
+import type { DetectedProject } from './electron.d';
 
 // Analysis result types
 interface Issue {
@@ -36,6 +37,26 @@ interface AnalysisResult {
 
 type ViewMode = 'analysis' | 'progress' | 'tips';
 
+/**
+ * Convert DetectedProject to minimal SessionContextInfo for display
+ */
+function projectToContextInfo(project: DetectedProject): SessionContextInfo {
+  return {
+    projectPath: project.projectPath,
+    projectId: project.projectPath.replace(/\//g, '-'),
+    sessionId: '',
+    currentTask: '',
+    techStack: [],
+    recentTools: [],
+    recentFiles: [],
+    lastActivity: new Date(),
+    source: 'active-window',
+    ideName: project.ideName,
+    currentFile: project.currentFile,
+    confidence: project.confidence,
+  };
+}
+
 function App() {
   const [originalPrompt, setOriginalPrompt] = useState('');
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
@@ -44,6 +65,7 @@ function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showDirectInput, setShowDirectInput] = useState(false);
   const [inputText, setInputText] = useState('');
+  const [currentProject, setCurrentProject] = useState<DetectedProject | null>(null);
 
   // Listen for clipboard text from main process
   useEffect(() => {
@@ -52,14 +74,26 @@ function App() {
       console.log('[Renderer] Signaled ready to main process');
     });
 
+    // Get initial project state
+    window.electronAPI.getCurrentProject().then((project) => {
+      setCurrentProject(project as DetectedProject | null);
+    });
+
     window.electronAPI.onClipboardText((text) => {
       console.log('[Renderer] Received clipboard text:', text?.substring(0, 50));
       setOriginalPrompt(text);
       analyzePrompt(text);
     });
 
+    // Listen for project changes (polling)
+    window.electronAPI.onProjectChanged((project) => {
+      console.log('[Renderer] Project changed:', project?.projectPath);
+      setCurrentProject(project as DetectedProject | null);
+    });
+
     return () => {
       window.electronAPI.removeClipboardListener();
+      window.electronAPI.removeProjectListener();
     };
   }, []);
 
@@ -199,8 +233,10 @@ function App() {
           </div>
         ) : analysis ? (
           <>
-            {/* Session Context Indicator */}
-            <ContextIndicator context={analysis.sessionContext} />
+            {/* Session Context Indicator - prefer analysis context, fallback to polling */}
+            <ContextIndicator
+              context={analysis.sessionContext || (currentProject ? projectToContextInfo(currentProject) : null)}
+            />
 
             {/* GOLDEN Score Summary with Radar Chart */}
             <div className="bg-dark-surface rounded-lg p-4">
@@ -251,6 +287,11 @@ function App() {
           </>
         ) : (
           <div className="flex flex-col h-full">
+            {/* Show current project from polling even without analysis */}
+            {currentProject && (
+              <ContextIndicator context={projectToContextInfo(currentProject)} />
+            )}
+
             {/* Shortcut instructions */}
             {!showDirectInput && (
               <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
