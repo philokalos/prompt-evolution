@@ -26,6 +26,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "better-sqlite3": "^11.7.0",
     "electron-store": "^8.1.0",
     "lucide-react": "^0.469.0",

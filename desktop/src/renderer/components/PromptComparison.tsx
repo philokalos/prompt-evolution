@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { Copy, Check, ChevronLeft, ChevronRight, Sparkles, FileText } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Copy, Check, ChevronLeft, ChevronRight, Sparkles, FileText, Wand2 } from 'lucide-react';
 
-export type VariantType = 'conservative' | 'balanced' | 'comprehensive';
+export type VariantType = 'conservative' | 'balanced' | 'comprehensive' | 'ai';
 
 export interface RewriteResult {
   rewrittenPrompt: string;
@@ -9,6 +9,8 @@ export interface RewriteResult {
   confidence: number;
   variant: VariantType;
   variantLabel: string;
+  isAiGenerated?: boolean;
+  aiExplanation?: string;
 }
 
 interface PromptComparisonProps {
@@ -17,7 +19,15 @@ interface PromptComparisonProps {
   onCopy: (text: string) => void;
 }
 
+// Shortcut key mapping (support up to 4 variants with AI)
+const SHORTCUT_KEYS = ['1', '2', '3', '4'];
+
 const VARIANT_COLORS: Record<VariantType, { bg: string; text: string; border: string }> = {
+  ai: {
+    bg: 'bg-amber-500/20',
+    text: 'text-amber-400',
+    border: 'border-amber-500/30',
+  },
   conservative: {
     bg: 'bg-blue-500/20',
     text: 'text-blue-400',
@@ -40,8 +50,42 @@ export default function PromptComparison({
   variants,
   onCopy,
 }: PromptComparisonProps) {
-  const [currentIndex, setCurrentIndex] = useState(1); // 기본: 균형 (index 1)
+  // Default to AI variant (index 0) if available, otherwise balanced (index 1)
+  const hasAiVariant = variants.length > 0 && variants[0].isAiGenerated;
+  const [currentIndex, setCurrentIndex] = useState(hasAiVariant ? 0 : 1);
   const [copied, setCopied] = useState(false);
+  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+
+  // Copy a specific variant by index
+  const copyVariant = useCallback((index: number) => {
+    if (index >= 0 && index < variants.length) {
+      onCopy(variants[index].rewrittenPrompt);
+      setCopiedIndex(index);
+      setCurrentIndex(index);
+      setCopied(true);
+      setTimeout(() => {
+        setCopied(false);
+        setCopiedIndex(null);
+      }, 2000);
+    }
+  }, [variants, onCopy]);
+
+  // Keyboard shortcuts: ⌘1, ⌘2, ⌘3 to copy variants
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for ⌘ (Mac) or Ctrl (Windows/Linux)
+      if (e.metaKey || e.ctrlKey) {
+        const keyIndex = SHORTCUT_KEYS.indexOf(e.key);
+        if (keyIndex !== -1 && keyIndex < variants.length) {
+          e.preventDefault();
+          copyVariant(keyIndex);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [variants, copyVariant]);
 
   if (variants.length === 0) {
     return null;
@@ -61,9 +105,7 @@ export default function PromptComparison({
   };
 
   const handleCopy = () => {
-    onCopy(currentVariant.rewrittenPrompt);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    copyVariant(currentIndex);
   };
 
   return (
@@ -77,18 +119,25 @@ export default function PromptComparison({
         <div className="flex items-center gap-1">
           {variants.map((v, i) => (
             <button
-              key={v.variant}
-              onClick={() => {
-                setCurrentIndex(i);
-                setCopied(false);
-              }}
-              className={`px-2 py-0.5 text-xs rounded transition-colors ${
-                i === currentIndex
+              key={v.variant + i}
+              onClick={() => copyVariant(i)}
+              title={`⌘${i + 1}`}
+              className={`relative px-2 py-0.5 text-xs rounded transition-all flex items-center gap-1 ${
+                copiedIndex === i
+                  ? 'bg-accent-success/30 text-accent-success ring-1 ring-accent-success'
+                  : i === currentIndex
                   ? `${VARIANT_COLORS[v.variant].bg} ${VARIANT_COLORS[v.variant].text}`
                   : 'bg-dark-hover text-gray-500 hover:text-gray-400'
               }`}
             >
+              {v.isAiGenerated && <Wand2 size={10} />}
+              <span className="opacity-50 mr-0.5 text-[10px]">⌘{i + 1}</span>
               {v.variantLabel}
+              {copiedIndex === i && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 flex items-center justify-center bg-accent-success rounded-full">
+                  <Check size={8} className="text-white" />
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -110,11 +159,25 @@ export default function PromptComparison({
         {/* Improved */}
         <div className={`bg-dark-surface rounded-lg p-3 border ${colors.border}`}>
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dark-border">
-            <Sparkles size={14} className={colors.text} />
+            {currentVariant.isAiGenerated ? (
+              <Wand2 size={14} className={colors.text} />
+            ) : (
+              <Sparkles size={14} className={colors.text} />
+            )}
             <span className={`text-xs font-medium ${colors.text}`}>
               개선 ({currentVariant.variantLabel})
             </span>
+            {currentVariant.isAiGenerated && (
+              <span className="px-1.5 py-0.5 bg-amber-500/30 text-amber-400 text-[10px] rounded font-medium">
+                AI
+              </span>
+            )}
           </div>
+          {currentVariant.aiExplanation && (
+            <div className="text-xs text-gray-400 mb-2 pb-2 border-b border-dark-border/50 italic">
+              {currentVariant.aiExplanation}
+            </div>
+          )}
           <div className="text-sm text-gray-200 whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
             {currentVariant.rewrittenPrompt}
           </div>

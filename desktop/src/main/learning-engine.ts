@@ -19,7 +19,8 @@ import {
   getImprovementAnalysis,
   getStats,
 } from './db/index.js';
-import { generatePromptVariants, RewriteResult, VariantType } from './prompt-rewriter.js';
+import { generatePromptVariants, generateAllVariants, RewriteResult, VariantType } from './prompt-rewriter.js';
+import { getAIRewriteSettings } from './index.js';
 import {
   getSessionContext,
   getSessionContextForPath,
@@ -205,7 +206,7 @@ function convertToAnalysisResult(
   const severityOrder = { high: 0, medium: 1, low: 2 };
   issues.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-  // 3가지 변형 생성 (세션 컨텍스트 활용)
+  // 3가지 변형 생성 (세션 컨텍스트 활용) - AI variants are generated separately in analyzePrompt
   const promptVariants = generatePromptVariants(originalText, evaluation, sessionContext || undefined);
 
   return {
@@ -297,6 +298,29 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
     }
 
     const result = convertToAnalysisResult(evaluation, text, classification, sessionContext);
+
+    // Try AI-powered prompt rewriting if enabled (Phase 3)
+    const aiSettings = getAIRewriteSettings();
+    if (aiSettings.enabled && aiSettings.apiKey) {
+      try {
+        console.log('[LearningEngine] Attempting AI-powered rewrite...');
+        const aiVariants = await generateAllVariants(
+          text,
+          evaluation,
+          sessionContext || undefined,
+          aiSettings.apiKey
+        );
+
+        // Replace variants if AI generation succeeded
+        if (aiVariants.length > 0 && aiVariants.some(v => v.isAiGenerated)) {
+          result.promptVariants = aiVariants;
+          console.log('[LearningEngine] AI-powered variants generated successfully');
+        }
+      } catch (aiError) {
+        console.warn('[LearningEngine] AI rewrite failed, using rule-based variants:', aiError);
+        // Continue with existing rule-based variants
+      }
+    }
 
     // Enrich with history-based recommendations (Phase 2)
     const projectPath = sessionContext?.projectPath;

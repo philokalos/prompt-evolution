@@ -32,6 +32,8 @@ interface AppSettings {
   captureMode: 'auto' | 'selection' | 'clipboard';
   enableProjectPolling: boolean;
   pollingIntervalMs: number;
+  claudeApiKey: string;
+  useAiRewrite: boolean;
 }
 
 // Initialize settings store
@@ -46,11 +48,23 @@ const store = new Store<AppSettings>({
     captureMode: 'auto',
     enableProjectPolling: true,
     pollingIntervalMs: 2000,
+    claudeApiKey: '',
+    useAiRewrite: false,
   },
 });
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
+
+/**
+ * Get AI rewrite settings for use by learning engine
+ */
+export function getAIRewriteSettings(): { apiKey: string; enabled: boolean } {
+  return {
+    apiKey: store.get('claudeApiKey') || '',
+    enabled: store.get('useAiRewrite') || false,
+  };
+}
 
 // State tracking for improved hotkey behavior
 let lastAnalyzedText = '';

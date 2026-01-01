@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, Globe, MousePointer2, Monitor } from 'lucide-react';
+import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, Globe, MousePointer2, Monitor, Key, EyeOff } from 'lucide-react';
 
 interface AppSettings {
   shortcut: string;
@@ -10,6 +10,8 @@ interface AppSettings {
   captureMode: 'auto' | 'selection' | 'clipboard';
   enableProjectPolling: boolean;
   pollingIntervalMs: number;
+  claudeApiKey: string;
+  useAiRewrite: boolean;
 }
 
 interface SettingsProps {
@@ -34,6 +36,7 @@ const AVAILABLE_SHORTCUTS = [
 export default function Settings({ isOpen, onClose }: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
 
   // Load settings on mount
   useEffect(() => {
@@ -195,6 +198,52 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                   <option value="ko">한국어</option>
                   <option value="en">English</option>
                 </select>
+              </div>
+
+              {/* AI Rewrite Section */}
+              <div className="pt-4 border-t border-dark-border space-y-4">
+                <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <Key size={14} className="text-accent-primary" />
+                  AI 프롬프트 개선
+                </h3>
+
+                {/* Enable AI Rewrite */}
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm">Claude API 사용</span>
+                    <span className="text-xs text-gray-500">AI로 더 정확한 프롬프트 개선</span>
+                  </div>
+                  <ToggleSwitch
+                    checked={settings.useAiRewrite}
+                    onChange={(v) => updateSetting('useAiRewrite', v)}
+                  />
+                </div>
+
+                {/* API Key Input */}
+                {settings.useAiRewrite && (
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400">API Key</label>
+                    <div className="relative">
+                      <input
+                        type={showApiKey ? 'text' : 'password'}
+                        value={settings.claudeApiKey}
+                        onChange={(e) => updateSetting('claudeApiKey', e.target.value)}
+                        placeholder="sk-ant-..."
+                        className="w-full px-3 py-2 pr-10 bg-dark-hover border border-dark-border rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-accent-primary font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-200"
+                      >
+                        {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      API 키는 로컬에만 저장되며 외부로 전송되지 않습니다
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* App Info */}

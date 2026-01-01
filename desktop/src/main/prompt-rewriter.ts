@@ -2,10 +2,12 @@
  * Prompt Rewriter Engine
  * 원본 프롬프트를 GOLDEN 가이드라인에 맞게 실제로 리라이트
  * 3가지 변형 제공: 보수적, 균형, 적극적
+ * AI 리라이트 옵션: Claude API를 사용한 지능형 개선
  * 세션 컨텍스트 활용: 기술 스택, 현재 작업 기반 템플릿 적용
  */
 
 import type { SessionContext } from './session-context.js';
+import { rewritePromptWithClaude, type RewriteRequest, type RewriteResult as AIRewriteResult } from './claude-api.js';
 
 // Tech stack specific hints for prompt enhancement
 const TECH_STACK_HINTS: Record<string, string[]> = {
@@ -47,7 +49,7 @@ interface GuidelineEvaluation {
   grade: 'A' | 'B' | 'C' | 'D' | 'F';
 }
 
-export type VariantType = 'conservative' | 'balanced' | 'comprehensive';
+export type VariantType = 'conservative' | 'balanced' | 'comprehensive' | 'ai';
 
 export interface RewriteResult {
   rewrittenPrompt: string;
@@ -55,6 +57,8 @@ export interface RewriteResult {
   confidence: number;
   variant: VariantType;
   variantLabel: string;
+  isAiGenerated?: boolean;
+  aiExplanation?: string;
 }
 
 /**
@@ -460,6 +464,99 @@ export function generatePromptVariants(
     generateBalancedRewrite(original, evaluation, context),
     generateComprehensiveRewrite(original, evaluation, context),
   ];
+}
+
+/**
+ * AI-powered prompt rewriting using Claude API
+ * Returns null if API is not available or fails
+ */
+export async function generateAIRewrite(
+  apiKey: string,
+  original: string,
+  evaluation: GuidelineEvaluation,
+  context?: SessionContext
+): Promise<RewriteResult | null> {
+  if (!apiKey || apiKey.trim() === '') {
+    return null;
+  }
+
+  const request: RewriteRequest = {
+    originalPrompt: original,
+    goldenScores: {
+      goal: Math.round(evaluation.goldenScore.goal * 100),
+      output: Math.round(evaluation.goldenScore.output * 100),
+      limits: Math.round(evaluation.goldenScore.limits * 100),
+      data: Math.round(evaluation.goldenScore.data * 100),
+      evaluation: Math.round(evaluation.goldenScore.evaluation * 100),
+      next: Math.round(evaluation.goldenScore.next * 100),
+    },
+    issues: evaluation.guidelineScores
+      .filter((g) => g.score < 0.5)
+      .map((g) => ({
+        severity: g.score < 0.3 ? 'high' : 'medium',
+        category: g.guideline,
+        message: g.description,
+        suggestion: g.suggestion,
+      })),
+    sessionContext: context
+      ? {
+          projectPath: context.projectPath,
+          projectName: context.projectPath.split('/').pop(),
+          techStack: context.techStack,
+        }
+      : undefined,
+  };
+
+  try {
+    const result = await rewritePromptWithClaude(apiKey, request);
+
+    if (!result.success || !result.rewrittenPrompt) {
+      console.warn('[PromptRewriter] AI rewrite failed:', result.error);
+      return null;
+    }
+
+    return {
+      rewrittenPrompt: result.rewrittenPrompt,
+      keyChanges: result.improvements || ['AI가 자동 개선'],
+      confidence: 0.95,
+      variant: 'ai',
+      variantLabel: 'AI 추천',
+      isAiGenerated: true,
+      aiExplanation: result.explanation,
+    };
+  } catch (error) {
+    console.error('[PromptRewriter] AI rewrite error:', error);
+    return null;
+  }
+}
+
+/**
+ * Generate all prompt variants including AI-powered one if API key is available
+ */
+export async function generateAllVariants(
+  original: string,
+  evaluation: GuidelineEvaluation,
+  context?: SessionContext,
+  apiKey?: string
+): Promise<RewriteResult[]> {
+  // Start with rule-based variants
+  const variants = generatePromptVariants(original, evaluation, context);
+
+  // Try AI rewrite if API key is provided and score is below threshold
+  if (apiKey && apiKey.trim() !== '' && evaluation.overallScore < 0.8) {
+    try {
+      const aiVariant = await generateAIRewrite(apiKey, original, evaluation, context);
+      if (aiVariant) {
+        // Insert AI variant at the beginning (highest priority)
+        variants.unshift(aiVariant);
+      }
+    } catch (error) {
+      console.warn('[PromptRewriter] AI variant generation failed:', error);
+      // Continue with rule-based variants
+    }
+  }
+
+  return variants;
 }
 
 export { GuidelineEvaluation };

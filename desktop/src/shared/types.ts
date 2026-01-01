@@ -120,8 +120,10 @@ export interface RewriteResult {
   rewrittenPrompt: string;
   keyChanges: string[];
   confidence: number;
-  variant: 'conservative' | 'balanced' | 'comprehensive';
+  variant: 'conservative' | 'balanced' | 'comprehensive' | 'ai';
   variantLabel: string;
+  isAiGenerated?: boolean;
+  aiExplanation?: string;
 }
 
 // Phase 2: History-based recommendation types
