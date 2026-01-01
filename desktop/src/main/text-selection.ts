@@ -15,6 +15,57 @@ const execAsync = promisify(exec);
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * Apps that don't work well with keystroke simulation.
+ * These apps may crash or behave unexpectedly when receiving simulated Cmd+C.
+ * For these apps, we skip selection capture and use clipboard only.
+ */
+const BLOCKED_APPS = [
+  'Cursor',           // Electron-based IDE - crashes with simulated keystrokes
+  'Code',             // VS Code - may have similar issues
+  'Claude',           // Claude desktop app
+  'Terminal',         // Terminal apps handle clipboard differently
+  'iTerm2',
+  'Warp',
+  'Hyper',
+];
+
+/**
+ * Get the name of the frontmost application.
+ * @returns Application name or null if detection fails
+ */
+async function getFrontmostApp(): Promise<string | null> {
+  if (process.platform !== 'darwin') {
+    return null;
+  }
+
+  try {
+    const script = `
+      tell application "System Events"
+        set frontApp to name of first application process whose frontmost is true
+        return frontApp
+      end tell
+    `;
+    const { stdout } = await execAsync(`osascript -e '${script}'`);
+    return stdout.trim();
+  } catch (error) {
+    console.warn('[TextSelection] Failed to get frontmost app:', error);
+    return null;
+  }
+}
+
+/**
+ * Check if the given app is in the blocklist for keystroke simulation.
+ * @param appName - Name of the application
+ * @returns true if app should be blocked, false otherwise
+ */
+function isBlockedApp(appName: string | null): boolean {
+  if (!appName) return false;
+  return BLOCKED_APPS.some((blocked) =>
+    appName.toLowerCase().includes(blocked.toLowerCase())
+  );
+}
+
+/**
  * Try to get selected text from the frontmost application.
  *
  * Flow:
@@ -30,6 +81,15 @@ export async function tryGetSelectedText(): Promise<string | null> {
   // Only works on macOS
   if (process.platform !== 'darwin') {
     return null;
+  }
+
+  // Check if frontmost app is in blocklist
+  const frontApp = await getFrontmostApp();
+  if (isBlockedApp(frontApp)) {
+    // Return current clipboard content instead of simulating Cmd+C
+    const clipboardText = clipboard.readText();
+    console.log(`[TextSelection] Blocked app: ${frontApp}, clipboard content: "${clipboardText?.substring(0, 50) || '(empty)'}"`);
+    return clipboardText || null;
   }
 
   const originalClipboard = clipboard.readText();
