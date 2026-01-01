@@ -33,6 +33,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getImprovementAnalysis: (): Promise<unknown> =>
     ipcRenderer.invoke('get-improvement-analysis'),
 
+  // Session context
+  getSessionContext: (): Promise<unknown> => ipcRenderer.invoke('get-session-context'),
+
   // Event listeners
   onClipboardText: (callback: (text: string) => void): void => {
     ipcRenderer.on('clipboard-text', (_event, text) => callback(text));
@@ -62,6 +65,7 @@ declare global {
       getWeeklyStats: (weeks?: number) => Promise<unknown[]>;
       getMonthlyStats: (months?: number) => Promise<unknown[]>;
       getImprovementAnalysis: () => Promise<unknown>;
+      getSessionContext: () => Promise<unknown>;
       onClipboardText: (callback: (text: string) => void) => void;
       removeClipboardListener: () => void;
     };

@@ -20,6 +20,7 @@ import {
   getStats,
 } from './db/index.js';
 import { generatePromptVariants, RewriteResult, VariantType } from './prompt-rewriter.js';
+import { getSessionContext, getSessionContextForPath, SessionContext } from './session-context.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -97,10 +98,11 @@ interface AnalysisResult {
   improvedPrompt?: string; // deprecated, 호환성 유지
   promptVariants: RewriteResult[]; // 신규: 3가지 변형
   classification?: PromptClassification;
+  sessionContext?: SessionContext; // 세션 컨텍스트 정보
 }
 
 // Re-export for renderer
-export type { RewriteResult, VariantType };
+export type { RewriteResult, VariantType, SessionContext };
 
 // Cache for loaded modules
 let evaluatePromptAgainstGuidelines: ((text: string) => GuidelineEvaluation) | null = null;
@@ -147,7 +149,8 @@ async function loadAnalysisModules(): Promise<boolean> {
 function convertToAnalysisResult(
   evaluation: GuidelineEvaluation,
   originalText: string,
-  classification?: PromptClassification
+  classification?: PromptClassification,
+  sessionContext?: SessionContext | null
 ): AnalysisResult {
   // Convert anti-patterns to issues
   const issues = evaluation.antiPatterns.map((pattern) => ({
@@ -173,8 +176,8 @@ function convertToAnalysisResult(
   const severityOrder = { high: 0, medium: 1, low: 2 };
   issues.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-  // 3가지 변형 생성
-  const promptVariants = generatePromptVariants(originalText, evaluation);
+  // 3가지 변형 생성 (세션 컨텍스트 활용)
+  const promptVariants = generatePromptVariants(originalText, evaluation, sessionContext || undefined);
 
   return {
     overallScore: Math.round(evaluation.overallScore * 100),
@@ -192,6 +195,7 @@ function convertToAnalysisResult(
     improvedPrompt: promptVariants[1]?.rewrittenPrompt, // 호환성: 균형 버전
     promptVariants,
     classification,
+    sessionContext: sessionContext || undefined,
   };
 }
 
@@ -244,6 +248,12 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
   }
 
   try {
+    // Get session context for enhanced rewriting
+    const sessionContext = getSessionContext();
+    if (sessionContext) {
+      console.log('[LearningEngine] Session context found:', sessionContext.projectPath);
+    }
+
     // Run evaluation
     const evaluation = evaluatePromptAgainstGuidelines!(text);
 
@@ -253,7 +263,7 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
       classification = classifyPrompt(text);
     }
 
-    const result = convertToAnalysisResult(evaluation, text, classification);
+    const result = convertToAnalysisResult(evaluation, text, classification, sessionContext);
 
     // Save to history for progress tracking
     try {
@@ -367,6 +377,16 @@ export function registerLearningEngineHandlers(): void {
 
   ipcMain.handle('get-improvement-analysis', async () => {
     return getImprovementAnalysis();
+  });
+
+  // Session context handler
+  ipcMain.handle('get-session-context', async () => {
+    return getSessionContext();
+  });
+
+  // Session context for specific path (debugging/testing)
+  ipcMain.handle('get-session-context-for-path', async (_event, targetPath: string) => {
+    return getSessionContextForPath(targetPath);
   });
 
   // Initialize by loading modules

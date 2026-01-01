@@ -5,6 +5,7 @@ import ProgressTracker from './components/ProgressTracker';
 import PersonalTips from './components/PersonalTips';
 import IssueList from './components/IssueList';
 import PromptComparison, { RewriteResult, VariantType } from './components/PromptComparison';
+import ContextIndicator, { SessionContextInfo } from './components/ContextIndicator';
 
 // Analysis result types
 interface Issue {
@@ -29,6 +30,7 @@ interface AnalysisResult {
   personalTips: string[];
   improvedPrompt?: string; // deprecated, 호환성 유지
   promptVariants: RewriteResult[]; // 신규: 3가지 변형
+  sessionContext?: SessionContextInfo; // 세션 컨텍스트
 }
 
 type ViewMode = 'analysis' | 'progress' | 'tips';
@@ -168,6 +170,9 @@ function App() {
           </div>
         ) : analysis ? (
           <>
+            {/* Session Context Indicator */}
+            <ContextIndicator context={analysis.sessionContext} />
+
             {/* GOLDEN Score Summary with Radar Chart */}
             <div className="bg-dark-surface rounded-lg p-4">
               <div className="flex items-center justify-between mb-4">

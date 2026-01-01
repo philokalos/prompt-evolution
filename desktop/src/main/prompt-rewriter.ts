@@ -2,7 +2,24 @@
  * Prompt Rewriter Engine
  * 원본 프롬프트를 GOLDEN 가이드라인에 맞게 실제로 리라이트
  * 3가지 변형 제공: 보수적, 균형, 적극적
+ * 세션 컨텍스트 활용: 기술 스택, 현재 작업 기반 템플릿 적용
  */
+
+import type { SessionContext } from './session-context.js';
+
+// Tech stack specific hints for prompt enhancement
+const TECH_STACK_HINTS: Record<string, string[]> = {
+  'React': ['컴포넌트 구조 명시', 'hooks 사용 여부'],
+  'TypeScript': ['타입 정의 포함', '인터페이스 명시'],
+  'Vue': ['Composition API 또는 Options API 선택'],
+  'Next.js': ['App Router 또는 Pages Router', 'SSR/SSG 고려'],
+  'Firebase': ['보안 규칙 고려', 'Firestore 구조'],
+  'Node.js': ['런타임 버전', '패키지 매니저'],
+  'Python': ['Python 버전', '가상환경 정보'],
+  'Tailwind CSS': ['커스텀 테마 여부', '기존 스타일 패턴'],
+  'Vite': ['빌드 설정 고려'],
+  'Electron': ['main/renderer 프로세스 구분'],
+};
 
 interface GOLDENScore {
   goal: number;
@@ -82,7 +99,8 @@ function getCategoryLabel(category: string): string {
  */
 function generateConservativeRewrite(
   original: string,
-  evaluation: GuidelineEvaluation
+  evaluation: GuidelineEvaluation,
+  context?: SessionContext
 ): RewriteResult {
   const keyChanges: string[] = [];
   let rewritten = original.trim();
@@ -138,11 +156,12 @@ function generateConservativeRewrite(
  */
 function generateBalancedRewrite(
   original: string,
-  evaluation: GuidelineEvaluation
+  evaluation: GuidelineEvaluation,
+  context?: SessionContext
 ): RewriteResult {
   const keyChanges: string[] = [];
   const category = detectCategory(original);
-  let rewritten = original.trim();
+  let rewritten = '';
 
   // 1. 카테고리 태그 추가
   rewritten = `[${getCategoryLabel(category)} 요청]\n\n`;
@@ -153,10 +172,19 @@ function generateBalancedRewrite(
     .filter(([key, value]) => key !== 'total' && (value as number) < 0.5)
     .map(([key]) => key);
 
-  // 컨텍스트 (data)
+  // 컨텍스트 (data) - Use session context if available
   if (lowScoreAreas.includes('data')) {
-    rewritten += '현재 상황:\n- [프로젝트/환경 설명]\n\n';
-    keyChanges.push('컨텍스트 섹션');
+    if (context && context.techStack.length > 0) {
+      rewritten += `현재 상황:\n- 환경: ${context.techStack.join(' + ')}\n`;
+      if (context.currentTask && context.currentTask !== '작업 진행 중') {
+        rewritten += `- 작업: ${context.currentTask}\n`;
+      }
+      rewritten += '\n';
+      keyChanges.push('세션 컨텍스트');
+    } else {
+      rewritten += '현재 상황:\n- [프로젝트/환경 설명]\n\n';
+      keyChanges.push('컨텍스트 섹션');
+    }
   }
 
   // 원본 요청
@@ -170,14 +198,26 @@ function generateBalancedRewrite(
 
   // 제약조건 (limits)
   if (lowScoreAreas.includes('limits') && category === 'code-generation') {
-    rewritten += '\n\n제약조건:\n- [필요한 제약사항]';
-    keyChanges.push('제약조건');
+    // Add tech stack specific hints if available
+    if (context && context.techStack.length > 0) {
+      const hints = getTechStackHints(context.techStack);
+      if (hints.length > 0) {
+        rewritten += `\n\n제약조건:\n- ${hints.join('\n- ')}`;
+        keyChanges.push('기술 스택 힌트');
+      } else {
+        rewritten += '\n\n제약조건:\n- [필요한 제약사항]';
+        keyChanges.push('제약조건');
+      }
+    } else {
+      rewritten += '\n\n제약조건:\n- [필요한 제약사항]';
+      keyChanges.push('제약조건');
+    }
   }
 
   return {
     rewrittenPrompt: rewritten,
     keyChanges,
-    confidence: 0.75,
+    confidence: context ? 0.8 : 0.75,
     variant: 'balanced',
     variantLabel: '균형',
   };
@@ -188,7 +228,8 @@ function generateBalancedRewrite(
  */
 function generateComprehensiveRewrite(
   original: string,
-  evaluation: GuidelineEvaluation
+  evaluation: GuidelineEvaluation,
+  context?: SessionContext
 ): RewriteResult {
   const keyChanges: string[] = [];
   const category = detectCategory(original);
@@ -196,25 +237,32 @@ function generateComprehensiveRewrite(
   // 카테고리별 템플릿 적용
   let rewritten = '';
 
+  // Add context header if available
+  if (context && context.techStack.length > 0) {
+    const contextHeader = generateContextHeader(context);
+    rewritten = `[세션 컨텍스트]\n${contextHeader}\n\n`;
+    keyChanges.push('세션 컨텍스트 적용');
+  }
+
   switch (category) {
     case 'code-generation':
-      rewritten = generateCodeGenerationTemplate(original);
+      rewritten += generateCodeGenerationTemplate(original, context);
       keyChanges.push('코드 생성 템플릿');
       break;
     case 'bug-fix':
-      rewritten = generateBugFixTemplate(original);
+      rewritten += generateBugFixTemplate(original);
       keyChanges.push('버그 수정 템플릿');
       break;
     case 'code-review':
-      rewritten = generateCodeReviewTemplate(original);
+      rewritten += generateCodeReviewTemplate(original);
       keyChanges.push('코드 리뷰 템플릿');
       break;
     case 'explanation':
-      rewritten = generateExplanationTemplate(original);
+      rewritten += generateExplanationTemplate(original);
       keyChanges.push('설명 요청 템플릿');
       break;
     default:
-      rewritten = generateGeneralTemplate(original);
+      rewritten += generateGeneralTemplate(original);
       keyChanges.push('일반 템플릿');
   }
 
@@ -224,7 +272,7 @@ function generateComprehensiveRewrite(
   return {
     rewrittenPrompt: rewritten,
     keyChanges,
-    confidence: 0.9,
+    confidence: context ? 0.95 : 0.9,
     variant: 'comprehensive',
     variantLabel: '적극적',
   };
@@ -232,19 +280,34 @@ function generateComprehensiveRewrite(
 
 // 템플릿 함수들
 
-function generateCodeGenerationTemplate(original: string): string {
+function generateCodeGenerationTemplate(original: string, context?: SessionContext): string {
+  // Use context for environment info if available
+  const envInfo = context && context.techStack.length > 0
+    ? `- 프로젝트: ${context.techStack.join(' + ')}`
+    : '- 프로젝트: [프레임워크/언어]';
+
+  const structureInfo = context && context.recentFiles.length > 0
+    ? `- 최근 파일: ${context.recentFiles.slice(0, 3).join(', ')}`
+    : '- 기존 구조: [관련 파일/패턴]';
+
+  // Get tech stack hints
+  const hints = context ? getTechStackHints(context.techStack) : [];
+  const requirementsSection = hints.length > 0
+    ? `요구사항:\n${hints.map((h, i) => `${i + 1}. ${h}`).join('\n')}`
+    : `요구사항:
+1. [첫 번째 요구사항]
+2. [두 번째 요구사항]`;
+
   return `[코드 생성 요청]
 
 현재 상황:
-- 프로젝트: [프레임워크/언어]
-- 기존 구조: [관련 파일/패턴]
+${envInfo}
+${structureInfo}
 
 요청:
 ${original.trim()}
 
-요구사항:
-1. [첫 번째 요구사항]
-2. [두 번째 요구사항]
+${requirementsSection}
 
 출력 형식:
 - 전체 코드 파일
@@ -326,11 +389,56 @@ ${original.trim()}
 }
 
 /**
+ * Generate context-aware environment header
+ */
+function generateContextHeader(context: SessionContext): string {
+  const parts: string[] = [];
+
+  // Project name from path
+  const projectName = context.projectPath.split('/').pop() || 'project';
+  parts.push(`프로젝트: ${projectName}`);
+
+  // Tech stack
+  if (context.techStack.length > 0) {
+    parts.push(`환경: ${context.techStack.join(' + ')}`);
+  }
+
+  // Current task if available
+  if (context.currentTask && context.currentTask !== '작업 진행 중') {
+    parts.push(`작업: ${context.currentTask}`);
+  }
+
+  // Git branch if available
+  if (context.gitBranch) {
+    parts.push(`브랜치: ${context.gitBranch}`);
+  }
+
+  return parts.join('\n');
+}
+
+/**
+ * Get relevant hints for the current tech stack
+ */
+function getTechStackHints(techStack: string[]): string[] {
+  const hints: string[] = [];
+
+  for (const tech of techStack) {
+    const techHints = TECH_STACK_HINTS[tech];
+    if (techHints) {
+      hints.push(...techHints);
+    }
+  }
+
+  return hints.slice(0, 3); // Limit to 3 most relevant hints
+}
+
+/**
  * 3가지 변형 생성 (메인 함수)
  */
 export function generatePromptVariants(
   original: string,
-  evaluation: GuidelineEvaluation
+  evaluation: GuidelineEvaluation,
+  context?: SessionContext
 ): RewriteResult[] {
   // 이미 점수가 높으면 변형 최소화
   if (evaluation.overallScore >= 0.8) {
@@ -342,15 +450,15 @@ export function generatePromptVariants(
         variant: 'conservative',
         variantLabel: '보수적',
       },
-      generateBalancedRewrite(original, evaluation),
-      generateComprehensiveRewrite(original, evaluation),
+      generateBalancedRewrite(original, evaluation, context),
+      generateComprehensiveRewrite(original, evaluation, context),
     ];
   }
 
   return [
-    generateConservativeRewrite(original, evaluation),
-    generateBalancedRewrite(original, evaluation),
-    generateComprehensiveRewrite(original, evaluation),
+    generateConservativeRewrite(original, evaluation, context),
+    generateBalancedRewrite(original, evaluation, context),
+    generateComprehensiveRewrite(original, evaluation, context),
   ];
 }
 
