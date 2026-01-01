@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Minus, Copy, BarChart3, Lightbulb, ArrowLeft } from 'lucide-react';
+import { X, Minus, BarChart3, Lightbulb, ArrowLeft } from 'lucide-react';
 import GoldenRadar from './components/GoldenRadar';
 import ProgressTracker from './components/ProgressTracker';
 import PersonalTips from './components/PersonalTips';
 import IssueList from './components/IssueList';
+import PromptComparison, { RewriteResult, VariantType } from './components/PromptComparison';
 
 // Analysis result types
 interface Issue {
@@ -26,22 +27,22 @@ interface AnalysisResult {
   };
   issues: Issue[];
   personalTips: string[];
-  improvedPrompt?: string;
+  improvedPrompt?: string; // deprecated, 호환성 유지
+  promptVariants: RewriteResult[]; // 신규: 3가지 변형
 }
 
 type ViewMode = 'analysis' | 'progress' | 'tips';
 
 function App() {
-  const [, setPromptText] = useState('');
+  const [originalPrompt, setOriginalPrompt] = useState('');
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('analysis');
 
   // Listen for clipboard text from main process
   useEffect(() => {
     window.electronAPI.onClipboardText((text) => {
-      setPromptText(text);
+      setOriginalPrompt(text);
       analyzePrompt(text);
     });
 
@@ -82,18 +83,15 @@ function App() {
         ],
         personalTips: ['분석 모듈 로드 대기 중...'],
         improvedPrompt: undefined,
+        promptVariants: [],
       });
     } finally {
       setIsAnalyzing(false);
     }
   }, []);
 
-  const handleCopyImproved = async () => {
-    if (analysis?.improvedPrompt) {
-      await window.electronAPI.setClipboard(analysis.improvedPrompt);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
+  const handleCopy = async (text: string) => {
+    await window.electronAPI.setClipboard(text);
   };
 
   const handleClose = () => {
@@ -232,34 +230,25 @@ function App() {
 
       {/* Footer Actions */}
       {viewMode === 'analysis' && (
-        <div className="p-4 border-t border-dark-border bg-dark-surface">
+        <div className="p-4 border-t border-dark-border bg-dark-surface space-y-4">
+          {/* Prompt Comparison (new) */}
+          {analysis && analysis.promptVariants.length > 0 && (
+            <PromptComparison
+              originalPrompt={originalPrompt}
+              variants={analysis.promptVariants}
+              onCopy={handleCopy}
+            />
+          )}
+
+          {/* Progress button */}
           <div className="flex gap-2">
-            {analysis ? (
-              <>
-                <button
-                  onClick={handleCopyImproved}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-accent-primary hover:bg-accent-primary/90 rounded-lg text-sm font-medium transition-colors"
-                >
-                  <Copy size={16} />
-                  {copied ? '복사됨!' : '개선된 프롬프트 복사'}
-                </button>
-                <button
-                  onClick={() => setViewMode('progress')}
-                  className="px-4 py-2 bg-dark-hover hover:bg-dark-border rounded-lg text-sm transition-colors"
-                  title="내 진행 상황"
-                >
-                  <BarChart3 size={16} />
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setViewMode('progress')}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-dark-hover hover:bg-dark-border rounded-lg text-sm transition-colors"
-              >
-                <BarChart3 size={16} />
-                <span>내 진행 상황 보기</span>
-              </button>
-            )}
+            <button
+              onClick={() => setViewMode('progress')}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-dark-hover hover:bg-dark-border rounded-lg text-sm transition-colors"
+            >
+              <BarChart3 size={16} />
+              <span>내 진행 상황 보기</span>
+            </button>
           </div>
         </div>
       )}

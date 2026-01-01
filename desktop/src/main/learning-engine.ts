@@ -19,6 +19,7 @@ import {
   getImprovementAnalysis,
   getStats,
 } from './db/index.js';
+import { generatePromptVariants, RewriteResult, VariantType } from './prompt-rewriter.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -93,9 +94,13 @@ interface AnalysisResult {
     suggestion: string;
   }>;
   personalTips: string[];
-  improvedPrompt?: string;
+  improvedPrompt?: string; // deprecated, 호환성 유지
+  promptVariants: RewriteResult[]; // 신규: 3가지 변형
   classification?: PromptClassification;
 }
+
+// Re-export for renderer
+export type { RewriteResult, VariantType };
 
 // Cache for loaded modules
 let evaluatePromptAgainstGuidelines: ((text: string) => GuidelineEvaluation) | null = null;
@@ -141,6 +146,7 @@ async function loadAnalysisModules(): Promise<boolean> {
  */
 function convertToAnalysisResult(
   evaluation: GuidelineEvaluation,
+  originalText: string,
   classification?: PromptClassification
 ): AnalysisResult {
   // Convert anti-patterns to issues
@@ -167,6 +173,9 @@ function convertToAnalysisResult(
   const severityOrder = { high: 0, medium: 1, low: 2 };
   issues.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
+  // 3가지 변형 생성
+  const promptVariants = generatePromptVariants(originalText, evaluation);
+
   return {
     overallScore: Math.round(evaluation.overallScore * 100),
     grade: evaluation.grade,
@@ -180,7 +189,8 @@ function convertToAnalysisResult(
     },
     issues: issues.slice(0, 5), // Top 5 issues
     personalTips: generatePersonalTips(evaluation),
-    improvedPrompt: generateImprovedPrompt(evaluation),
+    improvedPrompt: promptVariants[1]?.rewrittenPrompt, // 호환성: 균형 버전
+    promptVariants,
     classification,
   };
 }
@@ -217,17 +227,7 @@ function generatePersonalTips(evaluation: GuidelineEvaluation): string[] {
   return tips.filter(Boolean).slice(0, 3);
 }
 
-/**
- * Generate improved prompt suggestion
- */
-function generateImprovedPrompt(evaluation: GuidelineEvaluation): string | undefined {
-  // For now, return recommendations as improvement hints
-  // In future, could use AI to actually rewrite
-  if (evaluation.recommendations.length > 0) {
-    return `다음 사항을 추가하세요:\n${evaluation.recommendations.slice(0, 3).map((r) => `• ${r}`).join('\n')}`;
-  }
-  return undefined;
-}
+// generateImprovedPrompt 함수 제거됨 - prompt-rewriter.ts의 generatePromptVariants로 대체
 
 /**
  * Analyze a prompt and return structured result
@@ -253,7 +253,7 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
       classification = classifyPrompt(text);
     }
 
-    const result = convertToAnalysisResult(evaluation, classification);
+    const result = convertToAnalysisResult(evaluation, text, classification);
 
     // Save to history for progress tracking
     try {
@@ -315,6 +315,7 @@ function createFallbackAnalysis(text: string): AnalysisResult {
     ],
     personalTips: ['분석 모듈 로드 실패 - 기본 분석 결과입니다'],
     improvedPrompt: undefined,
+    promptVariants: [],
   };
 }
 
