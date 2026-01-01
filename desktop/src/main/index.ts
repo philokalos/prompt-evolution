@@ -1,10 +1,15 @@
-import { app, BrowserWindow, globalShortcut, clipboard, ipcMain } from 'electron';
+import { app, BrowserWindow, globalShortcut, clipboard, ipcMain, screen } from 'electron';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import Store from 'electron-store';
 import { createTray, destroyTray } from './tray.js';
 import { registerLearningEngineHandlers } from './learning-engine.js';
-import { captureTextForAnalysis } from './text-selection.js';
+import {
+  captureTextForAnalysis,
+  checkAccessibilityPermission,
+  showAccessibilityPermissionDialog,
+  type CaptureMode,
+} from './text-selection.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -18,6 +23,7 @@ interface AppSettings {
   hideOnCopy: boolean;
   language: 'ko' | 'en';
   showNotifications: boolean;
+  captureMode: 'auto' | 'selection' | 'clipboard';
 }
 
 // Initialize settings store
@@ -29,6 +35,7 @@ const store = new Store<AppSettings>({
     hideOnCopy: false,
     language: 'ko',
     showNotifications: true,
+    captureMode: 'auto',
   },
 });
 
@@ -51,6 +58,37 @@ function sendTextToRenderer(text: string): void {
     pendingText = text;
     console.log('[Main] Renderer not ready, queuing text for later');
   }
+}
+
+/**
+ * Position the window near the mouse cursor.
+ * Places window to the right of cursor, or left if not enough space.
+ * Handles multi-monitor setups correctly.
+ */
+function positionWindowNearCursor(): void {
+  if (!mainWindow) return;
+
+  const cursor = screen.getCursorScreenPoint();
+  const display = screen.getDisplayNearestPoint(cursor);
+  const { width: screenW, height: screenH } = display.workAreaSize;
+  const { x: screenX, y: screenY } = display.workArea;
+  const [winW, winH] = mainWindow.getSize();
+
+  // Position to the right of cursor (20px gap)
+  let x = cursor.x + 20;
+  let y = cursor.y - Math.floor(winH / 2); // Vertical center alignment
+
+  // If overflows right edge, position to the left
+  if (x + winW > screenX + screenW) {
+    x = cursor.x - winW - 20;
+  }
+
+  // Clamp to screen bounds
+  if (y < screenY) y = screenY + 10;
+  if (y + winH > screenY + screenH) y = screenY + screenH - winH - 10;
+
+  mainWindow.setPosition(x, y);
+  console.log(`[Main] Positioned window at ${x}, ${y} (cursor: ${cursor.x}, ${cursor.y})`);
 }
 
 function createWindow(): void {
@@ -158,31 +196,29 @@ function registerShortcut(): void {
   globalShortcut.register(shortcut, async () => {
     if (!mainWindow) return;
 
-    // Capture text (tries selection first, then clipboard)
-    const { text: capturedText, source } = await captureTextForAnalysis();
-    console.log(`[Main] Captured text from ${source}:`, capturedText?.substring(0, 50));
+    // Get capture mode from settings
+    const captureMode = store.get('captureMode') as CaptureMode;
 
-    if (mainWindow.isVisible()) {
-      // Window is visible - decide: re-analyze or hide?
-      if (capturedText && capturedText !== lastAnalyzedText) {
-        // New text captured - re-analyze without hiding
-        lastAnalyzedText = capturedText;
-        sendTextToRenderer(capturedText);
-        console.log('[Main] Re-analyzing new text while visible');
-      } else {
-        // Same text or no text - toggle hide
-        mainWindow.hide();
-        console.log('[Main] Hiding window (same text or no text)');
-      }
-    } else {
-      // Window hidden - show and analyze
-      if (capturedText) {
-        lastAnalyzedText = capturedText;
-        sendTextToRenderer(capturedText);
-      }
-      mainWindow.show();
-      mainWindow.focus();
-      console.log('[Main] Showing window and analyzing');
+    // Capture text using configured mode
+    const { text: capturedText, source } = await captureTextForAnalysis(captureMode);
+    console.log(`[Main] Captured text from ${source} (mode: ${captureMode}):`, capturedText?.substring(0, 50));
+
+    // No text captured - do nothing
+    if (!capturedText) {
+      console.log('[Main] No text captured, ignoring');
+      return;
+    }
+
+    // Always analyze (even if same text)
+    lastAnalyzedText = capturedText;
+    sendTextToRenderer(capturedText);
+    console.log('[Main] Analyzing text');
+
+    // Show window if hidden (use showInactive to keep focus on source app)
+    if (!mainWindow.isVisible()) {
+      positionWindowNearCursor();
+      mainWindow.showInactive();
+      console.log('[Main] Showing window near cursor (without stealing focus)');
     }
   });
 }
@@ -232,7 +268,7 @@ ipcMain.handle('renderer-ready', () => {
 });
 
 // App lifecycle
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   createWindow();
   registerShortcut();
 
@@ -243,6 +279,17 @@ app.whenReady().then(() => {
 
   // Register learning engine IPC handlers
   registerLearningEngineHandlers();
+
+  // Check accessibility permission for text selection capture
+  // This is needed for AppleScript keyboard simulation (Cmd+C)
+  const hasAccessibility = checkAccessibilityPermission(false);
+  if (!hasAccessibility) {
+    console.log('[Main] Accessibility permission not granted, showing dialog');
+    // Delay to let the main window show first
+    setTimeout(async () => {
+      await showAccessibilityPermissionDialog();
+    }, 2000);
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

@@ -6,7 +6,7 @@
  */
 
 import { exec } from 'child_process';
-import { clipboard } from 'electron';
+import { clipboard, systemPreferences, dialog, shell } from 'electron';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
@@ -72,21 +72,48 @@ export async function tryGetSelectedText(): Promise<string | null> {
  * Check if Accessibility permissions are granted.
  * Required for AppleScript keyboard simulation.
  *
+ * @param promptIfNeeded - If true, triggers system permission prompt
  * @returns true if permission granted, false otherwise
  */
-export async function checkAccessibilityPermission(): Promise<boolean> {
+export function checkAccessibilityPermission(promptIfNeeded = false): boolean {
   if (process.platform !== 'darwin') {
     return true; // Not applicable on non-macOS
   }
 
-  try {
-    // This will fail if accessibility isn't granted
-    await execAsync(`osascript -e 'tell application "System Events" to return 1'`);
+  const isTrusted = systemPreferences.isTrustedAccessibilityClient(promptIfNeeded);
+  console.log(`[TextSelection] Accessibility permission: ${isTrusted ? 'granted' : 'not granted'}`);
+  return isTrusted;
+}
+
+/**
+ * Show a dialog explaining why accessibility permission is needed
+ * and offer to open System Preferences.
+ *
+ * @returns true if user clicked "Open Settings", false otherwise
+ */
+export async function showAccessibilityPermissionDialog(): Promise<boolean> {
+  const result = await dialog.showMessageBox({
+    type: 'info',
+    title: '접근성 권한 필요',
+    message: '텍스트 선택 캡처 기능을 사용하려면 접근성 권한이 필요합니다.',
+    detail:
+      'PromptLint가 다른 앱에서 선택한 텍스트를 자동으로 복사하려면 ' +
+      '시스템 환경설정 > 개인정보 보호 및 보안 > 접근성에서 PromptLint를 허용해주세요.\n\n' +
+      '권한 없이도 클립보드에 복사된 텍스트는 분석할 수 있습니다.',
+    buttons: ['설정 열기', '나중에'],
+    defaultId: 0,
+    cancelId: 1,
+  });
+
+  if (result.response === 0) {
+    // Open System Preferences > Privacy & Security > Accessibility
+    shell.openExternal(
+      'x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility'
+    );
     return true;
-  } catch {
-    console.warn('[TextSelection] Accessibility permission not granted');
-    return false;
   }
+
+  return false;
 }
 
 /**
@@ -98,16 +125,34 @@ export interface TextCaptureResult {
 }
 
 /**
- * Get text for analysis using the best available method.
+ * Capture mode determines how text is captured for analysis.
+ */
+export type CaptureMode = 'auto' | 'selection' | 'clipboard';
+
+/**
+ * Get text for analysis using the specified capture mode.
  *
- * Priority:
- * 1. Selected text (via AppleScript)
- * 2. Existing clipboard content
+ * Modes:
+ * - auto: Try selected text first, fall back to clipboard (default)
+ * - selection: Only capture selected text (via AppleScript)
+ * - clipboard: Only use existing clipboard content
  *
+ * @param mode - Capture mode (default: 'auto')
  * @returns Text and its source
  */
-export async function captureTextForAnalysis(): Promise<TextCaptureResult> {
-  // Try to get selected text first
+export async function captureTextForAnalysis(
+  mode: CaptureMode = 'auto'
+): Promise<TextCaptureResult> {
+  if (mode === 'clipboard') {
+    // Clipboard only mode
+    const clipboardText = clipboard.readText();
+    return {
+      text: clipboardText || null,
+      source: 'clipboard',
+    };
+  }
+
+  // Try to get selected text (for 'auto' and 'selection' modes)
   const selectedText = await tryGetSelectedText();
 
   if (selectedText) {
@@ -117,7 +162,15 @@ export async function captureTextForAnalysis(): Promise<TextCaptureResult> {
     };
   }
 
-  // Fall back to existing clipboard
+  // For 'selection' mode, don't fall back to clipboard
+  if (mode === 'selection') {
+    return {
+      text: null,
+      source: 'selection',
+    };
+  }
+
+  // For 'auto' mode, fall back to existing clipboard
   const clipboardText = clipboard.readText();
   return {
     text: clipboardText || null,

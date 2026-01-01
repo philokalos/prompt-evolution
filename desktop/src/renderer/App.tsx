@@ -63,6 +63,18 @@ function App() {
     };
   }, []);
 
+  // Escape key to hide window
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        window.electronAPI.hideWindow();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const analyzePrompt = useCallback(async (text: string) => {
     if (!text.trim()) return;
 
