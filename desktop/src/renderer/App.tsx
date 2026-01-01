@@ -6,8 +6,9 @@ import PersonalTips from './components/PersonalTips';
 import IssueList from './components/IssueList';
 import PromptComparison, { RewriteResult, VariantType } from './components/PromptComparison';
 import ContextIndicator, { SessionContextInfo } from './components/ContextIndicator';
+import HistoryRecommendations from './components/HistoryRecommendations';
 import Settings from './components/Settings';
-import type { DetectedProject } from './electron.d';
+import type { DetectedProject, HistoryRecommendation } from './electron.d';
 
 // Analysis result types
 interface Issue {
@@ -33,6 +34,13 @@ interface AnalysisResult {
   improvedPrompt?: string; // deprecated, 호환성 유지
   promptVariants: RewriteResult[]; // 신규: 3가지 변형
   sessionContext?: SessionContextInfo; // 세션 컨텍스트
+  // Phase 2: History-based recommendations
+  historyRecommendations?: HistoryRecommendation[];
+  comparisonWithHistory?: {
+    betterThanAverage: boolean;
+    scoreDiff: number;
+    improvement: string | null;
+  } | null;
 }
 
 type ViewMode = 'analysis' | 'progress' | 'tips';
@@ -258,6 +266,14 @@ function App() {
 
             {/* Issues */}
             <IssueList issues={analysis.issues} />
+
+            {/* History-based Recommendations (Phase 2) */}
+            {(analysis.historyRecommendations?.length || analysis.comparisonWithHistory?.improvement) && (
+              <HistoryRecommendations
+                recommendations={analysis.historyRecommendations || []}
+                comparisonWithHistory={analysis.comparisonWithHistory}
+              />
+            )}
 
             {/* Personal Tips Preview */}
             {analysis.personalTips.length > 0 && (

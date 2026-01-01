@@ -39,6 +39,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Active project detection
   getCurrentProject: (): Promise<unknown> => ipcRenderer.invoke('get-current-project'),
 
+  // Phase 2: History-based recommendations
+  getProjectPatterns: (projectPath: string): Promise<unknown> =>
+    ipcRenderer.invoke('get-project-patterns', projectPath),
+  getContextRecommendations: (category: string | undefined, projectPath: string | undefined): Promise<unknown> =>
+    ipcRenderer.invoke('get-context-recommendations', category, projectPath),
+
   // Renderer ready signal (fixes IPC race condition)
   signalReady: (): Promise<boolean> => ipcRenderer.invoke('renderer-ready'),
 
@@ -82,6 +88,8 @@ declare global {
       getImprovementAnalysis: () => Promise<unknown>;
       getSessionContext: () => Promise<unknown>;
       getCurrentProject: () => Promise<unknown>;
+      getProjectPatterns: (projectPath: string) => Promise<unknown>;
+      getContextRecommendations: (category: string | undefined, projectPath: string | undefined) => Promise<unknown>;
       signalReady: () => Promise<boolean>;
       onClipboardText: (callback: (text: string) => void) => void;
       removeClipboardListener: () => void;

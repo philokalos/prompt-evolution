@@ -107,6 +107,13 @@ export interface ActiveSessionContext extends SessionContext {
 export interface AnalysisResultWithContext extends AnalysisResult {
   sessionContext?: ActiveSessionContext;
   promptVariants?: RewriteResult[];
+  // Phase 2: History-based recommendations
+  historyRecommendations?: HistoryRecommendation[];
+  comparisonWithHistory?: {
+    betterThanAverage: boolean;
+    scoreDiff: number;
+    improvement: string | null;
+  } | null;
 }
 
 export interface RewriteResult {
@@ -115,4 +122,15 @@ export interface RewriteResult {
   confidence: number;
   variant: 'conservative' | 'balanced' | 'comprehensive';
   variantLabel: string;
+}
+
+// Phase 2: History-based recommendation types
+export interface HistoryRecommendation {
+  type: 'weakness' | 'improvement' | 'reference' | 'pattern';
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  message: string;
+  dimension?: string;
+  examplePrompt?: string;
+  improvement?: number;
 }

@@ -25,6 +25,9 @@ export interface PromptHistoryRecord {
   }>;
   improvedPrompt?: string;
   sourceApp?: string;
+  projectPath?: string;
+  intent?: string;
+  category?: string;
   analyzedAt?: Date;
 }
 
@@ -54,8 +57,9 @@ export function saveAnalysis(record: PromptHistoryRecord): number {
       prompt_text, overall_score, grade,
       golden_goal, golden_output, golden_limits,
       golden_data, golden_evaluation, golden_next,
-      issues_json, improved_prompt, source_app
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      issues_json, improved_prompt, source_app,
+      project_path, intent, category
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = stmt.run(
@@ -70,7 +74,10 @@ export function saveAnalysis(record: PromptHistoryRecord): number {
     record.goldenScores.next,
     record.issues ? JSON.stringify(record.issues) : null,
     record.improvedPrompt || null,
-    record.sourceApp || null
+    record.sourceApp || null,
+    record.projectPath || null,
+    record.intent || null,
+    record.category || null
   );
 
   // Update weakness tracking
@@ -456,6 +463,281 @@ export function getImprovementAnalysis(): {
     streak: streakResult.streak || 0,
     milestones,
   };
+}
+
+/**
+ * Get analyses by project path
+ */
+export function getAnalysesByProject(projectPath: string, limit = 20): PromptHistoryRecord[] {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    SELECT * FROM prompt_history
+    WHERE project_path = ?
+    ORDER BY analyzed_at DESC
+    LIMIT ?
+  `);
+
+  const rows = stmt.all(projectPath, limit) as Array<{
+    id: number;
+    prompt_text: string;
+    overall_score: number;
+    grade: string;
+    golden_goal: number;
+    golden_output: number;
+    golden_limits: number;
+    golden_data: number;
+    golden_evaluation: number;
+    golden_next: number;
+    issues_json: string | null;
+    improved_prompt: string | null;
+    source_app: string | null;
+    project_path: string | null;
+    intent: string | null;
+    category: string | null;
+    analyzed_at: string;
+  }>;
+
+  return rows.map(row => ({
+    id: row.id,
+    promptText: row.prompt_text,
+    overallScore: row.overall_score,
+    grade: row.grade as 'A' | 'B' | 'C' | 'D' | 'F',
+    goldenScores: {
+      goal: row.golden_goal,
+      output: row.golden_output,
+      limits: row.golden_limits,
+      data: row.golden_data,
+      evaluation: row.golden_evaluation,
+      next: row.golden_next,
+    },
+    issues: row.issues_json ? JSON.parse(row.issues_json) : [],
+    improvedPrompt: row.improved_prompt || undefined,
+    sourceApp: row.source_app || undefined,
+    projectPath: row.project_path || undefined,
+    intent: row.intent || undefined,
+    category: row.category || undefined,
+    analyzedAt: new Date(row.analyzed_at),
+  }));
+}
+
+/**
+ * Get project-specific GOLDEN averages
+ */
+export function getProjectGoldenAverages(projectPath: string): Record<string, number> | null {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    SELECT
+      AVG(golden_goal) as goal,
+      AVG(golden_output) as output,
+      AVG(golden_limits) as limits,
+      AVG(golden_data) as data,
+      AVG(golden_evaluation) as evaluation,
+      AVG(golden_next) as next,
+      COUNT(*) as count
+    FROM prompt_history
+    WHERE project_path = ?
+  `);
+
+  const row = stmt.get(projectPath) as {
+    goal: number | null;
+    output: number | null;
+    limits: number | null;
+    data: number | null;
+    evaluation: number | null;
+    next: number | null;
+    count: number;
+  };
+
+  if (!row.count || row.count === 0) return null;
+
+  return {
+    goal: Math.round(row.goal || 0),
+    output: Math.round(row.output || 0),
+    limits: Math.round(row.limits || 0),
+    data: Math.round(row.data || 0),
+    evaluation: Math.round(row.evaluation || 0),
+    next: Math.round(row.next || 0),
+  };
+}
+
+/**
+ * Get common weaknesses for a project
+ */
+export function getProjectWeaknesses(projectPath: string): Array<{
+  dimension: string;
+  averageScore: number;
+  belowThresholdCount: number;
+}> {
+  const db = getDatabase();
+  const weaknessThreshold = 60;
+
+  const stmt = db.prepare(`
+    SELECT
+      AVG(golden_goal) as goal,
+      AVG(golden_output) as output,
+      AVG(golden_limits) as limits,
+      AVG(golden_data) as data,
+      AVG(golden_evaluation) as evaluation,
+      AVG(golden_next) as next,
+      SUM(CASE WHEN golden_goal < ? THEN 1 ELSE 0 END) as goal_weak,
+      SUM(CASE WHEN golden_output < ? THEN 1 ELSE 0 END) as output_weak,
+      SUM(CASE WHEN golden_limits < ? THEN 1 ELSE 0 END) as limits_weak,
+      SUM(CASE WHEN golden_data < ? THEN 1 ELSE 0 END) as data_weak,
+      SUM(CASE WHEN golden_evaluation < ? THEN 1 ELSE 0 END) as eval_weak,
+      SUM(CASE WHEN golden_next < ? THEN 1 ELSE 0 END) as next_weak
+    FROM prompt_history
+    WHERE project_path = ?
+  `);
+
+  const row = stmt.get(
+    weaknessThreshold, weaknessThreshold, weaknessThreshold,
+    weaknessThreshold, weaknessThreshold, weaknessThreshold,
+    projectPath
+  ) as Record<string, number>;
+
+  const dimensions = [
+    { key: 'goal', label: '목표 명확성', avg: row.goal, weak: row.goal_weak },
+    { key: 'output', label: '출력 형식', avg: row.output, weak: row.output_weak },
+    { key: 'limits', label: '제약 조건', avg: row.limits, weak: row.limits_weak },
+    { key: 'data', label: '데이터/컨텍스트', avg: row.data, weak: row.data_weak },
+    { key: 'evaluation', label: '평가 기준', avg: row.evaluation, weak: row.eval_weak },
+    { key: 'next', label: '다음 단계', avg: row.next, weak: row.next_weak },
+  ];
+
+  return dimensions
+    .filter(d => d.weak > 0)
+    .sort((a, b) => b.weak - a.weak)
+    .map(d => ({
+      dimension: d.label,
+      averageScore: Math.round(d.avg || 0),
+      belowThresholdCount: d.weak,
+    }));
+}
+
+/**
+ * Get high-scoring prompts from the same project (for reference)
+ */
+export function getHighScoringPrompts(projectPath: string, minScore = 80, limit = 5): PromptHistoryRecord[] {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    SELECT * FROM prompt_history
+    WHERE project_path = ? AND overall_score >= ?
+    ORDER BY overall_score DESC, analyzed_at DESC
+    LIMIT ?
+  `);
+
+  const rows = stmt.all(projectPath, minScore, limit) as Array<{
+    id: number;
+    prompt_text: string;
+    overall_score: number;
+    grade: string;
+    golden_goal: number;
+    golden_output: number;
+    golden_limits: number;
+    golden_data: number;
+    golden_evaluation: number;
+    golden_next: number;
+    issues_json: string | null;
+    improved_prompt: string | null;
+    source_app: string | null;
+    project_path: string | null;
+    intent: string | null;
+    category: string | null;
+    analyzed_at: string;
+  }>;
+
+  return rows.map(row => ({
+    id: row.id,
+    promptText: row.prompt_text,
+    overallScore: row.overall_score,
+    grade: row.grade as 'A' | 'B' | 'C' | 'D' | 'F',
+    goldenScores: {
+      goal: row.golden_goal,
+      output: row.golden_output,
+      limits: row.golden_limits,
+      data: row.golden_data,
+      evaluation: row.golden_evaluation,
+      next: row.golden_next,
+    },
+    issues: row.issues_json ? JSON.parse(row.issues_json) : [],
+    improvedPrompt: row.improved_prompt || undefined,
+    sourceApp: row.source_app || undefined,
+    projectPath: row.project_path || undefined,
+    intent: row.intent || undefined,
+    category: row.category || undefined,
+    analyzedAt: new Date(row.analyzed_at),
+  }));
+}
+
+/**
+ * Get similar prompts by category
+ */
+export function getSimilarPromptsByCategory(
+  category: string,
+  projectPath?: string,
+  limit = 10
+): PromptHistoryRecord[] {
+  const db = getDatabase();
+
+  let query = `
+    SELECT * FROM prompt_history
+    WHERE category = ?
+  `;
+  const params: (string | number)[] = [category];
+
+  if (projectPath) {
+    query += ` AND project_path = ?`;
+    params.push(projectPath);
+  }
+
+  query += ` ORDER BY overall_score DESC, analyzed_at DESC LIMIT ?`;
+  params.push(limit);
+
+  const stmt = db.prepare(query);
+  const rows = stmt.all(...params) as Array<{
+    id: number;
+    prompt_text: string;
+    overall_score: number;
+    grade: string;
+    golden_goal: number;
+    golden_output: number;
+    golden_limits: number;
+    golden_data: number;
+    golden_evaluation: number;
+    golden_next: number;
+    issues_json: string | null;
+    improved_prompt: string | null;
+    source_app: string | null;
+    project_path: string | null;
+    intent: string | null;
+    category: string | null;
+    analyzed_at: string;
+  }>;
+
+  return rows.map(row => ({
+    id: row.id,
+    promptText: row.prompt_text,
+    overallScore: row.overall_score,
+    grade: row.grade as 'A' | 'B' | 'C' | 'D' | 'F',
+    goldenScores: {
+      goal: row.golden_goal,
+      output: row.golden_output,
+      limits: row.golden_limits,
+      data: row.golden_data,
+      evaluation: row.golden_evaluation,
+      next: row.golden_next,
+    },
+    issues: row.issues_json ? JSON.parse(row.issues_json) : [],
+    improvedPrompt: row.improved_prompt || undefined,
+    sourceApp: row.source_app || undefined,
+    projectPath: row.project_path || undefined,
+    intent: row.intent || undefined,
+    category: row.category || undefined,
+    analyzedAt: new Date(row.analyzed_at),
+  }));
 }
 
 /**

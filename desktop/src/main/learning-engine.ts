@@ -27,6 +27,14 @@ import {
   SessionContext,
   ActiveSessionContext,
 } from './session-context.js';
+import {
+  analyzeProjectPatterns,
+  getContextRecommendations,
+  enrichAnalysisWithHistory,
+  type HistoryRecommendation,
+  type ProjectPatternAnalysis,
+  type PromptContextRecommendations,
+} from './history-pattern-analyzer.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -105,10 +113,25 @@ interface AnalysisResult {
   promptVariants: RewriteResult[]; // 신규: 3가지 변형
   classification?: PromptClassification;
   sessionContext?: SessionContext; // 세션 컨텍스트 정보
+  // Phase 2: History-based recommendations
+  historyRecommendations?: HistoryRecommendation[];
+  comparisonWithHistory?: {
+    betterThanAverage: boolean;
+    scoreDiff: number;
+    improvement: string | null;
+  } | null;
 }
 
 // Re-export for renderer
-export type { RewriteResult, VariantType, SessionContext, ActiveSessionContext };
+export type {
+  RewriteResult,
+  VariantType,
+  SessionContext,
+  ActiveSessionContext,
+  HistoryRecommendation,
+  ProjectPatternAnalysis,
+  PromptContextRecommendations,
+};
 
 // Cache for loaded modules
 let evaluatePromptAgainstGuidelines: ((text: string) => GuidelineEvaluation) | null = null;
@@ -275,7 +298,34 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
 
     const result = convertToAnalysisResult(evaluation, text, classification, sessionContext);
 
-    // Save to history for progress tracking
+    // Enrich with history-based recommendations (Phase 2)
+    const projectPath = sessionContext?.projectPath;
+    const category = classification?.category;
+
+    if (projectPath) {
+      try {
+        const historyEnrichment = enrichAnalysisWithHistory(
+          {
+            overallScore: result.overallScore,
+            goldenScores: result.goldenScores,
+            issues: result.issues,
+          },
+          projectPath,
+          category
+        );
+
+        result.historyRecommendations = historyEnrichment.historyRecommendations;
+        result.comparisonWithHistory = historyEnrichment.comparisonWithHistory;
+
+        if (historyEnrichment.comparisonWithHistory?.improvement) {
+          console.log('[LearningEngine] History comparison:', historyEnrichment.comparisonWithHistory.improvement);
+        }
+      } catch (historyError) {
+        console.warn('[LearningEngine] Failed to enrich with history:', historyError);
+      }
+    }
+
+    // Save to history for progress tracking (with project/intent/category)
     try {
       saveAnalysis({
         promptText: text,
@@ -284,6 +334,9 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
         goldenScores: result.goldenScores,
         issues: result.issues,
         improvedPrompt: result.improvedPrompt,
+        projectPath: projectPath,
+        intent: classification?.intent,
+        category: category,
       });
     } catch (dbError) {
       console.warn('[LearningEngine] Failed to save to history:', dbError);
@@ -402,6 +455,15 @@ export function registerLearningEngineHandlers(): void {
   // Session context for specific path (debugging/testing)
   ipcMain.handle('get-session-context-for-path', async (_event, targetPath: string) => {
     return getSessionContextForPath(targetPath);
+  });
+
+  // Phase 2: History-based recommendation handlers
+  ipcMain.handle('get-project-patterns', async (_event, projectPath: string) => {
+    return analyzeProjectPatterns(projectPath);
+  });
+
+  ipcMain.handle('get-context-recommendations', async (_event, category: string | undefined, projectPath: string | undefined) => {
+    return getContextRecommendations(category, projectPath);
   });
 
   // Initialize by loading modules

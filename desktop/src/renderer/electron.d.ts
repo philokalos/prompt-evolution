@@ -37,6 +37,10 @@ export interface ElectronAPI {
   // Active project detection (polling-based)
   getCurrentProject: () => Promise<DetectedProject | null>;
 
+  // Phase 2: History-based recommendations
+  getProjectPatterns: (projectPath: string) => Promise<ProjectPatternAnalysis>;
+  getContextRecommendations: (category: string | undefined, projectPath: string | undefined) => Promise<PromptContextRecommendations>;
+
   // Renderer ready signal
   signalReady: () => Promise<boolean>;
 
@@ -54,6 +58,37 @@ export interface DetectedProject {
   ideName?: string;
   currentFile?: string;
   confidence: 'high' | 'medium' | 'low';
+}
+
+// Phase 2: History-based recommendation types
+export interface HistoryRecommendation {
+  type: 'weakness' | 'improvement' | 'reference' | 'pattern';
+  priority: 'high' | 'medium' | 'low';
+  title: string;
+  message: string;
+  dimension?: string;
+  examplePrompt?: string;
+  improvement?: number;
+}
+
+export interface ProjectPatternAnalysis {
+  projectPath: string;
+  totalAnalyses: number;
+  averageScore: number;
+  goldenAverages: Record<string, number> | null;
+  weaknesses: Array<{
+    dimension: string;
+    averageScore: number;
+    belowThresholdCount: number;
+  }>;
+  recommendations: HistoryRecommendation[];
+  highScoringExamples: unknown[];
+}
+
+export interface PromptContextRecommendations {
+  basedOnProject: HistoryRecommendation[];
+  basedOnCategory: HistoryRecommendation[];
+  referencePrompts: unknown[];
 }
 
 declare global {
