@@ -19,7 +19,7 @@ import {
   getImprovementAnalysis,
   getStats,
 } from './db/index.js';
-import { generatePromptVariants, generateAllVariants, RewriteResult, VariantType } from './prompt-rewriter.js';
+import { generatePromptVariants, generateAllVariants, RewriteResult, VariantType, type GOLDENEvaluator } from './prompt-rewriter.js';
 import { getAIRewriteSettings } from './index.js';
 import {
   getSessionContext,
@@ -303,18 +303,36 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
     const aiSettings = getAIRewriteSettings();
     if (aiSettings.enabled && aiSettings.apiKey) {
       try {
-        console.log('[LearningEngine] Attempting AI-powered rewrite...');
+        console.log('[LearningEngine] Attempting AI-powered rewrite with multi-variant generation...');
+
+        // v2: Create GOLDEN evaluator wrapper for multi-variant selection
+        const goldenEvaluator: GOLDENEvaluator | undefined = evaluatePromptAgainstGuidelines
+          ? (inputText: string) => {
+              const evalResult = evaluatePromptAgainstGuidelines!(inputText);
+              return {
+                total: evalResult.goldenScore.total,
+                goal: evalResult.goldenScore.goal,
+                output: evalResult.goldenScore.output,
+                limits: evalResult.goldenScore.limits,
+                data: evalResult.goldenScore.data,
+                evaluation: evalResult.goldenScore.evaluation,
+                next: evalResult.goldenScore.next,
+              };
+            }
+          : undefined;
+
         const aiVariants = await generateAllVariants(
           text,
           evaluation,
           sessionContext || undefined,
-          aiSettings.apiKey
+          aiSettings.apiKey,
+          goldenEvaluator
         );
 
         // Replace variants if AI generation succeeded
         if (aiVariants.length > 0 && aiVariants.some(v => v.isAiGenerated)) {
           result.promptVariants = aiVariants;
-          console.log('[LearningEngine] AI-powered variants generated successfully');
+          console.log('[LearningEngine] AI-powered variants generated successfully with multi-variant selection');
         }
       } catch (aiError) {
         console.warn('[LearningEngine] AI rewrite failed, using rule-based variants:', aiError);

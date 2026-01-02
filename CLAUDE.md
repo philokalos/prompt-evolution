@@ -18,27 +18,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Development Commands
 
 ```bash
-# CLI
+# CLI Development
 npm run dev                    # Watch mode (tsx)
+npx tsx src/cli.ts <command>   # Run CLI directly without build
+
+# CLI Build
 npm run build                  # TypeScript build → dist/src/
-npm test                       # Vitest
-npx tsx src/cli.ts <command>   # Run CLI in development
+npm start <command>            # Run built CLI (after build)
 
 # Dashboard
 npm run dev:server             # Express API (:3001)
-npm run dev:web                # Vite dev (:5173)
+npm run dev:web                # Vite dev (:5173) - runs in web/ directory
 npm run build:server           # Build server → dist/server/
 npm run build:web              # Build React → web/dist/
-npm run build:all              # Build both
+npm run build:all              # Build CLI + server + web
+npm run start:dashboard        # Production dashboard server
 
-# Production
-npm start <command>            # CLI (after build)
-npm run start:dashboard        # Dashboard server
+# Testing
+npm test                       # Vitest (no tests configured yet)
 
-# Desktop App (separate package)
+# Desktop App (separate package in desktop/)
 cd desktop
-npm run dev:electron           # Build all + launch Electron
-npm run dist:mac               # macOS .dmg + .zip
+npm run dev:electron           # Build all 4 configs + launch Electron
+npm run dist:mac               # macOS .dmg + .zip → release/
+npm run typecheck              # TypeScript check all configs
 ```
 
 ### CLI Commands
@@ -100,8 +103,12 @@ Project ID format: Encoded path with dashes (e.g., `-Users-foo-project`)
 **`server/`** - Express API with scheduled sync
 - Routes: stats, projects, insights, trends, sync
 - Scheduler: 30min imports, 2hr analysis, daily full refresh
+- Middleware: Custom error handler with structured responses
 
 **`web/`** - React dashboard (Vite + Tailwind + React Query)
+- Pages: Dashboard, Projects, Insights, Trends, Library, Guidebook
+- Hooks: useStats, useProjects, useInsights, useTrends, useSync
+- API client: Centralized in `api/client.ts`
 
 ### TypeScript Configs
 
@@ -151,16 +158,27 @@ Records linked via `uuid` → `parentUuid`.
 Separate Electron app in `desktop/` with its own `package.json` and detailed `CLAUDE.md`.
 
 **Key Points**:
-- Reuses parent `src/analysis/` modules (bundled as CJS via esbuild)
+- Reuses parent `src/analysis/` modules (bundled as CJS via esbuild in `scripts/build-analysis.ts`)
 - 4 TypeScript configs: main (ESM), preload (CJS→.cjs), analysis (ESM), renderer (Vite)
 - Preload must output `.cjs` due to `"type": "module"` in package.json
 - Requires macOS Accessibility permission for text selection
+- SQLite history stored at `~/.promptlint/history.db`
 
-## Data Source
+**Build Order Matters**: `build:analysis` → `build:main` → `build:preload` → `build:renderer`
 
-Claude Code conversations at:
+## Data Sources
+
+**CLI/Dashboard** reads from:
 ```
 ~/.claude/projects/{encoded-project-path}/
 ├── {session-uuid}.jsonl      # Regular sessions
 └── agent-{hash}.jsonl        # Agent task sessions
 ```
+
+**SQLite Database**: `~/.prompt-evolution/data.db` (WAL mode)
+
+## Repository Boundaries
+
+- `desktop/` is a standalone npm package with separate dependencies
+- `web/` has its own package.json and builds independently
+- Parent's `src/analysis/` modules are shared via esbuild bundling into desktop

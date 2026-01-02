@@ -367,42 +367,69 @@ export function evaluatePromptAgainstGuidelines(text: string): GuidelineEvaluati
 
 /**
  * GOLDEN 점수 계산
+ * - 더 포괄적인 한글 패턴 매칭 (존칭, 비존칭 모두 지원)
+ * - 개선된 프롬프트가 더 높은 점수를 받도록 설계
  */
 export function calculateGOLDENScore(text: string): GOLDENScore {
   const features = extractFeatures(text);
+  const textLower = text.toLowerCase();
 
   // G - Goal (목표 명확성)
+  // - 목표/의도 표현
+  // - 동사 명령형 (해줘/해주세요/해 주세요 등)
   let goal = 0;
-  if (/목표|목적|원하는|goal|want|need|purpose/i.test(text)) goal += 0.5;
-  if (/해줘|만들어|create|make|build/i.test(text)) goal += 0.5;
+  if (/목표|목적|원하는|goal|want|need|purpose|요청|기능/i.test(text)) goal += 0.3;
+  // 한글 동사 패턴 - 더 포괄적 (해줘, 해주세요, 해 주세요, 구현해, 작성해 등)
+  if (/해\s?줘|해\s?주세요|해주시|하세요|합니다|해야|create|make|build|implement|generate|develop/i.test(text)) goal += 0.3;
+  // 구체적 동작 동사
+  if (/구현|작성|개발|생성|추가|수정|변경|설계|분석|리팩토링|구축|적용|설정|연동/i.test(text)) goal += 0.2;
+  // 명확한 대상 언급
+  if (/기능|컴포넌트|모듈|시스템|API|페이지|화면|폼|버튼|로그인|회원가입|인증/i.test(text)) goal += 0.2;
 
   // O - Output (출력 형식)
   let output = 0;
-  if (/형식|포맷|format|JSON|table|list/i.test(text)) output += 0.6;
-  if (/예시|example/i.test(text)) output += 0.4;
+  if (/형식|포맷|format|JSON|table|list|구조|타입|인터페이스/i.test(text)) output += 0.4;
+  if (/예시|example|샘플|sample|템플릿|template/i.test(text)) output += 0.3;
+  // 코드 관련 출력 형식
+  if (/\.tsx?|\.jsx?|\.py|\.java|\.go|코드|component|function|class/i.test(text)) output += 0.3;
 
   // L - Limits (제약조건)
   let limits = 0;
-  if (/하지 마|제외|without|except|don't|not/i.test(text)) limits += 0.5;
-  if (/만|only|just|specific/i.test(text)) limits += 0.5;
+  if (/하지\s?마|제외|without|except|don't|not|금지|불가/i.test(text)) limits += 0.3;
+  if (/만|only|just|specific|특정|한정/i.test(text)) limits += 0.2;
+  // 기술적 제약
+  if (/React|TypeScript|Firebase|Node|Python|Java|버전|version/i.test(text)) limits += 0.2;
+  // 범위 제약
+  if (/최대|최소|이상|이하|범위|사이|까지|부터/i.test(text)) limits += 0.3;
 
   // D - Data (데이터/컨텍스트)
   let data = 0;
-  if (features.hasCodeBlock) data += 0.3;
-  if (features.hasFilePath) data += 0.3;
-  if (/현재|상황|background|context/i.test(text)) data += 0.4;
+  if (features.hasCodeBlock) data += 0.25;
+  if (features.hasFilePath) data += 0.25;
+  if (/현재|상황|background|context|환경|프로젝트|시스템|아키텍처/i.test(text)) data += 0.25;
+  // 기술 스택 언급
+  if (/사용|using|스택|stack|라이브러리|library|프레임워크|framework/i.test(text)) data += 0.25;
 
   // E - Evaluation (평가 기준)
   let evaluation = 0;
-  if (/확인|검증|verify|validate|check/i.test(text)) evaluation += 0.5;
-  if (/테스트|test|성공|success/i.test(text)) evaluation += 0.5;
+  if (/확인|검증|verify|validate|check|보장|ensure/i.test(text)) evaluation += 0.3;
+  if (/테스트|test|성공|success|품질|quality|요구사항|requirement/i.test(text)) evaluation += 0.35;
+  // 성능/보안 기준
+  if (/성능|performance|보안|security|안전|안정|에러|error|예외/i.test(text)) evaluation += 0.35;
 
   // N - Next (다음 단계)
   let next = 0;
-  if (/그다음|다음|then|after|next/i.test(text)) next += 0.5;
-  if (/단계|step|순서/i.test(text)) next += 0.5;
+  if (/그다음|다음|then|after|next|이후|완료\s?후/i.test(text)) next += 0.35;
+  if (/단계|step|순서|절차|프로세스|워크플로우|workflow/i.test(text)) next += 0.35;
+  // 추가 작업 힌트
+  if (/추가로|또한|그리고|추후|향후|확장/i.test(text)) next += 0.3;
 
-  const total = (goal + output + limits + data + evaluation + next) / 6;
+  // 길이 보너스 (충분히 상세한 프롬프트)
+  const wordCount = text.split(/\s+/).length;
+  const lengthBonus = Math.min(wordCount / 50, 0.15); // 50단어 이상이면 최대 0.15 보너스
+
+  const rawTotal = (goal + output + limits + data + evaluation + next) / 6;
+  const total = Math.min(rawTotal + lengthBonus, 1);
 
   return {
     goal: Math.min(goal, 1),

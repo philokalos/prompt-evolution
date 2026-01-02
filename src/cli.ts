@@ -46,6 +46,11 @@ import {
 } from './analysis/index.js';
 import type { ParsedConversation } from './types/index.js';
 import { generateHtmlReport } from './report/index.js';
+import {
+  improvePromptWithLLM,
+  improvePromptWithRules,
+  type ImprovedPrompt,
+} from './analysis/self-improvement.js';
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -80,6 +85,9 @@ Prompt Evolution - AI 대화 분석 및 프롬프트 진화 시스템
   classify --all               모든 유저 턴 분류 분석
   classify --stats             분류 통계
 
+  improve "<text>"             프롬프트 개선 (LLM 기반)
+  improve "<text>" --offline   프롬프트 개선 (규칙 기반, API 없이)
+
   report [--output <path>]     HTML 리포트 생성
   report --period 7d           최근 7일 리포트
   help                         도움말
@@ -96,6 +104,8 @@ Prompt Evolution - AI 대화 분석 및 프롬프트 진화 시스템
   prompt-evolution insights --problems      # 문제점만 표시
   prompt-evolution classify "버그 수정해줘"  # 프롬프트 분류
   prompt-evolution classify --all            # 전체 유저 턴 분류 분석
+  prompt-evolution improve "로그인 만들어줘" # LLM으로 프롬프트 개선
+  prompt-evolution improve "API 만들어" --offline  # 규칙 기반 개선
   prompt-evolution report                    # HTML 리포트 생성
   prompt-evolution report --output ./my-report.html  # 경로 지정
 `);
@@ -851,6 +861,98 @@ function classifyUserPrompts(options: {
 }
 
 /**
+ * Improve a prompt using LLM or rules
+ */
+async function improveUserPrompt(options: {
+  text?: string;
+  offline?: boolean;
+}) {
+  if (!options.text) {
+    console.log('사용법:');
+    console.log('  prompt-evolution improve "<text>"            # LLM 기반 개선');
+    console.log('  prompt-evolution improve "<text>" --offline  # 규칙 기반 개선');
+    return;
+  }
+
+  console.log('\n✨ 프롬프트 개선\n');
+  console.log(`입력: "${options.text}"\n`);
+
+  let result: ImprovedPrompt | null;
+
+  if (options.offline) {
+    console.log('📖 규칙 기반 개선 (오프라인)\n');
+    result = improvePromptWithRules(options.text);
+  } else {
+    console.log('🤖 LLM 기반 개선 중...\n');
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.log('⚠️  ANTHROPIC_API_KEY가 설정되지 않았습니다.');
+      console.log('   환경 변수를 설정하거나 --offline 옵션을 사용하세요.\n');
+      console.log('   예: export ANTHROPIC_API_KEY=sk-...');
+      console.log('   또는: prompt-evolution improve "<text>" --offline\n');
+      return;
+    }
+
+    result = await improvePromptWithLLM(options.text);
+
+    if (!result) {
+      console.log('❌ LLM 개선 실패. --offline 옵션으로 규칙 기반 개선을 시도해 보세요.');
+      return;
+    }
+  }
+
+  // Display results
+  console.log('='.repeat(60));
+  console.log('📊 분석 결과');
+  console.log('='.repeat(60));
+  console.log(`분류: ${result.classification.taskCategory} (${result.classification.intent})`);
+  console.log(`신뢰도: ${(result.confidence * 100).toFixed(0)}%`);
+  console.log(`변형 유형: ${result.variant}`);
+
+  console.log('\n' + '='.repeat(60));
+  console.log('📈 GOLDEN 점수 비교');
+  console.log('='.repeat(60));
+
+  const dims = ['goal', 'output', 'limits', 'data', 'evaluation', 'next'] as const;
+  const dimLabels: Record<string, string> = {
+    goal: 'G (목표)',
+    output: 'O (출력)',
+    limits: 'L (제약)',
+    data: 'D (데이터)',
+    evaluation: 'E (평가)',
+    next: 'N (다음)',
+  };
+
+  console.log('\n차원별 점수:');
+  for (const dim of dims) {
+    const before = (result.originalScore[dim] * 100).toFixed(0).padStart(3);
+    const after = (result.improvedScore[dim] * 100).toFixed(0).padStart(3);
+    const diff = result.improvedScore[dim] - result.originalScore[dim];
+    const diffStr = diff > 0 ? `+${(diff * 100).toFixed(0)}` : `${(diff * 100).toFixed(0)}`;
+    const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
+    console.log(`  ${dimLabels[dim]}: ${before}% → ${after}% (${arrow}${diffStr}%)`);
+  }
+
+  console.log('\n' + '-'.repeat(40));
+  const beforeTotal = (result.originalScore.total * 100).toFixed(0);
+  const afterTotal = (result.improvedScore.total * 100).toFixed(0);
+  const improvement = result.improvementPercent > 0 ? `+${result.improvementPercent}` : `${result.improvementPercent}`;
+  console.log(`총점: ${beforeTotal}% → ${afterTotal}% (${improvement}%)`);
+
+  if (result.keyChanges.length > 0) {
+    console.log('\n🔧 주요 변경:');
+    result.keyChanges.forEach((change) => {
+      console.log(`  • ${change}`);
+    });
+  }
+
+  console.log('\n' + '='.repeat(60));
+  console.log('✨ 개선된 프롬프트');
+  console.log('='.repeat(60));
+  console.log(`\n${result.improved}\n`);
+}
+
+/**
  * Get human-readable signal label
  */
 function getSignalLabel(signalType: string): string {
@@ -887,72 +989,83 @@ function parseFlags(args: string[]): Record<string, string | boolean> {
 
 const flags = parseFlags(args.slice(1));
 
-// 메인 실행
-switch (command) {
-  case 'projects':
-    showProjects();
-    break;
-  case 'sessions':
-    if (!args[1]) {
-      console.error('프로젝트 이름을 지정하세요.');
-      process.exit(1);
+// 메인 실행 (async wrapper for improve command)
+(async () => {
+  switch (command) {
+    case 'projects':
+      showProjects();
+      break;
+    case 'sessions':
+      if (!args[1]) {
+        console.error('프로젝트 이름을 지정하세요.');
+        process.exit(1);
+      }
+      showSessions(args[1]);
+      break;
+    case 'parse':
+      if (!args[1]) {
+        console.error('프로젝트 이름을 지정하세요.');
+        process.exit(1);
+      }
+      parseAndShow(args[1], args[2]);
+      break;
+    case 'stats':
+      showStats();
+      break;
+    case 'import':
+      importToDb({
+        project: flags.project as string | undefined,
+        incremental: flags.incremental === true,
+      });
+      break;
+    case 'db-stats':
+      showDbStats();
+      break;
+    case 'analyze':
+      analyzeConversations({
+        incremental: flags.incremental === true,
+        conversationId: flags.conversation as string | undefined,
+      });
+      break;
+    case 'insights':
+      showInsights({
+        period: flags.period as string | undefined,
+        category: flags.category as string | undefined,
+        problemsOnly: flags.problems === true,
+        strengthsOnly: flags.strengths === true,
+      });
+      break;
+    case 'classify': {
+      // Check if first arg is text to classify (not a flag)
+      const classifyText = args[1] && !args[1].startsWith('--') ? args[1] : undefined;
+      classifyUserPrompts({
+        text: classifyText,
+        all: flags.all === true,
+        stats: flags.stats === true,
+      });
+      break;
     }
-    showSessions(args[1]);
-    break;
-  case 'parse':
-    if (!args[1]) {
-      console.error('프로젝트 이름을 지정하세요.');
-      process.exit(1);
+    case 'report':
+      generateReport({
+        output: flags.output as string | undefined,
+        period: flags.period as string | undefined,
+      });
+      break;
+    case 'improve': {
+      const improveText = args[1] && !args[1].startsWith('--') ? args[1] : undefined;
+      await improveUserPrompt({
+        text: improveText,
+        offline: flags.offline === true,
+      });
+      break;
     }
-    parseAndShow(args[1], args[2]);
-    break;
-  case 'stats':
-    showStats();
-    break;
-  case 'import':
-    importToDb({
-      project: flags.project as string | undefined,
-      incremental: flags.incremental === true,
-    });
-    break;
-  case 'db-stats':
-    showDbStats();
-    break;
-  case 'analyze':
-    analyzeConversations({
-      incremental: flags.incremental === true,
-      conversationId: flags.conversation as string | undefined,
-    });
-    break;
-  case 'insights':
-    showInsights({
-      period: flags.period as string | undefined,
-      category: flags.category as string | undefined,
-      problemsOnly: flags.problems === true,
-      strengthsOnly: flags.strengths === true,
-    });
-    break;
-  case 'classify':
-    // Check if first arg is text to classify (not a flag)
-    const classifyText = args[1] && !args[1].startsWith('--') ? args[1] : undefined;
-    classifyUserPrompts({
-      text: classifyText,
-      all: flags.all === true,
-      stats: flags.stats === true,
-    });
-    break;
-  case 'report':
-    generateReport({
-      output: flags.output as string | undefined,
-      period: flags.period as string | undefined,
-    });
-    break;
-  case 'help':
-  case undefined:
-    printHelp();
-    break;
-  default:
-    console.error(`알 수 없는 명령: ${command}`);
-    printHelp();
-    process.exit(1);
-}
+    case 'help':
+    case undefined:
+      printHelp();
+      break;
+    default:
+      console.error(`알 수 없는 명령: ${command}`);
+      printHelp();
+      process.exit(1);
+  }
+})();

@@ -9,6 +9,42 @@ import {
   GuidelineEvaluation,
   GOLDENScore,
 } from './guidelines-evaluator.js';
+import {
+  improvePrompt,
+  improvePromptOffline,
+  type ImprovedPrompt,
+  type ImprovementContext,
+  type LLMImproverOptions,
+} from './llm-improver.js';
+import { extractContextFromPrompt } from './context-extractor.js';
+
+// Re-export for convenience
+export { improvePrompt, improvePromptOffline, type ImprovedPrompt, type ImprovementContext };
+
+/**
+ * LLM 기반 프롬프트 개선 (API 사용)
+ * - 다중 변형 생성 (temperature 0.3, 0.5, 0.7)
+ * - 실제 GOLDEN 평가로 최고 점수 선택
+ * - 5% → 60%+ 체감 가능한 개선
+ */
+export async function improvePromptWithLLM(
+  originalPrompt: string,
+  options?: LLMImproverOptions
+): Promise<ImprovedPrompt | null> {
+  const context = extractContextFromPrompt(originalPrompt);
+  return improvePrompt(originalPrompt, context, options);
+}
+
+/**
+ * 규칙 기반 프롬프트 개선 (API 없이)
+ * - LLM API가 없을 때 폴백으로 사용
+ */
+export function improvePromptWithRules(
+  originalPrompt: string
+): ImprovedPrompt {
+  const context = extractContextFromPrompt(originalPrompt);
+  return improvePromptOffline(originalPrompt, context);
+}
 
 /**
  * 자기 개선 피드백

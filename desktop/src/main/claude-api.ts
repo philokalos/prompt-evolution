@@ -368,6 +368,151 @@ export async function rewritePromptWithClaude(
 }
 
 /**
+ * Generate multiple variants with different temperatures and select the best
+ * This is the key improvement: multi-variant generation + GOLDEN evaluation → best score selection
+ */
+export async function rewritePromptWithMultiVariant(
+  apiKey: string,
+  request: RewriteRequest,
+  evaluateGolden: (text: string) => { total: number; goal: number; output: number; limits: number; data: number; evaluation: number; next: number }
+): Promise<RewriteResult & { variant?: 'conservative' | 'balanced' | 'comprehensive'; originalScore?: number; improvedScore?: number; improvementPercent?: number }> {
+  if (!apiKey || apiKey.trim() === '') {
+    return {
+      success: false,
+      error: 'API 키가 설정되지 않았습니다',
+    };
+  }
+
+  try {
+    const client = new Anthropic({
+      apiKey: apiKey,
+    });
+
+    const userMessage = buildUserMessage(request);
+    const temperatures = [0.3, 0.5, 0.7];
+    const variantNames: Array<'conservative' | 'balanced' | 'comprehensive'> = ['conservative', 'balanced', 'comprehensive'];
+
+    // Generate all variants in parallel
+    const variantPromises = temperatures.map(async (temp, index) => {
+      try {
+        const message = await client.messages.create({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1500,
+          temperature: temp,
+          messages: [
+            {
+              role: 'user',
+              content: userMessage,
+            },
+          ],
+          system: REWRITE_SYSTEM_PROMPT,
+        });
+
+        const textContent = message.content.find((block) => block.type === 'text');
+        if (!textContent || textContent.type !== 'text') {
+          return null;
+        }
+
+        // Parse JSON response
+        const responseText = textContent.text;
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+
+        let rewrittenPrompt: string;
+        let explanation: string | undefined;
+        let improvements: string[] = [];
+
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[0]) as {
+              rewrittenPrompt?: string;
+              explanation?: string;
+              improvements?: string[];
+            };
+            rewrittenPrompt = parsed.rewrittenPrompt || responseText.trim();
+            explanation = parsed.explanation;
+            improvements = parsed.improvements || [];
+          } catch {
+            rewrittenPrompt = responseText.trim();
+          }
+        } else {
+          rewrittenPrompt = responseText.trim();
+        }
+
+        // Clean placeholders
+        if (/\[[^\]]*입력\]|\[[^\]]*설명\]|\[[^\]]*정보\]/.test(rewrittenPrompt)) {
+          rewrittenPrompt = rewrittenPrompt.replace(/\[[^\]]*입력\]|\[[^\]]*설명\]|\[[^\]]*정보\]/g, '').trim();
+        }
+
+        return {
+          text: rewrittenPrompt,
+          explanation,
+          improvements,
+          variantType: variantNames[index],
+          temperature: temp,
+        };
+      } catch (error) {
+        console.error(`[ClaudeAPI] Variant ${index + 1} generation failed:`, error);
+        return null;
+      }
+    });
+
+    const variants = (await Promise.all(variantPromises)).filter((v): v is NonNullable<typeof v> => v !== null);
+
+    if (variants.length === 0) {
+      return {
+        success: false,
+        error: '모든 변형 생성에 실패했습니다.',
+      };
+    }
+
+    // Evaluate each variant with GOLDEN and find the best
+    const evaluatedVariants = variants.map((variant) => {
+      const score = evaluateGolden(variant.text);
+      return {
+        ...variant,
+        goldenScore: score,
+      };
+    });
+
+    // Select the best variant by total GOLDEN score
+    const best = evaluatedVariants.reduce((a, b) =>
+      a.goldenScore.total > b.goldenScore.total ? a : b
+    );
+
+    // Calculate original score for comparison
+    const originalScore = evaluateGolden(request.originalPrompt);
+    const improvementPercent = Math.round(
+      ((best.goldenScore.total - originalScore.total) / Math.max(originalScore.total, 0.01)) * 100
+    );
+
+    return {
+      success: true,
+      rewrittenPrompt: best.text,
+      explanation: best.explanation,
+      improvements: best.improvements,
+      variant: best.variantType,
+      originalScore: Math.round(originalScore.total * 100),
+      improvedScore: Math.round(best.goldenScore.total * 100),
+      improvementPercent,
+    };
+  } catch (error) {
+    console.error('[ClaudeAPI] Multi-variant error:', error);
+
+    if (error instanceof Anthropic.APIError) {
+      if (error.status === 401) {
+        return { success: false, error: 'API 키가 유효하지 않습니다.' };
+      }
+      if (error.status === 429) {
+        return { success: false, error: 'API 요청 한도 초과. 잠시 후 다시 시도해주세요.' };
+      }
+      return { success: false, error: `API 오류: ${error.message}` };
+    }
+
+    return { success: false, error: '알 수 없는 오류가 발생했습니다.' };
+  }
+}
+
+/**
  * Validate API key by making a simple request
  */
 export async function validateApiKey(apiKey: string): Promise<boolean> {

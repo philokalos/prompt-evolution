@@ -13,7 +13,7 @@
  */
 
 import type { SessionContext } from './session-context.js';
-import { rewritePromptWithClaude, type RewriteRequest, type RewriteResult as AIRewriteResult } from './claude-api.js';
+import { rewritePromptWithClaude, rewritePromptWithMultiVariant, type RewriteRequest, type RewriteResult as AIRewriteResult } from './claude-api.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 헬퍼 함수: 원본 분석 및 컨텍스트 추출
@@ -681,14 +681,29 @@ export function generatePromptVariants(
 }
 
 /**
+ * GOLDEN 점수 평가 함수 타입
+ */
+export type GOLDENEvaluator = (text: string) => {
+  total: number;
+  goal: number;
+  output: number;
+  limits: number;
+  data: number;
+  evaluation: number;
+  next: number;
+};
+
+/**
  * AI-powered prompt rewriting using Claude API
+ * v2: Multi-variant generation with GOLDEN evaluation → best score selection
  * Returns null if API is not available or fails
  */
 export async function generateAIRewrite(
   apiKey: string,
   original: string,
   evaluation: GuidelineEvaluation,
-  context?: SessionContext
+  context?: SessionContext,
+  goldenEvaluator?: GOLDENEvaluator
 ): Promise<RewriteResult | null> {
   if (!apiKey || apiKey.trim() === '') {
     return null;
@@ -726,6 +741,36 @@ export async function generateAIRewrite(
   };
 
   try {
+    // v2: Use multi-variant generation if GOLDEN evaluator is provided
+    if (goldenEvaluator) {
+      console.log('[PromptRewriter] Using multi-variant AI generation with GOLDEN evaluation');
+
+      const result = await rewritePromptWithMultiVariant(apiKey, request, goldenEvaluator);
+
+      if (!result.success || !result.rewrittenPrompt) {
+        console.warn('[PromptRewriter] Multi-variant AI rewrite failed:', result.error);
+        return null;
+      }
+
+      const improvementLabel = result.improvementPercent !== undefined
+        ? `${result.originalScore}% → ${result.improvedScore}% (+${result.improvementPercent}%)`
+        : undefined;
+
+      return {
+        rewrittenPrompt: result.rewrittenPrompt,
+        keyChanges: [
+          ...(result.improvements || []),
+          ...(improvementLabel ? [`GOLDEN 점수: ${improvementLabel}`] : []),
+        ],
+        confidence: 0.95,
+        variant: 'ai',
+        variantLabel: 'AI 추천',
+        isAiGenerated: true,
+        aiExplanation: result.explanation,
+      };
+    }
+
+    // Fallback: Single variant generation (legacy behavior)
     const result = await rewritePromptWithClaude(apiKey, request);
 
     if (!result.success || !result.rewrittenPrompt) {
@@ -751,12 +796,14 @@ export async function generateAIRewrite(
 /**
  * Generate all prompt variants including AI-powered one if API key is available
  * Always returns 4 variants: AI (or placeholder) + 3 rule-based
+ * v2: Now accepts GOLDEN evaluator for multi-variant selection
  */
 export async function generateAllVariants(
   original: string,
   evaluation: GuidelineEvaluation,
   context?: SessionContext,
-  apiKey?: string
+  apiKey?: string,
+  goldenEvaluator?: GOLDENEvaluator
 ): Promise<RewriteResult[]> {
   // Start with rule-based variants
   const variants = generatePromptVariants(original, evaluation, context);
@@ -764,7 +811,8 @@ export async function generateAllVariants(
   // Try AI rewrite if API key is provided
   if (apiKey && apiKey.trim() !== '') {
     try {
-      const aiVariant = await generateAIRewrite(apiKey, original, evaluation, context);
+      // v2: Pass GOLDEN evaluator for multi-variant generation
+      const aiVariant = await generateAIRewrite(apiKey, original, evaluation, context, goldenEvaluator);
       if (aiVariant) {
         // Insert AI variant at the beginning (highest priority)
         variants.unshift(aiVariant);
