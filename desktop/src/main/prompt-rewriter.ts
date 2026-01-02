@@ -88,6 +88,16 @@ function buildMinimalContext(context: SessionContext | undefined): string | null
     parts.push(`파일: ${fileName}`);
   }
 
+  // 직전 대화 컨텍스트 (있는 경우)
+  if (context.lastExchange) {
+    if (context.lastExchange.assistantFiles.length > 0) {
+      const file = context.lastExchange.assistantFiles[0].split('/').pop();
+      parts.push(`방금 수정: ${file}`);
+    } else if (context.lastExchange.assistantSummary) {
+      parts.push(`이전: ${context.lastExchange.assistantSummary.slice(0, 30)}...`);
+    }
+  }
+
   return parts.join(' | ');
 }
 
@@ -479,6 +489,18 @@ function buildContextSection(context: SessionContext | undefined, original: stri
     if (context.gitBranch && !['main', 'master'].includes(context.gitBranch)) {
       lines.push(`- 브랜치: ${context.gitBranch}`);
     }
+
+    // 직전 대화 컨텍스트 (새로 추가)
+    if (context.lastExchange) {
+      const le = context.lastExchange;
+      if (le.assistantFiles.length > 0) {
+        const files = le.assistantFiles.slice(0, 2).map(f => f.split('/').pop()).join(', ');
+        lines.push(`- 방금 수정한 파일: ${files}`);
+      }
+      if (le.assistantSummary && le.assistantSummary.length > 10) {
+        lines.push(`- 직전 작업: ${le.assistantSummary.slice(0, 50)}`);
+      }
+    }
   }
 
   // 컨텍스트가 없으면 원본에서 추론 시도
@@ -736,6 +758,15 @@ export async function generateAIRewrite(
           recentFiles: context.recentFiles,
           recentTools: context.recentTools,
           gitBranch: context.gitBranch,
+          // 직전 대화 컨텍스트 전달
+          lastExchange: context.lastExchange
+            ? {
+                userMessage: context.lastExchange.userMessage,
+                assistantSummary: context.lastExchange.assistantSummary,
+                assistantTools: context.lastExchange.assistantTools,
+                assistantFiles: context.lastExchange.assistantFiles,
+              }
+            : undefined,
         }
       : undefined,
   };

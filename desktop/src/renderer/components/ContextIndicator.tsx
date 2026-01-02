@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Folder, GitBranch, Cpu, Clock, ChevronDown, ChevronUp, Zap, Monitor, MousePointer } from 'lucide-react';
+import { Folder, GitBranch, Cpu, Clock, ChevronDown, ChevronUp, Zap, Monitor, MousePointer, MessageSquare, FileCode } from 'lucide-react';
 
 export interface SessionContextInfo {
   projectPath: string;
@@ -16,6 +16,14 @@ export interface SessionContextInfo {
   ideName?: string;
   currentFile?: string;
   confidence?: 'high' | 'medium' | 'low';
+  // 직전 대화 컨텍스트 (새 필드)
+  lastExchange?: {
+    userMessage: string;
+    assistantSummary: string;
+    assistantTools: string[];
+    assistantFiles: string[];
+    timestamp: string | Date;
+  };
 }
 
 interface ContextIndicatorProps {
@@ -183,6 +191,41 @@ export default function ContextIndicator({ context }: ContextIndicatorProps) {
                   </span>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* 직전 대화 컨텍스트 */}
+          {context.lastExchange && (
+            <div className="mt-2 pt-2 border-t border-dark-border/50 space-y-1.5">
+              <div className="flex items-center gap-1.5 text-xs text-accent-primary">
+                <MessageSquare size={10} />
+                <span className="font-medium">직전 대화</span>
+              </div>
+              {context.lastExchange.assistantSummary && (
+                <div className="text-xs text-gray-400 pl-4 line-clamp-2">
+                  {context.lastExchange.assistantSummary}
+                </div>
+              )}
+              {context.lastExchange.assistantFiles.length > 0 && (
+                <div className="flex items-center gap-2 pl-4">
+                  <FileCode size={10} className="text-accent-secondary flex-shrink-0" />
+                  <div className="flex flex-wrap gap-1">
+                    {context.lastExchange.assistantFiles.slice(0, 3).map((file, index) => (
+                      <span
+                        key={index}
+                        className="px-1.5 py-0.5 bg-accent-secondary/10 text-accent-secondary text-[10px] rounded"
+                      >
+                        {file.split('/').pop()}
+                      </span>
+                    ))}
+                    {context.lastExchange.assistantFiles.length > 3 && (
+                      <span className="text-[10px] text-gray-600">
+                        +{context.lastExchange.assistantFiles.length - 3}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

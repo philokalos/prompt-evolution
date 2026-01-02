@@ -36,6 +36,13 @@ export interface RewriteRequest {
     recentFiles?: string[];
     recentTools?: string[];
     gitBranch?: string;
+    // 직전 대화 컨텍스트 (새 필드)
+    lastExchange?: {
+      userMessage: string;          // 직전 사용자 메시지 (100자 이내)
+      assistantSummary: string;     // 직전 Claude 응답 요약 (100자 이내)
+      assistantTools: string[];     // 응답에서 사용된 도구들
+      assistantFiles: string[];     // 응답에서 수정된 파일들
+    };
   };
 }
 
@@ -211,6 +218,24 @@ ${issueLines.join('\n')}`);
 
     if (ctx.gitBranch && !['main', 'master'].includes(ctx.gitBranch)) {
       contextLines.push(`- 브랜치: ${ctx.gitBranch}`);
+    }
+
+    // 직전 대화 컨텍스트 (새로 추가)
+    if (ctx.lastExchange) {
+      const le = ctx.lastExchange;
+      if (le.userMessage) {
+        contextLines.push(`- 직전 요청: ${le.userMessage}`);
+      }
+      if (le.assistantSummary) {
+        contextLines.push(`- 직전 응답: ${le.assistantSummary}`);
+      }
+      if (le.assistantFiles && le.assistantFiles.length > 0) {
+        const files = le.assistantFiles.slice(0, 3).map(f => f.split('/').pop()).join(', ');
+        contextLines.push(`- 수정된 파일: ${files}`);
+      }
+      if (le.assistantTools && le.assistantTools.length > 0) {
+        contextLines.push(`- 사용된 도구: ${le.assistantTools.slice(0, 3).join(', ')}`);
+      }
     }
 
     if (contextLines.length > 0) {
