@@ -48,7 +48,7 @@ export interface ElectronAPI {
   signalReady: () => Promise<boolean>;
 
   // Event listeners
-  onClipboardText: (callback: (text: string) => void) => void;
+  onClipboardText: (callback: (payload: ClipboardPayload) => void) => void;
   removeClipboardListener: () => void;
 
   // Project change event listener (polling)
@@ -58,9 +58,32 @@ export interface ElectronAPI {
 
 export interface DetectedProject {
   projectPath: string;
+  projectName?: string;
   ideName?: string;
   currentFile?: string;
   confidence: 'high' | 'medium' | 'low';
+}
+
+/**
+ * Captured context at hotkey time
+ * Used to ensure correct project detection even if user switches windows
+ */
+export interface CapturedContext {
+  windowInfo: {
+    appName: string;
+    windowTitle: string;
+    isIDE: boolean;
+  } | null;
+  project: DetectedProject | null;
+  timestamp: string; // ISO string (Date serialized via IPC)
+}
+
+/**
+ * Payload sent from main process with clipboard text and captured context
+ */
+export interface ClipboardPayload {
+  text: string;
+  capturedContext: CapturedContext | null;
 }
 
 // Phase 2: History-based recommendation types

@@ -17,7 +17,10 @@ import {
   startWindowPolling,
   stopWindowPolling,
   detectActiveProject,
+  getActiveWindowInfo,
+  parseWindowTitle,
   type DetectedProject,
+  type ActiveWindowInfo,
 } from './active-window-detector.js';
 import { initAutoUpdater } from './auto-updater.js';
 
@@ -62,6 +65,16 @@ const store = new Store<AppSettings>({
   },
 });
 
+/**
+ * Captured window context at hotkey time
+ * Used to ensure correct project detection even if user switches windows
+ */
+export interface CapturedContext {
+  windowInfo: ActiveWindowInfo | null;
+  project: DetectedProject | null;
+  timestamp: Date;
+}
+
 let mainWindow: BrowserWindow | null = null;
 let quickActionWindow: BrowserWindow | null = null;
 let isQuitting = false;
@@ -79,19 +92,30 @@ export function getAIRewriteSettings(): { apiKey: string; enabled: boolean } {
 // State tracking for improved hotkey behavior
 let lastAnalyzedText = '';
 let isRendererReady = false;
-let pendingText: string | null = null;
+let pendingText: { text: string; capturedContext: CapturedContext | null } | null = null;
 let currentProject: DetectedProject | null = null;
 let lastFrontmostApp: string | null = null; // Track source app for apply feature
+let lastCapturedContext: CapturedContext | null = null; // Captured at hotkey time
+
+/**
+ * Get the last captured context (for learning engine to use)
+ */
+export function getLastCapturedContext(): CapturedContext | null {
+  return lastCapturedContext;
+}
 
 /**
  * Send text to renderer for analysis.
  * If renderer is not ready, queue the text for later delivery.
+ * Includes captured context from hotkey time for accurate project detection.
  */
-function sendTextToRenderer(text: string): void {
+function sendTextToRenderer(text: string, capturedContext: CapturedContext | null = null): void {
+  const payload = { text, capturedContext };
+
   if (isRendererReady && mainWindow) {
-    mainWindow.webContents.send('clipboard-text', text);
+    mainWindow.webContents.send('clipboard-text', payload);
   } else {
-    pendingText = text;
+    pendingText = payload;
     console.log('[Main] Renderer not ready, queuing text for later');
   }
 }
@@ -301,9 +325,21 @@ function registerShortcut(): void {
   globalShortcut.register(shortcut, async () => {
     if (!mainWindow) return;
 
-    // Save the frontmost app BEFORE we show our window
-    // This is the app where the user wants to apply the improved prompt
-    lastFrontmostApp = await getFrontmostApp();
+    // 1. Capture window context FIRST - before any other operations
+    // This ensures we have the correct project even if user switches windows
+    const windowInfo = await getActiveWindowInfo();
+    const project = windowInfo?.isIDE ? parseWindowTitle(windowInfo) : null;
+
+    lastCapturedContext = {
+      windowInfo,
+      project,
+      timestamp: new Date(),
+    };
+
+    console.log(`[Main] Captured context: ${project?.projectPath || 'no project'} (IDE: ${windowInfo?.ideName || 'none'})`);
+
+    // Save the frontmost app name for apply feature
+    lastFrontmostApp = windowInfo?.appName || await getFrontmostApp();
     console.log(`[Main] Source app for apply: ${lastFrontmostApp}`);
 
     // Get capture mode from settings
@@ -321,8 +357,8 @@ function registerShortcut(): void {
 
     // Always analyze (even if same text)
     lastAnalyzedText = capturedText;
-    sendTextToRenderer(capturedText);
-    console.log('[Main] Analyzing text');
+    sendTextToRenderer(capturedText, lastCapturedContext);
+    console.log('[Main] Analyzing text with captured context');
 
     // Show window if hidden (use showInactive to keep focus on source app)
     if (!mainWindow.isVisible()) {
@@ -452,7 +488,7 @@ ipcMain.handle('renderer-ready', () => {
 
   // Send any pending text that was queued before renderer was ready
   if (pendingText && mainWindow) {
-    console.log('[Main] Sending pending text to renderer');
+    console.log('[Main] Sending pending text to renderer with context');
     mainWindow.webContents.send('clipboard-text', pendingText);
     pendingText = null;
   }

@@ -1,5 +1,33 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+/**
+ * Captured context at hotkey time (mirrors main process type)
+ * Used to ensure correct project detection even if user switches windows
+ */
+interface CapturedContext {
+  windowInfo: {
+    appName: string;
+    windowTitle: string;
+    isIDE: boolean;
+  } | null;
+  project: {
+    projectPath: string;
+    projectName: string;
+    source: string;
+    confidence: number;
+    currentFile?: string;
+  } | null;
+  timestamp: string; // ISO string (Date serialized via IPC)
+}
+
+/**
+ * Payload sent from main process with clipboard text and captured context
+ */
+interface ClipboardPayload {
+  text: string;
+  capturedContext: CapturedContext | null;
+}
+
 // Expose protected APIs to renderer
 contextBridge.exposeInMainWorld('electronAPI', {
   // Clipboard operations
@@ -53,8 +81,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   signalReady: (): Promise<boolean> => ipcRenderer.invoke('renderer-ready'),
 
   // Event listeners
-  onClipboardText: (callback: (text: string) => void): void => {
-    ipcRenderer.on('clipboard-text', (_event, text) => callback(text));
+  onClipboardText: (callback: (payload: ClipboardPayload) => void): void => {
+    ipcRenderer.on('clipboard-text', (_event, payload: ClipboardPayload) => callback(payload));
   },
 
   removeClipboardListener: (): void => {
@@ -90,6 +118,33 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
 // Type definitions for TypeScript
 declare global {
+  /**
+   * Captured context at hotkey time
+   */
+  interface CapturedContext {
+    windowInfo: {
+      appName: string;
+      windowTitle: string;
+      isIDE: boolean;
+    } | null;
+    project: {
+      projectPath: string;
+      projectName: string;
+      source: string;
+      confidence: number;
+      currentFile?: string;
+    } | null;
+    timestamp: string;
+  }
+
+  /**
+   * Payload sent from main process with clipboard text and captured context
+   */
+  interface ClipboardPayload {
+    text: string;
+    capturedContext: CapturedContext | null;
+  }
+
   interface Window {
     electronAPI: {
       getClipboard: () => Promise<string>;
@@ -113,7 +168,7 @@ declare global {
       getProjectPatterns: (projectPath: string) => Promise<unknown>;
       getContextRecommendations: (category: string | undefined, projectPath: string | undefined) => Promise<unknown>;
       signalReady: () => Promise<boolean>;
-      onClipboardText: (callback: (text: string) => void) => void;
+      onClipboardText: (callback: (payload: ClipboardPayload) => void) => void;
       removeClipboardListener: () => void;
       onProjectChanged: (callback: (project: unknown) => void) => void;
       removeProjectListener: () => void;

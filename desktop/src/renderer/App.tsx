@@ -87,8 +87,12 @@ function App() {
       setCurrentProject(project as DetectedProject | null);
     });
 
-    window.electronAPI.onClipboardText((text) => {
+    window.electronAPI.onClipboardText((payload) => {
+      const { text, capturedContext } = payload;
       console.log('[Renderer] Received clipboard text:', text?.substring(0, 50));
+      if (capturedContext?.project) {
+        console.log('[Renderer] Captured project:', capturedContext.project.projectPath);
+      }
       setOriginalPrompt(text);
       analyzePrompt(text);
     });

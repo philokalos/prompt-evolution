@@ -20,11 +20,12 @@ import {
   getStats,
 } from './db/index.js';
 import { generatePromptVariants, generateAllVariants, RewriteResult, VariantType, type GOLDENEvaluator } from './prompt-rewriter.js';
-import { getAIRewriteSettings } from './index.js';
+import { getAIRewriteSettings, getLastCapturedContext } from './index.js';
 import {
   getSessionContext,
   getSessionContextForPath,
   getActiveWindowSessionContext,
+  getSessionContextForCapturedProject,
   SessionContext,
   ActiveSessionContext,
 } from './session-context.js';
@@ -278,14 +279,31 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
   }
 
   try {
-    // Get session context for enhanced rewriting (prefer active window detection)
-    const sessionContext = await getActiveWindowSessionContext();
-    if (sessionContext) {
-      console.log(
-        '[LearningEngine] Session context found:',
-        sessionContext.projectPath,
-        `(source: ${sessionContext.source}, confidence: ${sessionContext.confidence})`
-      );
+    // Get session context for enhanced rewriting
+    // Use captured context (from hotkey time) if available, otherwise fallback to real-time detection
+    const capturedContext = getLastCapturedContext();
+    let sessionContext: ActiveSessionContext | null = null;
+
+    if (capturedContext?.project) {
+      // Use captured context - this ensures correct project even if user switched windows
+      sessionContext = await getSessionContextForCapturedProject(capturedContext);
+      if (sessionContext) {
+        console.log(
+          '[LearningEngine] Session context from captured window:',
+          sessionContext.projectPath,
+          `(source: ${sessionContext.source}, confidence: ${sessionContext.confidence})`
+        );
+      }
+    } else {
+      // Fallback to real-time detection (legacy behavior)
+      sessionContext = await getActiveWindowSessionContext();
+      if (sessionContext) {
+        console.log(
+          '[LearningEngine] Session context from active window:',
+          sessionContext.projectPath,
+          `(source: ${sessionContext.source}, confidence: ${sessionContext.confidence})`
+        );
+      }
     }
 
     // Run evaluation

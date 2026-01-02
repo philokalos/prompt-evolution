@@ -41,6 +41,18 @@ interface CacheEntry {
 // In-memory cache for session context
 const sessionCache: Map<string, CacheEntry> = new Map();
 
+/**
+ * Last exchange context - the most recent user-assistant pair
+ * Truncated to 100 chars for efficiency
+ */
+export interface LastExchangeContext {
+  userMessage: string;          // 직전 사용자 메시지 (100자 이내)
+  assistantSummary: string;     // 직전 Claude 응답 요약 (100자 이내)
+  assistantTools: string[];     // 응답에서 사용된 도구들
+  assistantFiles: string[];     // 응답에서 수정된 파일들
+  timestamp: Date;
+}
+
 // Session context interface
 export interface SessionContext {
   projectPath: string;      // /Users/foo/project
@@ -52,6 +64,7 @@ export interface SessionContext {
   recentFiles: string[];    // recent file patterns
   lastActivity: Date;
   gitBranch?: string;
+  lastExchange?: LastExchangeContext;  // 직전 대화 교환 (새 필드)
 }
 
 // Claude Code record types (simplified for context extraction)
@@ -417,6 +430,110 @@ function extractToolsAndFiles(records: ClaudeRecord[]): { tools: string[]; files
 }
 
 /**
+ * Extract tools and files from a single content array
+ */
+function extractToolsFromContent(content: unknown): { tools: string[]; files: string[] } {
+  const tools: string[] = [];
+  const files: string[] = [];
+
+  if (!Array.isArray(content)) return { tools, files };
+
+  for (const block of content) {
+    if ((block as ToolUseBlock).type === 'tool_use') {
+      const toolBlock = block as ToolUseBlock;
+      tools.push(toolBlock.name);
+
+      const input = toolBlock.input;
+      if (input?.file_path) {
+        files.push(path.basename(input.file_path));
+      }
+      if (input?.path) {
+        files.push(path.basename(input.path));
+      }
+    }
+  }
+
+  return { tools, files };
+}
+
+/**
+ * Extract text content from assistant response
+ */
+function extractTextFromContent(content: unknown): string {
+  if (!Array.isArray(content)) return '';
+
+  return content
+    .filter((block): block is { type: 'text'; text: string } =>
+      typeof block === 'object' && block !== null && (block as { type: string }).type === 'text'
+    )
+    .map(block => block.text)
+    .join('\n');
+}
+
+/**
+ * Extract user content (handles string | ContentBlock[])
+ */
+function extractUserContent(content: unknown): string {
+  if (typeof content === 'string') {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    return content
+      .filter((block): block is { type: 'text'; text: string } =>
+        typeof block === 'object' && block !== null && (block as { type: string }).type === 'text'
+      )
+      .map(block => block.text)
+      .join('\n');
+  }
+  return '';
+}
+
+/**
+ * Truncate text to specified length with ellipsis
+ */
+function truncateText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength - 3) + '...';
+}
+
+/**
+ * Extract the last user-assistant exchange from session records
+ * Returns 100-char summaries for efficiency
+ */
+function extractLastExchange(records: ClaudeRecord[]): LastExchangeContext | undefined {
+  // Find the last assistant record
+  const reversedRecords = [...records].reverse();
+  const lastAssistant = reversedRecords.find(r => r.type === 'assistant');
+
+  if (!lastAssistant) return undefined;
+
+  // Find the user message that preceded this assistant response
+  const assistantIdx = reversedRecords.indexOf(lastAssistant);
+  const lastUser = reversedRecords.slice(assistantIdx + 1)
+    .find(r => r.type === 'user');
+
+  // Extract assistant response text (100 char summary)
+  const content = lastAssistant.message?.content;
+  const fullText = extractTextFromContent(content);
+  const assistantSummary = truncateText(fullText, 100);
+
+  // Extract tools and files from assistant response
+  const { tools, files } = extractToolsFromContent(content);
+
+  // Extract user message (100 char summary)
+  const userText = extractUserContent(lastUser?.message?.content);
+  const userSummary = truncateText(userText, 100);
+
+  return {
+    userMessage: userSummary,
+    assistantSummary,
+    assistantTools: tools.slice(0, 5),
+    assistantFiles: files.slice(0, 5),
+    timestamp: new Date(lastAssistant.timestamp || Date.now()),
+  };
+}
+
+/**
  * Extract git branch from project directory
  * Reads directly from .git/HEAD file for reliability
  */
@@ -498,6 +615,9 @@ export function extractSessionContext(projectId: string, sessionFile: string): S
     // Decode project path for git branch and display
     const decodedProjectPath = decodeProjectPath(projectId);
 
+    // Extract last exchange for context about the most recent interaction
+    const lastExchange = extractLastExchange(records);
+
     const context: SessionContext = {
       projectPath: decodedProjectPath,
       projectId,
@@ -508,6 +628,7 @@ export function extractSessionContext(projectId: string, sessionFile: string): S
       recentFiles: files,
       lastActivity,
       gitBranch: extractGitBranch(decodedProjectPath),
+      lastExchange,
     };
 
     // Update cache
@@ -715,4 +836,86 @@ function detectTechStackFromPath(projectPath: string): string[] {
   }
 
   return Array.from(stack).slice(0, 5);
+}
+
+/**
+ * Captured context interface (matches CapturedContext from index.ts)
+ * Defined here to avoid circular dependency
+ */
+interface CapturedContextLike {
+  windowInfo: {
+    appName: string;
+    windowTitle: string;
+    isIDE: boolean;
+    ideName?: string;
+  } | null;
+  project: {
+    projectPath: string;
+    projectName: string;
+    currentFile?: string;
+    ideName: string;
+    confidence: 'high' | 'medium' | 'low';
+  } | null;
+  timestamp: Date;
+}
+
+/**
+ * Get session context for a captured project (from hotkey time)
+ * Uses the captured project info instead of real-time detection
+ */
+export async function getSessionContextForCapturedProject(
+  capturedContext: CapturedContextLike
+): Promise<ActiveSessionContext | null> {
+  try {
+    const { project, windowInfo } = capturedContext;
+
+    if (!project) {
+      console.log('[SessionContext] No project in captured context, falling back');
+      return getActiveWindowSessionContext();
+    }
+
+    console.log('[SessionContext] Using captured project:', project.projectPath, `(${project.ideName})`);
+
+    // Find matching Claude Code project
+    const projectId = findMatchingProject(project.projectPath);
+
+    if (projectId) {
+      const sessionFile = getLatestSession(projectId);
+
+      if (sessionFile) {
+        const baseContext = extractSessionContext(projectId, sessionFile);
+
+        if (baseContext) {
+          return {
+            ...baseContext,
+            source: 'active-window',
+            ideName: project.ideName,
+            currentFile: project.currentFile,
+            confidence: project.confidence,
+          };
+        }
+      }
+    }
+
+    // No Claude Code session, but we have project info from capture
+    // Return minimal context
+    return {
+      projectPath: project.projectPath,
+      projectId: encodeProjectPath(project.projectPath),
+      sessionId: '',
+      currentTask: project.currentFile || '작업 진행 중',
+      techStack: detectTechStackFromPath(project.projectPath),
+      recentTools: [],
+      recentFiles: project.currentFile ? [project.currentFile] : [],
+      lastActivity: new Date(),
+      gitBranch: extractGitBranch(project.projectPath),
+      source: 'active-window',
+      ideName: project.ideName,
+      currentFile: project.currentFile,
+      confidence: project.confidence,
+    };
+  } catch (error) {
+    console.error('[SessionContext] Error getting captured project context:', error);
+    return getActiveWindowSessionContext();
+  }
 }
