@@ -1,6 +1,9 @@
 /**
  * Session Context Reader
  * Reads Claude Code session data to provide context for prompt rewriting
+ *
+ * v2.0: Enhanced project detection with bidirectional matching, symlink support,
+ *       and similarity-based fallback
  */
 
 import * as fs from 'fs';
@@ -8,6 +11,13 @@ import * as path from 'path';
 import { homedir } from 'os';
 import { app } from 'electron';
 import { detectActiveProject, type DetectedProject } from './active-window-detector.js';
+import {
+  findMatchingProjectEnhanced,
+  decodeProjectPathEnhanced,
+  findProjectPathByNameEnhanced,
+  type DetectionResult,
+  type DetectionOptions,
+} from './project-detector-enhanced.js';
 
 // Claude Code projects directory
 const CLAUDE_PROJECTS_PATH = path.join(homedir(), '.claude', 'projects');
@@ -127,9 +137,56 @@ function decodeProjectPath(encoded: string): string {
 }
 
 /**
- * Find matching Claude Code project for current working directory
+ * Enhanced detection options (can be configured per-call)
  */
-export function findMatchingProject(cwd: string): string | null {
+const defaultDetectionOptions: DetectionOptions = {
+  enableSimilarity: true,
+  enableRecentFallback: true,
+  maxDashCombine: 10,
+  similarityThreshold: 0.7,
+  customSearchPaths: [],
+  debug: false,
+};
+
+/**
+ * Find matching Claude Code project for current working directory
+ * v2.0: Uses enhanced detection with bidirectional matching and fallbacks
+ *
+ * @param cwd - Current working directory
+ * @param options - Optional detection configuration
+ * @returns projectId or null
+ */
+export function findMatchingProject(cwd: string, options?: DetectionOptions): string | null {
+  const result = findMatchingProjectEnhanced(cwd, {
+    ...defaultDetectionOptions,
+    ...options,
+  });
+
+  if (result.projectId) {
+    console.log(`[SessionContext] Found project: ${result.projectId} (${result.matchType}, confidence: ${(result.confidence * 100).toFixed(0)}%)`);
+  } else {
+    console.log(`[SessionContext] No project found: ${result.reason}`);
+  }
+
+  return result.projectId;
+}
+
+/**
+ * Find matching project with full detection result
+ * Use this when you need confidence scores and match types
+ */
+export function findMatchingProjectWithDetails(cwd: string, options?: DetectionOptions): DetectionResult {
+  return findMatchingProjectEnhanced(cwd, {
+    ...defaultDetectionOptions,
+    ...options,
+  });
+}
+
+/**
+ * Legacy function - kept for backward compatibility
+ * @deprecated Use findMatchingProject instead
+ */
+function findMatchingProjectLegacy(cwd: string): string | null {
   if (!fs.existsSync(CLAUDE_PROJECTS_PATH)) {
     return null;
   }

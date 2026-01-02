@@ -1,0 +1,383 @@
+/**
+ * Enhanced Project Detector Tests
+ *
+ * 테스트 대상 시나리오:
+ * 1. 정확한 경로 매칭
+ * 2. 부분 매칭 (cwd가 project 하위)
+ * 3. 역방향 부분 매칭 (project가 cwd 하위 - 모노레포)
+ * 4. 복잡한 대시 경로 디코딩
+ * 5. 유사도 기반 매칭
+ * 6. 최근 프로젝트 폴백
+ * 7. Symlink 처리
+ * 8. 프로젝트명 기반 경로 탐색
+ */
+
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import * as fs from 'fs';
+import * as path from 'path';
+import { homedir } from 'os';
+
+// 모킹 전 실제 모듈 임포트를 위한 타입 정의
+type DetectionResult = {
+  projectId: string | null;
+  projectPath: string | null;
+  matchType: 'exact' | 'partial-cwd-in-project' | 'partial-project-in-cwd' | 'similarity' | 'recent' | null;
+  confidence: number;
+  reason: string;
+};
+
+// fs 모킹
+vi.mock('fs');
+vi.mock('os', () => ({
+  homedir: () => '/Users/testuser',
+}));
+
+describe('Enhanced Project Detector', () => {
+  // 가상 파일시스템 구조
+  const mockFileSystem: Record<string, { isDirectory: boolean; mtime?: Date }> = {
+    // Claude projects directory
+    '/Users/testuser/.claude/projects': { isDirectory: true },
+    '/Users/testuser/.claude/projects/-Users-testuser-Development-my-project': { isDirectory: true },
+    '/Users/testuser/.claude/projects/-Users-testuser-Development-my-dashed-folder-name': { isDirectory: true },
+    '/Users/testuser/.claude/projects/-Users-testuser-Development-monorepo-packages-subpackage': { isDirectory: true },
+
+    // Actual project directories
+    '/Users/testuser/Development': { isDirectory: true },
+    '/Users/testuser/Development/my-project': { isDirectory: true },
+    '/Users/testuser/Development/my-project/src': { isDirectory: true },
+    '/Users/testuser/Development/my-project/src/components': { isDirectory: true },
+    '/Users/testuser/Development/my-dashed-folder-name': { isDirectory: true },
+    '/Users/testuser/Development/monorepo': { isDirectory: true },
+    '/Users/testuser/Development/monorepo/packages': { isDirectory: true },
+    '/Users/testuser/Development/monorepo/packages/subpackage': { isDirectory: true },
+
+    // Session files
+    '/Users/testuser/.claude/projects/-Users-testuser-Development-my-project/session1.jsonl': {
+      isDirectory: false,
+      mtime: new Date('2024-01-15'),
+    },
+    '/Users/testuser/.claude/projects/-Users-testuser-Development-my-dashed-folder-name/session1.jsonl': {
+      isDirectory: false,
+      mtime: new Date('2024-01-10'),
+    },
+  };
+
+  beforeEach(() => {
+    // fs.existsSync 모킹
+    vi.mocked(fs.existsSync).mockImplementation((p: fs.PathLike) => {
+      const pathStr = p.toString();
+      return pathStr in mockFileSystem;
+    });
+
+    // fs.statSync 모킹
+    vi.mocked(fs.statSync).mockImplementation((p: fs.PathLike) => {
+      const pathStr = p.toString();
+      const entry = mockFileSystem[pathStr];
+      if (!entry) {
+        throw new Error(`ENOENT: no such file or directory, stat '${pathStr}'`);
+      }
+      return {
+        isDirectory: () => entry.isDirectory,
+        isFile: () => !entry.isDirectory,
+        mtime: entry.mtime || new Date(),
+      } as fs.Stats;
+    });
+
+    // fs.readdirSync 모킹
+    vi.mocked(fs.readdirSync).mockImplementation((p: fs.PathLike) => {
+      const pathStr = p.toString().replace(/\/$/, '');
+      const entries: string[] = [];
+
+      for (const key of Object.keys(mockFileSystem)) {
+        if (key.startsWith(pathStr + '/')) {
+          const relativePath = key.slice(pathStr.length + 1);
+          const firstPart = relativePath.split('/')[0];
+          if (firstPart && !entries.includes(firstPart)) {
+            entries.push(firstPart);
+          }
+        }
+      }
+
+      // withFileTypes 옵션 처리
+      return entries.map(name => ({
+        name,
+        isDirectory: () => mockFileSystem[path.join(pathStr, name)]?.isDirectory ?? false,
+        isFile: () => !mockFileSystem[path.join(pathStr, name)]?.isDirectory,
+      })) as unknown as string[];
+    });
+
+    // fs.realpathSync 모킹 (symlink 없는 경우)
+    vi.mocked(fs.realpathSync).mockImplementation((p: fs.PathLike) => p.toString());
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe('decodeProjectPathEnhanced', () => {
+    it('should decode simple path correctly', async () => {
+      const { decodeProjectPathEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = decodeProjectPathEnhanced('-Users-testuser-Development-my-project');
+
+      expect(result).toBe('/Users/testuser/Development/my-project');
+    });
+
+    it('should decode path with dashed folder name', async () => {
+      const { decodeProjectPathEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = decodeProjectPathEnhanced('-Users-testuser-Development-my-dashed-folder-name');
+
+      expect(result).toBe('/Users/testuser/Development/my-dashed-folder-name');
+    });
+
+    it('should return null for non-existent path', async () => {
+      const { decodeProjectPathEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = decodeProjectPathEnhanced('-Users-testuser-NonExistent-path');
+
+      expect(result).toBeNull();
+    });
+
+    it('should handle paths with 5+ dash segments', async () => {
+      // 추가 모킹: 긴 대시 폴더
+      mockFileSystem['/Users/testuser/Development/my-very-long-dashed-folder-name'] = { isDirectory: true };
+      mockFileSystem['/Users/testuser/.claude/projects/-Users-testuser-Development-my-very-long-dashed-folder-name'] = { isDirectory: true };
+
+      const { decodeProjectPathEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = decodeProjectPathEnhanced(
+        '-Users-testuser-Development-my-very-long-dashed-folder-name',
+        { maxDashCombine: 10 }
+      );
+
+      expect(result).toBe('/Users/testuser/Development/my-very-long-dashed-folder-name');
+    });
+  });
+
+  describe('findMatchingProjectEnhanced', () => {
+    it('should find exact match', async () => {
+      const { findMatchingProjectEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findMatchingProjectEnhanced('/Users/testuser/Development/my-project');
+
+      expect(result.matchType).toBe('exact');
+      expect(result.confidence).toBe(1.0);
+      expect(result.projectId).toBe('-Users-testuser-Development-my-project');
+    });
+
+    it('should find partial match when cwd is subdirectory of project', async () => {
+      const { findMatchingProjectEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findMatchingProjectEnhanced('/Users/testuser/Development/my-project/src/components');
+
+      expect(result.matchType).toBe('partial-cwd-in-project');
+      expect(result.confidence).toBeGreaterThanOrEqual(0.8);
+      expect(result.projectId).toBe('-Users-testuser-Development-my-project');
+    });
+
+    it('should find reverse partial match for monorepo pattern', async () => {
+      const { findMatchingProjectEnhanced } = await import('../project-detector-enhanced.js');
+
+      // 모노레포 루트에서 작업하지만, Claude Code 세션은 subpackage에서 시작됨
+      const result = findMatchingProjectEnhanced('/Users/testuser/Development/monorepo');
+
+      expect(result.matchType).toBe('partial-project-in-cwd');
+      expect(result.projectId).toBe('-Users-testuser-Development-monorepo-packages-subpackage');
+      expect(result.reason).toContain('monorepo pattern');
+    });
+
+    it('should use similarity matching when enabled', async () => {
+      const { findMatchingProjectEnhanced } = await import('../project-detector-enhanced.js');
+
+      // 유사한 경로 추가
+      mockFileSystem['/Users/testuser/Development/my-projects'] = { isDirectory: true };
+
+      const result = findMatchingProjectEnhanced('/Users/testuser/Development/my-projects', {
+        enableSimilarity: true,
+        similarityThreshold: 0.7,
+      });
+
+      // my-project vs my-projects 유사도 매칭
+      expect(result.matchType).toBe('similarity');
+    });
+
+    it('should fallback to recent project when no match found', async () => {
+      const { findMatchingProjectEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findMatchingProjectEnhanced('/Users/testuser/Documents/random-folder', {
+        enableRecentFallback: true,
+        enableSimilarity: false,
+      });
+
+      expect(result.matchType).toBe('recent');
+      expect(result.confidence).toBeLessThanOrEqual(0.3);
+    });
+
+    it('should return null when Claude projects directory does not exist', async () => {
+      vi.mocked(fs.existsSync).mockReturnValueOnce(false);
+
+      const { findMatchingProjectEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findMatchingProjectEnhanced('/some/path');
+
+      expect(result.projectId).toBeNull();
+      expect(result.reason).toContain('not found');
+    });
+  });
+
+  describe('findProjectPathByNameEnhanced', () => {
+    it('should find project by direct name match', async () => {
+      const { findProjectPathByNameEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findProjectPathByNameEnhanced('my-project');
+
+      expect(result).toBe('/Users/testuser/Development/my-project');
+    });
+
+    it('should find project with case-insensitive matching', async () => {
+      // 대문자 폴더 추가
+      mockFileSystem['/Users/testuser/Development/MyProject'] = { isDirectory: true };
+
+      const { findProjectPathByNameEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findProjectPathByNameEnhanced('myproject');
+
+      expect(result).toBe('/Users/testuser/Development/MyProject');
+    });
+
+    it('should search custom paths', async () => {
+      mockFileSystem['/custom/dev/path'] = { isDirectory: true };
+      mockFileSystem['/custom/dev/path/special-project'] = { isDirectory: true };
+
+      const { findProjectPathByNameEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findProjectPathByNameEnhanced('special-project', {
+        customSearchPaths: ['/custom/dev/path'],
+      });
+
+      expect(result).toBe('/custom/dev/path/special-project');
+    });
+
+    it('should search up to 3 levels deep', async () => {
+      // 3단계 깊이 폴더 추가
+      mockFileSystem['/Users/testuser/Development/work'] = { isDirectory: true };
+      mockFileSystem['/Users/testuser/Development/work/client'] = { isDirectory: true };
+      mockFileSystem['/Users/testuser/Development/work/client/deep-project'] = { isDirectory: true };
+
+      const { findProjectPathByNameEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findProjectPathByNameEnhanced('deep-project');
+
+      expect(result).toBe('/Users/testuser/Development/work/client/deep-project');
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle symlinks correctly', async () => {
+      // symlink 시뮬레이션
+      vi.mocked(fs.realpathSync).mockImplementation((p: fs.PathLike) => {
+        const pathStr = p.toString();
+        if (pathStr === '/Users/testuser/Projects/linked-project') {
+          return '/Users/testuser/Development/my-project'; // symlink target
+        }
+        return pathStr;
+      });
+
+      mockFileSystem['/Users/testuser/Projects'] = { isDirectory: true };
+      mockFileSystem['/Users/testuser/Projects/linked-project'] = { isDirectory: true };
+
+      const { findMatchingProjectEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findMatchingProjectEnhanced('/Users/testuser/Projects/linked-project');
+
+      // symlink 해석 후 실제 경로로 매칭되어야 함
+      expect(result.projectId).toBe('-Users-testuser-Development-my-project');
+    });
+
+    it('should handle empty Claude projects directory', async () => {
+      vi.mocked(fs.readdirSync).mockReturnValueOnce([]);
+
+      const { findMatchingProjectEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findMatchingProjectEnhanced('/some/path', {
+        enableRecentFallback: false,
+        enableSimilarity: false,
+      });
+
+      expect(result.projectId).toBeNull();
+    });
+
+    it('should handle paths with trailing slashes', async () => {
+      const { findMatchingProjectEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findMatchingProjectEnhanced('/Users/testuser/Development/my-project/');
+
+      expect(result.matchType).toBe('exact');
+      expect(result.projectId).toBe('-Users-testuser-Development-my-project');
+    });
+
+    it('should handle paths with special characters', async () => {
+      mockFileSystem['/Users/testuser/Development/project (copy)'] = { isDirectory: true };
+      mockFileSystem['/Users/testuser/.claude/projects/-Users-testuser-Development-project (copy)'] = { isDirectory: true };
+
+      const { findMatchingProjectEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findMatchingProjectEnhanced('/Users/testuser/Development/project (copy)');
+
+      expect(result.projectId).not.toBeNull();
+    });
+  });
+
+  describe('Confidence Scoring', () => {
+    it('should give highest confidence to exact matches', async () => {
+      const { findMatchingProjectEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findMatchingProjectEnhanced('/Users/testuser/Development/my-project');
+
+      expect(result.confidence).toBe(1.0);
+    });
+
+    it('should reduce confidence for deeper subdirectories', async () => {
+      const { findMatchingProjectEnhanced } = await import('../project-detector-enhanced.js');
+
+      // 1단계 깊이
+      const result1 = findMatchingProjectEnhanced('/Users/testuser/Development/my-project/src');
+
+      // 2단계 깊이
+      const result2 = findMatchingProjectEnhanced('/Users/testuser/Development/my-project/src/components');
+
+      expect(result1.confidence).toBeGreaterThan(result2.confidence);
+    });
+
+    it('should give low confidence to recent fallback', async () => {
+      const { findMatchingProjectEnhanced } = await import('../project-detector-enhanced.js');
+
+      const result = findMatchingProjectEnhanced('/Users/testuser/Documents/unrelated', {
+        enableRecentFallback: true,
+        enableSimilarity: false,
+      });
+
+      expect(result.matchType).toBe('recent');
+      expect(result.confidence).toBeLessThanOrEqual(0.3);
+    });
+  });
+});
+
+// 성능 테스트
+describe('Performance', () => {
+  it('should complete detection within 100ms', async () => {
+    const { findMatchingProjectEnhanced, clearDetectionLogs, getDetectionLogs } = await import('../project-detector-enhanced.js');
+
+    clearDetectionLogs();
+
+    const start = Date.now();
+    findMatchingProjectEnhanced('/Users/testuser/Development/my-project', { debug: true });
+    const duration = Date.now() - start;
+
+    expect(duration).toBeLessThan(100);
+
+    const logs = getDetectionLogs();
+    expect(logs.length).toBeGreaterThan(0);
+  });
+});

@@ -2,6 +2,8 @@
  * Active Window Detector
  * macOS: AppleScript로 현재 활성 IDE 창의 프로젝트를 감지
  * 창 전환 시 자동으로 프로젝트 컨텍스트 업데이트
+ *
+ * v2.0: Enhanced project path finding with deeper search and custom paths
  */
 
 import { exec } from 'child_process';
@@ -10,6 +12,22 @@ import * as path from 'path';
 import * as fs from 'fs';
 
 const execAsync = promisify(exec);
+
+// 지연 로딩: 순환 의존성 방지
+let findProjectPathByNameEnhanced: ((name: string, options?: Record<string, unknown>) => string | null) | null = null;
+
+async function getEnhancedFinder(): Promise<typeof findProjectPathByNameEnhanced> {
+  if (!findProjectPathByNameEnhanced) {
+    try {
+      const module = await import('./project-detector-enhanced.js');
+      findProjectPathByNameEnhanced = module.findProjectPathByNameEnhanced;
+    } catch {
+      // 폴백: 기존 함수 사용
+      findProjectPathByNameEnhanced = null;
+    }
+  }
+  return findProjectPathByNameEnhanced;
+}
 
 // 지원하는 IDE 목록
 const SUPPORTED_IDES = [
@@ -94,9 +112,15 @@ export async function getActiveWindowInfo(): Promise<ActiveWindowInfo | null> {
 
 /**
  * VS Code / Cursor 창 제목에서 프로젝트 경로 추출
- * 패턴: "file.ts — project-name — Visual Studio Code"
- *       "file.ts — folder — Cursor"
- *       "● file.ts — project-name — Cursor" (unsaved)
+ * v2.0: 추가 패턴 지원 (Remote-SSH, Workspace, WSL)
+ *
+ * 지원 패턴:
+ * - "file.ts — project-name — Visual Studio Code"
+ * - "file.ts — folder — Cursor"
+ * - "● file.ts — project-name — Cursor" (unsaved)
+ * - "[SSH: host] file.ts — project-name — VS Code" (Remote-SSH)
+ * - "file.ts — project-name (Workspace) — VS Code" (Workspace)
+ * - "[WSL: distro] file.ts — project — VS Code" (WSL)
  */
 function parseVSCodeWindowTitle(windowTitle: string, appName: string): DetectedProject | null {
   // 창 제목이 없거나 너무 짧으면 무시
@@ -105,21 +129,36 @@ function parseVSCodeWindowTitle(windowTitle: string, appName: string): DetectedP
   }
 
   // Welcome 탭 등 무시
-  if (windowTitle.startsWith('Welcome') || windowTitle.startsWith('Get Started')) {
+  const ignorePatterns = ['Welcome', 'Get Started', 'Settings', 'Extension', 'Keyboard Shortcuts'];
+  if (ignorePatterns.some(pattern => windowTitle.startsWith(pattern))) {
     return null;
+  }
+
+  // Remote/WSL 프리픽스 제거
+  let cleanedTitle = windowTitle;
+  let isRemote = false;
+
+  // [SSH: host] 또는 [WSL: distro] 패턴
+  const remotePrefixMatch = windowTitle.match(/^\[(SSH|WSL|Dev Container):\s*[^\]]+\]\s*/);
+  if (remotePrefixMatch) {
+    cleanedTitle = windowTitle.slice(remotePrefixMatch[0].length);
+    isRemote = true;
   }
 
   // 패턴: "file.ts — project-name — IDE"
   // em dash (—) 또는 hyphen-minus (-) 처리
-  const parts = windowTitle.split(/\s[—–-]\s/);
+  const parts = cleanedTitle.split(/\s[—–-]\s/);
 
   if (parts.length >= 2) {
-    // 마지막 부분이 IDE 이름이면 제거
+    // 마지막 부분이 IDE 이름이면 제거 (Visual Studio Code, VS Code, Cursor 등)
     let projectPart = parts.length >= 3 ? parts[1] : parts[0];
     const filePart = parts[0].replace(/^[●*]\s*/, ''); // 수정됨 표시 제거
 
+    // (Workspace) 접미사 제거
+    projectPart = projectPart.replace(/\s*\(Workspace\)\s*$/i, '').trim();
+
     // 프로젝트 이름으로 실제 경로 찾기
-    const projectPath = findProjectPathByName(projectPart.trim());
+    const projectPath = findProjectPathByName(projectPart);
 
     if (projectPath) {
       return {
@@ -127,14 +166,14 @@ function parseVSCodeWindowTitle(windowTitle: string, appName: string): DetectedP
         projectName: path.basename(projectPath),
         currentFile: filePart,
         ideName: appName.includes('Cursor') ? 'Cursor' : 'VS Code',
-        confidence: 'high',
+        confidence: isRemote ? 'medium' : 'high', // 리모트는 신뢰도 낮춤
       };
     }
 
     // 경로를 못 찾았지만 프로젝트 이름은 있음
     return {
-      projectPath: projectPart.trim(),
-      projectName: projectPart.trim(),
+      projectPath: projectPart,
+      projectName: projectPart,
       currentFile: filePart,
       ideName: appName.includes('Cursor') ? 'Cursor' : 'VS Code',
       confidence: 'low',
@@ -195,18 +234,25 @@ function parseJetBrainsWindowTitle(windowTitle: string, appName: string): Detect
 
 /**
  * 터미널 창 제목에서 경로 추출
- * 패턴: "user@host: /path/to/project" 또는 "~/project — zsh"
+ * v2.0: 추가 프롬프트 패턴 지원 (starship, powerlevel10k 등)
+ *
+ * 지원 패턴:
+ * - "user@host: /path/to/project"
+ * - "~/project — zsh"
+ * - "project on main ➜" (starship)
+ * - "λ ~/project" (oh-my-zsh)
+ * - "user@host /path/to/project (branch)"
  */
 function parseTerminalWindowTitle(windowTitle: string, appName: string): DetectedProject | null {
   if (!windowTitle || windowTitle.length < 3) {
     return null;
   }
 
-  // 패턴 1: "user@host: /path/to/project"
-  const colonMatch = windowTitle.match(/:\s*([~/].+?)(?:\s|$)/);
+  // 패턴 1: "user@host: /path/to/project" 또는 "user@host /path"
+  const colonMatch = windowTitle.match(/(?:@[^:]+)?[:\s]\s*([~/][^\s—–-]+)/);
   if (colonMatch) {
     const pathPart = colonMatch[1].replace(/^~/, process.env.HOME || '');
-    if (fs.existsSync(pathPart)) {
+    if (fs.existsSync(pathPart) && fs.statSync(pathPart).isDirectory()) {
       return {
         projectPath: pathPart,
         projectName: path.basename(pathPart),
@@ -216,16 +262,45 @@ function parseTerminalWindowTitle(windowTitle: string, appName: string): Detecte
     }
   }
 
-  // 패턴 2: "~/project" 또는 "/path/to/project"
-  const pathMatch = windowTitle.match(/^([~/][^\s—–-]+)/);
+  // 패턴 2: "~/project" 또는 "/path/to/project" (창 제목 시작)
+  const pathMatch = windowTitle.match(/^(?:[λ➜❯]\s+)?([~/][^\s—–-]+)/);
   if (pathMatch) {
     const pathPart = pathMatch[1].replace(/^~/, process.env.HOME || '');
-    if (fs.existsSync(pathPart)) {
+    if (fs.existsSync(pathPart) && fs.statSync(pathPart).isDirectory()) {
       return {
         projectPath: pathPart,
         projectName: path.basename(pathPart),
         ideName: appName,
         confidence: 'medium',
+      };
+    }
+  }
+
+  // 패턴 3: "project on main" 또는 "project on branch ➜" (starship 스타일)
+  const starshipMatch = windowTitle.match(/^([a-zA-Z0-9_-]+)\s+on\s+([a-zA-Z0-9_/-]+)/);
+  if (starshipMatch) {
+    const projectName = starshipMatch[1];
+    const projectPath = findProjectPathByName(projectName);
+    if (projectPath) {
+      return {
+        projectPath,
+        projectName: path.basename(projectPath),
+        ideName: appName,
+        confidence: 'medium',
+      };
+    }
+  }
+
+  // 패턴 4: 끝에 있는 경로 패턴 (일부 zsh 테마)
+  const endPathMatch = windowTitle.match(/([~/][^\s]+)\s*$/);
+  if (endPathMatch) {
+    const pathPart = endPathMatch[1].replace(/^~/, process.env.HOME || '');
+    if (fs.existsSync(pathPart) && fs.statSync(pathPart).isDirectory()) {
+      return {
+        projectPath: pathPart,
+        projectName: path.basename(pathPart),
+        ideName: appName,
+        confidence: 'low', // 끝에 있는 패턴은 신뢰도 낮음
       };
     }
   }
@@ -235,13 +310,17 @@ function parseTerminalWindowTitle(windowTitle: string, appName: string): Detecte
 
 /**
  * 프로젝트 이름으로 실제 경로 찾기
+ * v2.0: Enhanced version with deeper search (3 levels) and custom paths
  * Claude Code 세션 디렉토리 또는 일반적인 개발 폴더 검색
  */
 function findProjectPathByName(projectName: string): string | null {
-  // 캐시 확인
-  const cacheKey = projectName.toLowerCase();
+  // 향상된 탐색기 사용 시도 (비동기 로딩 완료된 경우)
+  if (findProjectPathByNameEnhanced) {
+    const result = findProjectPathByNameEnhanced(projectName);
+    if (result) return result;
+  }
 
-  // 일반적인 개발 디렉토리
+  // 폴백: 기존 로직 (2단계 깊이)
   const searchPaths = [
     path.join(process.env.HOME || '', 'Development'),
     path.join(process.env.HOME || '', 'Projects'),
@@ -251,6 +330,7 @@ function findProjectPathByName(projectName: string): string | null {
     path.join(process.env.HOME || '', 'code'),
     path.join(process.env.HOME || '', 'workspace'),
     path.join(process.env.HOME || '', 'src'),
+    path.join(process.env.HOME || '', 'work'), // 추가
   ];
 
   for (const searchPath of searchPaths) {
@@ -276,6 +356,25 @@ function findProjectPathByName(projectName: string): string | null {
         // 대소문자 무시 매칭
         if (entry.name.toLowerCase() === projectName.toLowerCase()) {
           return path.join(searchPath, entry.name);
+        }
+
+        // 2단계 하위 검색 (추가)
+        try {
+          const subEntries = fs.readdirSync(path.join(searchPath, entry.name), { withFileTypes: true });
+          for (const subEntry of subEntries) {
+            if (!subEntry.isDirectory()) continue;
+
+            const deepPath = path.join(searchPath, entry.name, subEntry.name, projectName);
+            if (fs.existsSync(deepPath) && fs.statSync(deepPath).isDirectory()) {
+              return deepPath;
+            }
+
+            if (subEntry.name.toLowerCase() === projectName.toLowerCase()) {
+              return path.join(searchPath, entry.name, subEntry.name);
+            }
+          }
+        } catch {
+          continue;
         }
       }
     } catch {
