@@ -119,3 +119,42 @@ prompt-evolution/
 - [ ] Web Dashboard 완성 (server/ + web/)
 - [ ] 프로덕션 배포 (.dmg 배포)
 - [ ] 사용자 피드백 수집 및 개선
+
+---
+
+## 2026-01-02 (Git 레포지토리 분리)
+
+### 문제 상황
+- `claude-projects/` 전체가 하나의 git 레포로 관리됨
+- kyeol과 prompt-evolution 커밋이 혼합되어 두 GitHub 레포에 push됨
+- 독립적인 프로젝트 관리 불가
+
+### 해결
+- **git-filter-repo**를 사용하여 각 폴더의 커밋 히스토리만 추출
+- 각 프로젝트를 독립된 GitHub 레포지토리로 분리
+
+### 완료 작업
+- [x] 백업 생성 (`claude-projects-backup/`)
+- [x] `git-filter-repo --subdirectory-filter` 로 히스토리 분리
+- [x] prompt-evolution → `philokalos/prompt-evolution` force push
+- [x] kyeol → `philokalos/kyeol` force push
+- [x] 로컬 환경 재구성 (각 폴더를 독립 git 레포로 연결)
+- [x] 프로젝트별 `.gitignore` 생성
+- [x] 백업 폴더 삭제
+
+### 결과
+```
+claude-projects/
+├── prompt-evolution/
+│   └── .git/ → philokalos/prompt-evolution
+├── kyeol/
+│   └── .git/ → philokalos/kyeol
+├── 4matrix/     → 별도 레포
+├── Ledger/      → 별도 레포
+└── voice-journal/ → 별도 레포
+```
+
+### 검증
+- prompt-evolution: desktop, guidebook 관련 커밋만 보존 ✅
+- kyeol: admin, chatbot, daily-log 관련 커밋만 보존 ✅
+- 두 레포 간 커밋 중복 없음 ✅
