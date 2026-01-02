@@ -30,7 +30,15 @@ export default function ContextIndicator({ context }: ContextIndicatorProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!context) {
-    return null;
+    return (
+      <div className="mb-3 px-3 py-2 rounded-lg bg-dark-surface/50 border border-dark-border/50">
+        <div className="flex items-center gap-2 text-xs text-gray-500">
+          <Folder size={12} className="text-gray-600" />
+          <span>프로젝트 미감지</span>
+          <span className="text-gray-600">- 텍스트 선택 후 ⌘⇧P로 분석하세요</span>
+        </div>
+      </div>
+    );
   }
 
   // Extract project name from path
@@ -51,34 +59,36 @@ export default function ContextIndicator({ context }: ContextIndicatorProps) {
       {/* Compact Header Bar */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-gradient-to-r from-dark-surface to-dark-hover border border-dark-border hover:border-accent-primary/30 transition-all duration-200 group"
+        className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg bg-gradient-to-r from-accent-primary/10 to-dark-surface border border-accent-primary/20 hover:border-accent-primary/40 transition-all duration-200 group"
       >
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {/* Source indicator - active window vs app path */}
           {context.source === 'active-window' ? (
-            <span className="relative flex h-2 w-2 flex-shrink-0" title="활성 창에서 감지됨">
+            <span className="relative flex h-2.5 w-2.5 flex-shrink-0" title="활성 창에서 감지됨">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-success opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-success"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent-success"></span>
             </span>
           ) : isRecent ? (
-            <span className="relative flex h-2 w-2 flex-shrink-0">
+            <span className="relative flex h-2.5 w-2.5 flex-shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-warning opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-warning"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent-warning"></span>
             </span>
           ) : null}
 
-          {/* IDE icon if detected from active window */}
-          {context.ideName && (
-            <Monitor size={12} className="text-accent-secondary flex-shrink-0" title={`${context.ideName}에서 감지`} />
-          )}
-
-          {/* Project name */}
+          {/* Project name - more prominent */}
           <div className="flex items-center gap-1.5 min-w-0">
-            <Folder size={12} className="text-accent-primary flex-shrink-0" />
-            <span className="text-xs font-medium text-gray-300 truncate">
+            <Folder size={14} className="text-accent-primary flex-shrink-0" />
+            <span className="text-sm font-medium text-gray-200 truncate">
               {projectName}
             </span>
           </div>
+
+          {/* IDE badge */}
+          {context.ideName && (
+            <span className="px-2 py-0.5 bg-accent-secondary/20 text-accent-secondary text-xs rounded flex-shrink-0">
+              {context.ideName}
+            </span>
+          )}
 
           {/* Git branch */}
           {context.gitBranch && (
