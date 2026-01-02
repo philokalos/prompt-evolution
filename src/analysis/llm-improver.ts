@@ -398,6 +398,8 @@ export async function validateApiKey(apiKey: string): Promise<boolean> {
 
 /**
  * 오프라인 폴백 (API 없이 규칙 기반 개선)
+ * - GOLDEN 6개 차원 구조로 완전한 프롬프트 생성
+ * - LLM 버전과 유사한 품질 목표
  */
 export function improvePromptOffline(
   originalPrompt: string,
@@ -406,38 +408,60 @@ export function improvePromptOffline(
   const originalScore = calculateGOLDENScore(originalPrompt);
   const classification = classifyPrompt(originalPrompt);
   const language = detectLanguage(originalPrompt);
-
-  // 규칙 기반 개선
-  let improved = originalPrompt;
   const keyChanges: string[] = [];
 
-  // 1. 목표가 없으면 추가
-  if (originalScore.goal < 0.3) {
-    const goalPrefix = language === 'ko'
-      ? `[${getCategoryLabel(classification.category, language)}]\n\n`
-      : `[${getCategoryLabel(classification.category, language)}]\n\n`;
-    improved = goalPrefix + improved;
-    keyChanges.push(language === 'ko' ? '목표 카테고리 추가' : 'Goal category added');
-  }
+  // 카테고리별 기본 템플릿
+  const categoryTemplates = getCategoryTemplates(classification.category, language);
 
-  // 2. 컨텍스트가 없으면 추가
-  if (originalScore.data < 0.3 && context?.techStack) {
-    const contextBlock = language === 'ko'
-      ? `\n\n현재 환경:\n- 기술 스택: ${context.techStack.join(', ')}`
-      : `\n\nCurrent environment:\n- Tech stack: ${context.techStack.join(', ')}`;
-    improved = improved + contextBlock;
-    keyChanges.push(language === 'ko' ? '환경 정보 추가' : 'Environment info added');
-  }
+  // 기술 스택 추론
+  const techStack = context?.techStack?.join(', ') || inferTechStack(originalPrompt, language);
 
-  // 3. 출력 형식이 없으면 추가
-  if (originalScore.output < 0.3) {
-    const outputHint = language === 'ko'
-      ? '\n\n출력 형식: 완전한 코드와 간단한 설명'
-      : '\n\nOutput format: Complete code with brief explanation';
-    improved = improved + outputHint;
-    keyChanges.push(language === 'ko' ? '출력 형식 명시' : 'Output format specified');
-  }
+  // GOLDEN 6개 차원 구조로 프롬프트 생성
+  const sections: string[] = [];
 
+  // G - Goal (목표)
+  const goalText = language === 'ko'
+    ? `목표: ${extractGoal(originalPrompt, classification, language)}`
+    : `Goal: ${extractGoal(originalPrompt, classification, language)}`;
+  sections.push(goalText);
+  if (originalScore.goal < 0.5) keyChanges.push(language === 'ko' ? '목표 명확화' : 'Goal clarification');
+
+  // O - Output (출력 형식)
+  const outputText = language === 'ko'
+    ? `출력 형식: ${categoryTemplates.output}`
+    : `Output: ${categoryTemplates.output}`;
+  sections.push(outputText);
+  if (originalScore.output < 0.5) keyChanges.push(language === 'ko' ? '출력 형식 추가' : 'Output format added');
+
+  // L - Limits (제약조건)
+  const limitsText = language === 'ko'
+    ? `제약사항:\n${categoryTemplates.limits.map(l => `- ${l}`).join('\n')}`
+    : `Constraints:\n${categoryTemplates.limits.map(l => `- ${l}`).join('\n')}`;
+  sections.push(limitsText);
+  if (originalScore.limits < 0.5) keyChanges.push(language === 'ko' ? '제약조건 명시' : 'Constraints specified');
+
+  // D - Data (데이터/컨텍스트)
+  const dataText = language === 'ko'
+    ? `현재 환경:\n- 기술 스택: ${techStack}\n- 프로젝트 유형: ${context?.projectType || categoryTemplates.projectType}`
+    : `Environment:\n- Tech stack: ${techStack}\n- Project type: ${context?.projectType || categoryTemplates.projectType}`;
+  sections.push(dataText);
+  if (originalScore.data < 0.5) keyChanges.push(language === 'ko' ? '컨텍스트 추가' : 'Context added');
+
+  // E - Evaluation (평가 기준)
+  const evalText = language === 'ko'
+    ? `성공 기준:\n${categoryTemplates.evaluation.map(e => `- ${e}`).join('\n')}`
+    : `Success Criteria:\n${categoryTemplates.evaluation.map(e => `- ${e}`).join('\n')}`;
+  sections.push(evalText);
+  if (originalScore.evaluation < 0.5) keyChanges.push(language === 'ko' ? '평가 기준 추가' : 'Evaluation criteria added');
+
+  // N - Next (다음 단계)
+  const nextText = language === 'ko'
+    ? `완료 후: ${categoryTemplates.next}`
+    : `Next steps: ${categoryTemplates.next}`;
+  sections.push(nextText);
+  if (originalScore.next < 0.5) keyChanges.push(language === 'ko' ? '다음 단계 명시' : 'Next steps specified');
+
+  const improved = sections.join('\n\n');
   const improvedScore = calculateGOLDENScore(improved);
   const improvementPercent = Math.round(
     ((improvedScore.total - originalScore.total) / Math.max(originalScore.total, 0.01)) * 100
@@ -451,9 +475,203 @@ export function improvePromptOffline(
     improvementPercent,
     classification,
     keyChanges,
-    confidence: 0.5, // 오프라인은 낮은 신뢰도
+    confidence: 0.7, // 구조화된 오프라인 모드는 더 높은 신뢰도
     variant: 'balanced',
   };
+}
+
+/**
+ * 원본 프롬프트에서 목표 추출
+ */
+function extractGoal(prompt: string, classification: PromptClassification, language: 'ko' | 'en'): string {
+  // 원본에서 핵심 동사/목적어 추출
+  const actionMatch = prompt.match(/(.+?)(해줘|해주세요|만들어|작성해|구현해|개발해|설계해)/);
+  if (actionMatch) {
+    const target = actionMatch[1].trim();
+    const action = actionMatch[2];
+    return language === 'ko'
+      ? `${target}을(를) ${action.replace('해줘', '구현해 주세요').replace('해주세요', '구현해 주세요')}`
+      : `Implement ${target}`;
+  }
+
+  // 영어 패턴
+  const engMatch = prompt.match(/(create|make|build|implement|develop|design|write)\s+(.+)/i);
+  if (engMatch) {
+    return `${engMatch[1]} ${engMatch[2]}`;
+  }
+
+  // 폴백: 분류 기반
+  const categoryGoals: Record<string, { ko: string; en: string }> = {
+    'code-generation': { ko: '요청된 코드를 구현해 주세요', en: 'Implement the requested code' },
+    'bug-fix': { ko: '버그를 분석하고 수정해 주세요', en: 'Analyze and fix the bug' },
+    'refactoring': { ko: '코드를 리팩토링해 주세요', en: 'Refactor the code' },
+    'explanation': { ko: '코드를 상세히 설명해 주세요', en: 'Explain the code in detail' },
+    'documentation': { ko: '문서를 작성해 주세요', en: 'Write the documentation' },
+    'architecture': { ko: '시스템을 설계해 주세요', en: 'Design the system' },
+  };
+
+  return categoryGoals[classification.category]?.[language] ||
+    (language === 'ko' ? '요청사항을 처리해 주세요' : 'Process the request');
+}
+
+/**
+ * 카테고리별 템플릿 반환
+ */
+function getCategoryTemplates(category: string, language: 'ko' | 'en'): {
+  output: string;
+  limits: string[];
+  projectType: string;
+  evaluation: string[];
+  next: string;
+} {
+  const templates: Record<string, { ko: any; en: any }> = {
+    'code-generation': {
+      ko: {
+        output: 'TypeScript 코드와 사용법 예시',
+        limits: ['타입 안전성 보장', '에러 처리 포함', '주석으로 핵심 로직 설명'],
+        projectType: '웹 애플리케이션',
+        evaluation: ['코드가 컴파일되고 실행됨', '예상대로 동작함', '에러 처리가 적절함'],
+        next: '테스트 코드 작성 및 통합',
+      },
+      en: {
+        output: 'TypeScript code with usage examples',
+        limits: ['Ensure type safety', 'Include error handling', 'Add comments for key logic'],
+        projectType: 'Web application',
+        evaluation: ['Code compiles and runs', 'Works as expected', 'Error handling is appropriate'],
+        next: 'Write tests and integrate',
+      },
+    },
+    'bug-fix': {
+      ko: {
+        output: '수정된 코드와 버그 원인 설명',
+        limits: ['기존 기능 유지', '최소한의 변경', '회귀 버그 방지'],
+        projectType: '기존 프로젝트',
+        evaluation: ['버그가 해결됨', '다른 기능에 영향 없음', '테스트 통과'],
+        next: '관련 테스트 케이스 추가',
+      },
+      en: {
+        output: 'Fixed code with bug cause explanation',
+        limits: ['Maintain existing functionality', 'Minimal changes', 'Prevent regression'],
+        projectType: 'Existing project',
+        evaluation: ['Bug is resolved', 'No impact on other features', 'Tests pass'],
+        next: 'Add related test cases',
+      },
+    },
+    'refactoring': {
+      ko: {
+        output: '리팩토링된 코드와 변경 사항 설명',
+        limits: ['기능 동작 유지', 'SOLID 원칙 적용', '가독성 향상'],
+        projectType: '레거시 코드베이스',
+        evaluation: ['기존 테스트 통과', '코드 복잡도 감소', '유지보수성 향상'],
+        next: '코드 리뷰 요청',
+      },
+      en: {
+        output: 'Refactored code with change explanation',
+        limits: ['Maintain functionality', 'Apply SOLID principles', 'Improve readability'],
+        projectType: 'Legacy codebase',
+        evaluation: ['Existing tests pass', 'Reduced complexity', 'Improved maintainability'],
+        next: 'Request code review',
+      },
+    },
+    'explanation': {
+      ko: {
+        output: '단계별 설명과 다이어그램 (필요시)',
+        limits: ['초보자도 이해 가능한 수준', '핵심 개념 강조', '예시 포함'],
+        projectType: '학습/문서화',
+        evaluation: ['모든 주요 개념 설명됨', '예시가 명확함', '질문에 답변됨'],
+        next: '추가 질문이나 심화 학습',
+      },
+      en: {
+        output: 'Step-by-step explanation with diagrams if needed',
+        limits: ['Beginner-friendly', 'Highlight key concepts', 'Include examples'],
+        projectType: 'Learning/Documentation',
+        evaluation: ['All key concepts explained', 'Examples are clear', 'Questions answered'],
+        next: 'Follow-up questions or deeper learning',
+      },
+    },
+    'documentation': {
+      ko: {
+        output: '마크다운 형식 문서',
+        limits: ['명확한 구조', '예제 코드 포함', 'API 명세 (해당시)'],
+        projectType: '오픈소스/팀 프로젝트',
+        evaluation: ['모든 기능 문서화됨', '예제가 작동함', '형식이 일관됨'],
+        next: 'README에 링크 추가',
+      },
+      en: {
+        output: 'Markdown formatted documentation',
+        limits: ['Clear structure', 'Include code examples', 'API specs if applicable'],
+        projectType: 'Open source/Team project',
+        evaluation: ['All features documented', 'Examples work', 'Consistent format'],
+        next: 'Add links to README',
+      },
+    },
+    'architecture': {
+      ko: {
+        output: '시스템 설계 문서와 다이어그램',
+        limits: ['확장성 고려', '보안 고려', '비용 효율성'],
+        projectType: '신규 시스템',
+        evaluation: ['요구사항 충족', '확장 가능', '보안 취약점 없음'],
+        next: '기술 검토 회의',
+      },
+      en: {
+        output: 'System design document with diagrams',
+        limits: ['Consider scalability', 'Consider security', 'Cost efficiency'],
+        projectType: 'New system',
+        evaluation: ['Requirements met', 'Scalable', 'No security vulnerabilities'],
+        next: 'Technical review meeting',
+      },
+    },
+  };
+
+  const defaultTemplate = {
+    ko: {
+      output: '요청에 맞는 결과물',
+      limits: ['명확한 구조', '실용적 접근', '품질 보장'],
+      projectType: '일반 프로젝트',
+      evaluation: ['요구사항 충족', '품질 기준 통과', '사용 가능한 상태'],
+      next: '결과물 검토 및 피드백',
+    },
+    en: {
+      output: 'Result matching the request',
+      limits: ['Clear structure', 'Practical approach', 'Quality assurance'],
+      projectType: 'General project',
+      evaluation: ['Requirements met', 'Quality standards passed', 'Ready to use'],
+      next: 'Review and feedback',
+    },
+  };
+
+  return templates[category]?.[language] || defaultTemplate[language];
+}
+
+/**
+ * 프롬프트에서 기술 스택 추론
+ */
+function inferTechStack(prompt: string, language: 'ko' | 'en'): string {
+  const techPatterns: Array<{ pattern: RegExp; stack: string }> = [
+    { pattern: /react/i, stack: 'React' },
+    { pattern: /vue/i, stack: 'Vue.js' },
+    { pattern: /angular/i, stack: 'Angular' },
+    { pattern: /node/i, stack: 'Node.js' },
+    { pattern: /python|파이썬/i, stack: 'Python' },
+    { pattern: /java(?!script)/i, stack: 'Java' },
+    { pattern: /typescript|ts/i, stack: 'TypeScript' },
+    { pattern: /javascript|js/i, stack: 'JavaScript' },
+    { pattern: /firebase/i, stack: 'Firebase' },
+    { pattern: /api|rest|graphql/i, stack: 'REST API' },
+  ];
+
+  const detected: string[] = [];
+  for (const { pattern, stack } of techPatterns) {
+    if (pattern.test(prompt)) {
+      detected.push(stack);
+    }
+  }
+
+  if (detected.length > 0) {
+    return detected.join(', ');
+  }
+
+  return language === 'ko' ? 'TypeScript, Node.js' : 'TypeScript, Node.js';
 }
 
 /**
