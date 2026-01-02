@@ -3,9 +3,13 @@
  * GitHub Releases 기반 자동 업데이트
  */
 
-import { autoUpdater, UpdateInfo } from 'electron-updater';
+import pkg from 'electron-updater';
+const { autoUpdater } = pkg;
+type UpdateInfo = pkg.UpdateInfo;
+
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
-import log from 'electron-log';
+import electronLog from 'electron-log';
+const log = electronLog.default ?? electronLog;
 
 // 로깅 설정
 autoUpdater.logger = log;
