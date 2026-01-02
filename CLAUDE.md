@@ -13,7 +13,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **Three Components**:
 1. **CLI** (`src/`) - Parse and analyze Claude Code conversations
 2. **Web Dashboard** (`server/` + `web/`) - Express API + React visualization
-3. **Desktop App** (`desktop/`) - Electron app "PromptLint" with global hotkey (Cmd+Shift+P)
+3. **Desktop App** (`desktop/`) - Electron app "PromptLint" with global hotkey (Cmd+Shift+P). See `desktop/CLAUDE.md` for detailed documentation.
 
 ## Development Commands
 
@@ -34,10 +34,10 @@ npm run build:web              # Build React → web/dist/
 npm run build:all              # Build CLI + server + web
 npm run start:dashboard        # Production dashboard server
 
-# Testing
-npm test                       # Vitest (no tests configured yet)
+# Web Linting
+cd web && npm run lint         # ESLint for React dashboard
 
-# Desktop App (separate package in desktop/)
+# Desktop App (separate package)
 cd desktop
 npm run dev:electron           # Build all 4 configs + launch Electron
 npm run dist:mac               # macOS .dmg + .zip → release/
@@ -102,7 +102,7 @@ Project ID format: Encoded path with dashes (e.g., `-Users-foo-project`)
 
 **`server/`** - Express API with scheduled sync
 - Routes: stats, projects, insights, trends, sync
-- Scheduler: 30min imports, 2hr analysis, daily full refresh
+- Scheduler: 30min incremental imports, 2hr analysis, 4AM daily full refresh
 - Middleware: Custom error handler with structured responses
 
 **`web/`** - React dashboard (Vite + Tailwind + React Query)
@@ -157,14 +157,11 @@ Records linked via `uuid` → `parentUuid`.
 
 Separate Electron app in `desktop/` with its own `package.json` and detailed `CLAUDE.md`.
 
-**Key Points**:
-- Reuses parent `src/analysis/` modules (bundled as CJS via esbuild in `scripts/build-analysis.ts`)
-- 4 TypeScript configs: main (ESM), preload (CJS→.cjs), analysis (ESM), renderer (Vite)
-- Preload must output `.cjs` due to `"type": "module"` in package.json
-- Requires macOS Accessibility permission for text selection
-- SQLite history stored at `~/.promptlint/history.db`
+**Key Integration Point**: Reuses parent `src/analysis/` modules via esbuild bundling to CJS (`scripts/build-analysis.ts`).
 
-**Build Order Matters**: `build:analysis` → `build:main` → `build:preload` → `build:renderer`
+**Critical Build Detail**: Preload script must output `.cjs` because Electron requires CommonJS, but `package.json` has `"type": "module"`.
+
+See `desktop/CLAUDE.md` for complete architecture, IPC handlers, and gotchas.
 
 ## Data Sources
 
@@ -176,6 +173,15 @@ Separate Electron app in `desktop/` with its own `package.json` and detailed `CL
 ```
 
 **SQLite Database**: `~/.prompt-evolution/data.db` (WAL mode)
+
+## Environment Variables
+
+**For AI-powered features** (CLI `improve` command, Desktop AI rewriting):
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+Without API key, rule-based improvements still work (~11% → 71% improvement vs ~11% → 83% with AI).
 
 ## Repository Boundaries
 
