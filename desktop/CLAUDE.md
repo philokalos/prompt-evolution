@@ -4,14 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**PromptLint** is an Electron desktop app that provides real-time prompt quality analysis with AI-powered personalized learning. It functions like Grammarly for prompts - accessible via global hotkey from any app.
+**PromptLint** is an Electron desktop app that provides real-time prompt quality analysis with AI-powered personalized learning. Functions like Grammarly for prompts - accessible via global hotkey from any app.
 
 **Core Features**:
 - System tray app with global shortcut (Cmd+Shift+P)
-- GOLDEN checklist compliance scoring (Goal, Output, Limits, Data, Evaluation, Next)
-- Personal learning engine with history tracking and improvement analysis
-- Reuses analysis modules from parent `prompt-evolution` project
-- Session context awareness (reads active Claude Code project)
+- GOLDEN checklist scoring (Goal, Output, Limits, Data, Evaluation, Next)
+- 3 rule-based prompt variants + optional AI rewriting (Claude API)
+- Active IDE/project detection (VS Code, Cursor, JetBrains, terminals)
+- Personal learning engine with history tracking and project-specific patterns
+- Session context awareness (reads `~/.claude/projects/`)
 
 ## Development Commands
 
@@ -20,121 +21,191 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 npm run dev:electron              # Build all + launch Electron
 npm run dev                       # Vite dev server only (renderer)
 
-# Build (multiple tsconfigs)
+# Build (4 separate configs)
+npm run build:analysis            # Bundle parent's analysis modules as CJS
 npm run build:main                # Main process (ESM)
 npm run build:preload             # Preload script (CommonJS → .cjs)
 npm run build:renderer            # Vite build (React)
-npm run build:analysis            # Bundle parent's analysis modules as CJS
-npm run build:all                 # All of the above (required before dev:electron)
+npm run build:all                 # All of the above
 
-# Production builds
+# Production
 npm run dist:mac                  # macOS .dmg + .zip (output: release/)
-npm run dist:win                  # Windows .exe
 npm run pack                      # Unpacked build for testing
 
 # Other
-npm run lint                      # ESLint
 npm run typecheck                 # TypeScript check
 npm run generate-icons            # Regenerate app icons from SVG
 ```
 
 ## Architecture
 
-### Electron Process Model
+### Process Model
 
 ```
-Main Process (Node.js, ESM)          Renderer Process (Chromium)
-┌──────────────────────────┐         ┌──────────────────────────┐
-│ src/main/index.ts        │         │ src/renderer/App.tsx     │
-│ - Window management      │◄──IPC──►│ - React UI               │
-│ - Global shortcuts       │         │ - GOLDEN radar chart     │
-│ - System tray            │         │ - Progress tracking      │
-│ - Clipboard/selection    │         │ - Settings modal         │
-│                          │         │                          │
-│ src/main/learning-engine │         │ Preload Bridge           │
-│ - Analysis orchestration │         │ (window.electronAPI)     │
-│ - SQLite history DB      │         │                          │
-│ - Loads analysis modules │         └──────────────────────────┘
-│                          │
-│ src/main/session-context │
-│ - Reads ~/.claude/projects/
-│ - Provides project context
-└──────────────────────────┘
+Main Process (Node.js, ESM)              Renderer Process (Chromium)
+┌────────────────────────────┐           ┌──────────────────────────┐
+│ index.ts                   │           │ App.tsx                  │
+│ - Window/tray/shortcuts    │◄───IPC───►│ - React UI               │
+│ - Text capture (AppleScript)│          │ - GOLDEN radar chart     │
+│                            │           │ - Variant comparison     │
+│ learning-engine.ts         │           │ - Progress tracking      │
+│ - Analysis orchestration   │           │ - History recommendations│
+│ - Variant generation       │           │                          │
+│ - SQLite persistence       │           │ Preload Bridge           │
+│                            │           │ (window.electronAPI)     │
+│ active-window-detector.ts  │           └──────────────────────────┘
+│ - IDE window parsing       │
+│ - Project path resolution  │
+│                            │
+│ claude-api.ts              │
+│ - AI-powered rewriting     │
+│                            │
+│ session-context.ts         │
+│ - Claude Code JSONL reader │
+│ - Tech stack inference     │
+└────────────────────────────┘
 ```
 
-### Build System (4 Separate TypeScript Configs)
+### Data Flow
+
+```
+Hotkey (Cmd+Shift+P)
+       ↓
+Text Capture (AppleScript or clipboard)
+       ↓
+Learning Engine
+  ├─→ GOLDEN Evaluation (analysis-bundle.cjs)
+  ├─→ Prompt Classification (classifier-bundle.cjs)
+  ├─→ Rule-based Variants (conservative/balanced/comprehensive)
+  ├─→ AI Variant (Claude API, if enabled + score < 80%)
+  ├─→ History Enrichment (project patterns, recommendations)
+  └─→ SQLite Save
+       ↓
+Renderer UI (radar, issues, variants, tips)
+```
+
+### Build System
 
 | Config | Module | Output | Purpose |
 |--------|--------|--------|---------|
-| `tsconfig.main.json` | ES2020 | `dist/main/` | Main process (ESM) |
+| `tsconfig.main.json` | ES2020 | `dist/main/` | Main process |
 | `tsconfig.preload.json` | **CommonJS** | `dist/preload/index.cjs` | Preload script |
-| `scripts/build-analysis.ts` | esbuild | `dist/analysis/*.cjs` | CJS bundles from parent |
-| `vite.config.ts` | - | `dist/renderer/` | React renderer |
+| `scripts/build-analysis.ts` | esbuild | `dist/analysis/*.cjs` | Parent analysis modules |
+| `vite.config.ts` | ESM | `dist/renderer/` | React renderer |
 
-**Critical**: Preload must be CommonJS (`.cjs`) because Electron requires it, but `package.json` has `"type": "module"`. The build script renames `index.js` → `index.cjs`.
+**Critical**: Preload must be `.cjs` because Electron requires CommonJS, but `package.json` has `"type": "module"`.
 
-### IPC Communication
+## Key Modules
 
-All IPC handlers defined in `src/main/index.ts` and `src/main/learning-engine.ts`:
+### Main Process (`src/main/`)
+
+| Module | Purpose |
+|--------|---------|
+| `index.ts` | Electron entry, window, shortcuts, tray, capture mode settings |
+| `learning-engine.ts` | Analysis orchestration, IPC handlers, variant generation |
+| `text-selection.ts` | AppleScript text capture, accessibility permission check |
+| `active-window-detector.ts` | IDE window parsing (VS Code, Cursor, JetBrains, terminals) |
+| `session-context.ts` | Claude Code JSONL reader, tech stack inference, git branch |
+| `prompt-rewriter.ts` | 3 rule-based variants with tech stack hints |
+| `claude-api.ts` | Anthropic SDK integration for AI rewriting |
+| `history-pattern-analyzer.ts` | Project-specific patterns, dimensional weaknesses |
+| `db/` | SQLite schema, migrations, history repository |
+
+### Renderer (`src/renderer/`)
+
+| Component | Purpose |
+|-----------|---------|
+| `App.tsx` | Main component, view modes (analysis/progress/tips) |
+| `GoldenRadar.tsx` | Radar chart of 6 GOLDEN dimensions |
+| `IssueList.tsx` | Severity-sorted issues with suggestions |
+| `PromptComparison.tsx` | Original vs variants with copy buttons |
+| `HistoryRecommendations.tsx` | Project pattern insights |
+| `ProgressTracker.tsx` | Score trends and weekly stats |
+| `Settings.tsx` | Hotkey, capture mode, API key, polling config |
+
+## Key Features
+
+### Text Capture Modes
+
+Three modes (configurable in settings):
+- **auto**: AppleScript selection first, clipboard fallback
+- **selection**: Only AppleScript-simulated Cmd+C
+- **clipboard**: Only existing clipboard content
+
+**App Blocklist**: Cursor, VS Code, Claude, terminals crash with AppleScript keystroke simulation → automatic clipboard fallback.
+
+### Prompt Variant Generation
+
+**Rule-based** (always generated):
+1. **Conservative** (~60% confidence): Minimal changes, targets lowest dimension
+2. **Balanced** (~75-80%): Context-aware, uses session info + tech stack hints
+3. **Comprehensive** (~90-95%): Full GOLDEN structure, category-specific templates
+
+**AI-powered** (optional, requires API key):
+- Calls Claude API if score < 80%
+- Respects language (Korean → Korean output)
+- Inserted as highest priority variant
+
+### Active Project Detection
+
+Polling-based (every 2s):
+- **VS Code/Cursor**: Parses window title "file.ts — project — IDE"
+- **JetBrains**: "project [/path] — file.ts"
+- **Terminals**: "user@host: /path/to/project"
+- Filesystem validation with confidence scoring
+
+### Session Context Enrichment
+
+From `~/.claude/projects/*.jsonl`:
+- Current task (from summary or recent user message)
+- Tech stack (file extensions + config files + package.json)
+- Recent tools and files
+- Git branch (from `.git/HEAD`)
+
+30-second cache with mtime-based invalidation.
+
+### History-Based Learning
+
+SQLite queries for personalization:
+- Project-specific GOLDEN averages
+- Dimensional weaknesses (e.g., "output" consistently low)
+- High-scoring example prompts for reference
+- Improvement tracking ("12% better than your average")
+
+## IPC Handlers
 
 | Handler | Purpose |
 |---------|---------|
-| `get-clipboard` / `set-clipboard` | Clipboard operations |
-| `analyze-prompt` | GOLDEN checklist analysis + variants |
+| `analyze-prompt` | Full analysis + variants + history enrichment |
 | `get-history`, `get-score-trend`, `get-stats` | Progress tracking |
-| `get-session-context` | Active Claude Code project info |
+| `get-golden-averages`, `get-top-weaknesses` | Dimensional analysis |
+| `get-project-patterns`, `get-context-recommendations` | Phase 2 personalization |
+| `get-session-context`, `get-current-project` | Context info |
+| `renderer-ready` | Fixes IPC race condition |
+| `get-clipboard`, `set-clipboard` | Clipboard operations |
 | `hide-window`, `minimize-window` | Window controls |
-| `renderer-ready` | Signals renderer ready (fixes IPC race) |
 
-Preload exposes these as `window.electronAPI.*` via `contextBridge`.
-
-### Text Capture System
-
-`src/main/text-selection.ts` handles text capture with three modes (configurable):
-- **auto**: Try selected text first (via AppleScript Cmd+C), fall back to clipboard
-- **selection**: Only capture selected text
-- **clipboard**: Only use existing clipboard content
-
-Requires macOS Accessibility permission. Dialog prompts user if not granted.
-
-### Analysis Module Loading
-
-The learning engine loads bundled CJS modules (built via esbuild):
-- **Development**: `dist/analysis/analysis-bundle.cjs`
-- **Production**: `extraResources/analysis/analysis-bundle.cjs` (outside asar)
-
-Source: `../src/analysis/` (parent project's GOLDEN evaluator, classifier)
-
-### Data Storage
+## Data Storage
 
 - **Settings**: `electron-store` (JSON in app data folder)
-- **History DB**: SQLite via `better-sqlite3` in `~/.promptlint/history.db`
+- **History DB**: SQLite at `~/.promptlint/history.db` (WAL mode)
 
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `src/main/index.ts` | Electron entry, window, shortcuts, tray, capture mode |
-| `src/main/learning-engine.ts` | Analysis orchestration, IPC handlers, module loading |
-| `src/main/text-selection.ts` | AppleScript text capture, accessibility permission |
-| `src/main/session-context.ts` | Reads Claude Code sessions from `~/.claude/projects/` |
-| `src/main/prompt-rewriter.ts` | Generates 3 prompt variants (concise/detailed/structured) |
-| `src/main/db/` | SQLite schema and repositories |
-| `src/preload/index.ts` | Context bridge (main ↔ renderer) |
-| `src/renderer/App.tsx` | Main React component, view mode state |
-| `src/renderer/components/Settings.tsx` | Settings modal (shortcut, capture mode, etc.) |
-| `scripts/build-analysis.ts` | esbuild script to bundle parent's analysis modules |
+Schema migrations tracked in `schema_version` table.
 
 ## Gotchas
 
-1. **Preload must be `.cjs`**: Due to `"type": "module"` in package.json, all `.js` files are treated as ESM. Electron preload requires CommonJS.
+1. **Preload must be `.cjs`**: Due to `"type": "module"`, Electron preload requires explicit CommonJS.
 
-2. **Window transparency**: `transparent: true` causes invisible windows on macOS. Use `backgroundColor` instead.
+2. **Analysis modules bundled as CJS**: Parent uses ESM, Electron packaging requires CJS. The `build:analysis` script uses esbuild.
 
-3. **Analysis modules bundled as CJS**: Parent project uses ESM, but Electron packaging requires CJS. The `build:analysis` script uses esbuild to create `*.cjs` bundles.
+3. **IPC race condition**: Renderer may not be ready when main sends text. Use `renderer-ready` signal + queue pending text.
 
-4. **Global shortcut timing**: `globalShortcut.unregisterAll()` must check `app.isReady()` in `will-quit` handler.
+4. **AppleScript crashes some apps**: Cursor, VS Code, Claude, terminals crash with simulated keystrokes. Blocklist with clipboard fallback.
 
-5. **IPC race condition**: Renderer may not be ready when main sends `clipboard-text`. Use `renderer-ready` signal and queue pending text.
+5. **Text selection requires Accessibility**: Check with `systemPreferences.isTrustedAccessibilityClient()`.
 
-6. **Text selection requires Accessibility**: AppleScript `keystroke` needs Accessibility permission. Check with `systemPreferences.isTrustedAccessibilityClient()`.
+6. **Window positioning**: Use `screen.getDisplayNearestPoint()` for multi-monitor setups.
+
+7. **Large session files**: Size-aware parsing (full for <10MB, last 100 lines for larger).
+
+8. **Global shortcut cleanup**: `globalShortcut.unregisterAll()` must check `app.isReady()` in `will-quit`.
