@@ -8,7 +8,10 @@ import {
   captureTextForAnalysis,
   checkAccessibilityPermission,
   showAccessibilityPermissionDialog,
+  applyTextToApp,
+  getFrontmostApp,
   type CaptureMode,
+  type ApplyTextResult,
 } from './text-selection.js';
 import {
   startWindowPolling,
@@ -35,6 +38,9 @@ interface AppSettings {
   pollingIntervalMs: number;
   claudeApiKey: string;
   useAiRewrite: boolean;
+  // Quick Action mode settings
+  quickActionMode: boolean; // Enable minimal floating panel mode
+  quickActionAutoHide: number; // Auto-hide seconds (0 = disabled)
 }
 
 // Initialize settings store
@@ -51,10 +57,13 @@ const store = new Store<AppSettings>({
     pollingIntervalMs: 2000,
     claudeApiKey: '',
     useAiRewrite: false,
+    quickActionMode: false, // Default to full analysis view
+    quickActionAutoHide: 3, // 3 seconds auto-hide when enabled
   },
 });
 
 let mainWindow: BrowserWindow | null = null;
+let quickActionWindow: BrowserWindow | null = null;
 let isQuitting = false;
 
 /**
@@ -72,6 +81,7 @@ let lastAnalyzedText = '';
 let isRendererReady = false;
 let pendingText: string | null = null;
 let currentProject: DetectedProject | null = null;
+let lastFrontmostApp: string | null = null; // Track source app for apply feature
 
 /**
  * Send text to renderer for analysis.
@@ -115,6 +125,75 @@ function positionWindowNearCursor(): void {
 
   mainWindow.setPosition(x, y);
   console.log(`[Main] Positioned window at ${x}, ${y} (cursor: ${cursor.x}, ${cursor.y})`);
+}
+
+/**
+ * Create a minimal quick action window near the cursor.
+ * This window shows only the grade change and apply/cancel buttons.
+ */
+function createQuickActionWindow(): void {
+  const cursor = screen.getCursorScreenPoint();
+  const display = screen.getDisplayNearestPoint(cursor);
+  const { width: screenW } = display.workAreaSize;
+  const { x: screenX, y: screenY } = display.workArea;
+
+  // Small window: approximately 280x60
+  const winW = 280;
+  const winH = 60;
+
+  // Position to the right of cursor (20px gap)
+  let x = cursor.x + 20;
+  let y = cursor.y - Math.floor(winH / 2);
+
+  // If overflows right edge, position to the left
+  if (x + winW > screenX + screenW) {
+    x = cursor.x - winW - 20;
+  }
+
+  // Clamp to screen bounds
+  if (y < screenY) y = screenY + 10;
+
+  quickActionWindow = new BrowserWindow({
+    width: winW,
+    height: winH,
+    x,
+    y,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    resizable: false,
+    show: false,
+    hasShadow: true,
+    webPreferences: {
+      preload: path.join(__dirname, '../preload/index.cjs'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+
+  // Load the quick action view
+  const devPort = process.env.VITE_PORT || '5173';
+  if (process.env.NODE_ENV === 'development') {
+    quickActionWindow.loadURL(`http://localhost:${devPort}#/quick-action`);
+  } else {
+    const htmlPath = path.join(__dirname, '../renderer/index.html');
+    quickActionWindow.loadFile(htmlPath, { hash: '/quick-action' });
+  }
+
+  quickActionWindow.once('ready-to-show', () => {
+    quickActionWindow?.show();
+  });
+
+  quickActionWindow.on('closed', () => {
+    quickActionWindow = null;
+  });
+
+  // Hide when focus lost
+  quickActionWindow.on('blur', () => {
+    quickActionWindow?.hide();
+  });
 }
 
 function createWindow(): void {
@@ -221,6 +300,11 @@ function registerShortcut(): void {
 
   globalShortcut.register(shortcut, async () => {
     if (!mainWindow) return;
+
+    // Save the frontmost app BEFORE we show our window
+    // This is the app where the user wants to apply the improved prompt
+    lastFrontmostApp = await getFrontmostApp();
+    console.log(`[Main] Source app for apply: ${lastFrontmostApp}`);
 
     // Get capture mode from settings
     const captureMode = store.get('captureMode') as CaptureMode;
@@ -331,6 +415,29 @@ ipcMain.handle('get-current-project', async () => {
 ipcMain.handle('hide-window', () => {
   mainWindow?.hide();
   return true;
+});
+
+// IPC Handler: Apply improved prompt to source app
+ipcMain.handle('apply-improved-prompt', async (_event, text: string): Promise<ApplyTextResult> => {
+  if (!lastFrontmostApp) {
+    // No source app tracked, just copy to clipboard
+    clipboard.writeText(text);
+    return {
+      success: false,
+      fallback: 'clipboard',
+      message: '클립보드에 복사됨 - Cmd+V로 붙여넣기 해주세요',
+    };
+  }
+
+  // Apply text to the source app
+  const result = await applyTextToApp(text, lastFrontmostApp);
+
+  // Hide PromptLint window after applying
+  if (result.success) {
+    mainWindow?.hide();
+  }
+
+  return result;
 });
 
 ipcMain.handle('minimize-window', () => {

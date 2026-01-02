@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Copy, Check, ChevronLeft, ChevronRight, Sparkles, FileText, Wand2 } from 'lucide-react';
+import { Copy, Check, ChevronLeft, ChevronRight, Sparkles, FileText, Wand2, Play, AlertCircle } from 'lucide-react';
 
 export type VariantType = 'conservative' | 'balanced' | 'comprehensive' | 'ai';
 
@@ -18,6 +18,7 @@ interface PromptComparisonProps {
   originalPrompt: string;
   variants: RewriteResult[];
   onCopy: (text: string) => void;
+  onApply?: (text: string) => Promise<{ success: boolean; message?: string }>; // 적용 콜백
   onOpenSettings?: () => void; // Settings 열기 콜백
 }
 
@@ -51,6 +52,7 @@ export default function PromptComparison({
   originalPrompt,
   variants,
   onCopy,
+  onApply,
   onOpenSettings,
 }: PromptComparisonProps) {
   // Default to AI variant (index 0) if available, otherwise balanced (index 1)
@@ -58,6 +60,8 @@ export default function PromptComparison({
   const [currentIndex, setCurrentIndex] = useState(hasAiVariant ? 0 : 1);
   const [copied, setCopied] = useState(false);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [applying, setApplying] = useState(false);
+  const [applyResult, setApplyResult] = useState<{ success: boolean; message?: string } | null>(null);
 
   // Copy a specific variant by index
   const copyVariant = useCallback((index: number) => {
@@ -73,11 +77,51 @@ export default function PromptComparison({
     }
   }, [variants, onCopy]);
 
-  // Keyboard shortcuts: ⌘1, ⌘2, ⌘3 to copy variants
+  // Apply current variant to source app
+  const applyVariant = useCallback(async (index?: number) => {
+    if (!onApply) return;
+
+    const targetIndex = index ?? currentIndex;
+    if (targetIndex < 0 || targetIndex >= variants.length) return;
+    if (variants[targetIndex].needsSetup) return;
+
+    setApplying(true);
+    setApplyResult(null);
+
+    try {
+      const result = await onApply(variants[targetIndex].rewrittenPrompt);
+      setApplyResult(result);
+
+      // Auto-hide result message after 3 seconds
+      setTimeout(() => {
+        setApplyResult(null);
+      }, 3000);
+    } catch (error) {
+      setApplyResult({ success: false, message: '적용 실패' });
+    } finally {
+      setApplying(false);
+    }
+  }, [currentIndex, variants, onApply]);
+
+  // Keyboard shortcuts: ⌘1-4 to copy variants, ⌘Enter to apply
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check for ⌘ (Mac) or Ctrl (Windows/Linux)
       if (e.metaKey || e.ctrlKey) {
+        // ⌘+Enter: Apply current variant
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (e.shiftKey && hasAiVariant) {
+            // ⌘+Shift+Enter: Apply AI variant
+            applyVariant(0);
+          } else {
+            // ⌘+Enter: Apply current variant
+            applyVariant();
+          }
+          return;
+        }
+
+        // ⌘1-4: Copy specific variant
         const keyIndex = SHORTCUT_KEYS.indexOf(e.key);
         if (keyIndex !== -1 && keyIndex < variants.length) {
           e.preventDefault();
@@ -88,7 +132,7 @@ export default function PromptComparison({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [variants, copyVariant]);
+  }, [variants, copyVariant, applyVariant, hasAiVariant]);
 
   if (variants.length === 0) {
     return null;
@@ -228,6 +272,24 @@ export default function PromptComparison({
         </div>
       )}
 
+      {/* Apply Result Message */}
+      {applyResult && (
+        <div
+          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
+            applyResult.success
+              ? 'bg-accent-success/20 text-accent-success'
+              : 'bg-amber-500/20 text-amber-400'
+          }`}
+        >
+          {applyResult.success ? (
+            <Check size={16} />
+          ) : (
+            <AlertCircle size={16} />
+          )}
+          <span>{applyResult.message || (applyResult.success ? '적용됨!' : '적용 실패')}</span>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex items-center gap-2">
         {currentVariant.needsSetup ? (
@@ -239,26 +301,56 @@ export default function PromptComparison({
             AI 개선 설정하기
           </button>
         ) : (
-          <button
-            onClick={handleCopy}
-            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              copied
-                ? 'bg-accent-success/20 text-accent-success'
-                : 'bg-accent-primary hover:bg-accent-primary/90 text-white'
-            }`}
-          >
-            {copied ? (
-              <>
-                <Check size={16} />
-                복사됨!
-              </>
-            ) : (
-              <>
-                <Copy size={16} />
-                개선된 프롬프트 복사
-              </>
+          <>
+            {/* Apply Button */}
+            {onApply && (
+              <button
+                onClick={() => applyVariant()}
+                disabled={applying}
+                className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  applying
+                    ? 'bg-accent-primary/50 text-white/70 cursor-wait'
+                    : 'bg-accent-primary hover:bg-accent-primary/90 text-white'
+                }`}
+                title="⌘+Enter"
+              >
+                {applying ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />
+                    적용 중...
+                  </>
+                ) : (
+                  <>
+                    <Play size={16} />
+                    적용
+                  </>
+                )}
+              </button>
             )}
-          </button>
+
+            {/* Copy Button */}
+            <button
+              onClick={handleCopy}
+              className={`${onApply ? 'flex-1' : 'flex-1'} flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                copied
+                  ? 'bg-accent-success/20 text-accent-success'
+                  : 'bg-dark-hover hover:bg-dark-border text-gray-300'
+              }`}
+              title="복사"
+            >
+              {copied ? (
+                <>
+                  <Check size={16} />
+                  복사됨!
+                </>
+              ) : (
+                <>
+                  <Copy size={16} />
+                  복사
+                </>
+              )}
+            </button>
+          </>
         )}
 
         {variants.length > 1 && (
@@ -283,6 +375,26 @@ export default function PromptComparison({
           </div>
         )}
       </div>
+
+      {/* Shortcut Guide */}
+      {!currentVariant.needsSetup && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-2 border-t border-dark-border/50 text-[10px] text-gray-500">
+          <span>
+            <kbd className="px-1 py-0.5 bg-dark-hover rounded">⌘</kbd>
+            <kbd className="px-1 py-0.5 bg-dark-hover rounded ml-0.5">Enter</kbd>
+            <span className="ml-1">적용</span>
+          </span>
+          <span>
+            <kbd className="px-1 py-0.5 bg-dark-hover rounded">⌘</kbd>
+            <kbd className="px-1 py-0.5 bg-dark-hover rounded ml-0.5">1-4</kbd>
+            <span className="ml-1">복사</span>
+          </span>
+          <span>
+            <kbd className="px-1 py-0.5 bg-dark-hover rounded">Esc</kbd>
+            <span className="ml-1">닫기</span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }

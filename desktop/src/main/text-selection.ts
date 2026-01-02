@@ -33,7 +33,7 @@ const BLOCKED_APPS = [
  * Get the name of the frontmost application.
  * @returns Application name or null if detection fails
  */
-async function getFrontmostApp(): Promise<string | null> {
+export async function getFrontmostApp(): Promise<string | null> {
   if (process.platform !== 'darwin') {
     return null;
   }
@@ -185,6 +185,15 @@ export interface TextCaptureResult {
 }
 
 /**
+ * Result of applying improved text to an app.
+ */
+export interface ApplyTextResult {
+  success: boolean;
+  fallback?: 'clipboard';
+  message?: string;
+}
+
+/**
  * Capture mode determines how text is captured for analysis.
  */
 export type CaptureMode = 'auto' | 'selection' | 'clipboard';
@@ -237,3 +246,70 @@ export async function captureTextForAnalysis(
     source: 'clipboard',
   };
 }
+
+/**
+ * Apply improved text to the source application.
+ *
+ * Flow:
+ * 1. Write text to clipboard
+ * 2. If app is blocked, return clipboard fallback
+ * 3. Otherwise, activate app and simulate Cmd+A + Cmd+V
+ *
+ * @param text - The improved text to apply
+ * @param appName - Name of the target application
+ * @returns Result with success status and optional fallback message
+ */
+export async function applyTextToApp(
+  text: string,
+  appName: string
+): Promise<ApplyTextResult> {
+  // Always write to clipboard first
+  clipboard.writeText(text);
+
+  // Only works on macOS
+  if (process.platform !== 'darwin') {
+    return {
+      success: false,
+      fallback: 'clipboard',
+      message: '클립보드에 복사됨 - Cmd+V로 붙여넣기 해주세요',
+    };
+  }
+
+  // Check if app is blocked (doesn't work well with AppleScript)
+  if (isBlockedApp(appName)) {
+    console.log(`[TextSelection] Blocked app: ${appName}, using clipboard fallback`);
+    return {
+      success: false,
+      fallback: 'clipboard',
+      message: '클립보드에 복사됨 - Cmd+V로 붙여넣기 해주세요',
+    };
+  }
+
+  try {
+    // AppleScript to:
+    // 1. Activate the source app
+    // 2. Select all (Cmd+A)
+    // 3. Paste (Cmd+V)
+    const script = `
+      tell application "${appName}" to activate
+      delay 0.15
+      tell application "System Events"
+        keystroke "a" using command down
+        delay 0.05
+        keystroke "v" using command down
+      end tell
+    `;
+
+    await execAsync(`osascript -e '${script}'`);
+    console.log(`[TextSelection] Successfully applied text to ${appName}`);
+    return { success: true };
+  } catch (error) {
+    console.warn('[TextSelection] Failed to apply text via AppleScript:', error);
+    return {
+      success: false,
+      fallback: 'clipboard',
+      message: '클립보드에 복사됨 - Cmd+V로 붙여넣기 해주세요',
+    };
+  }
+}
+

@@ -18,6 +18,9 @@ export interface ElectronAPI {
   hideWindow: () => Promise<boolean>;
   minimizeWindow: () => Promise<boolean>;
 
+  // Apply improved prompt to source app
+  applyImprovedPrompt: (text: string) => Promise<{ success: boolean; fallback?: string; message?: string }>;
+
   // Analysis
   analyzePrompt: (text: string) => Promise<AnalysisResultWithContext>;
 

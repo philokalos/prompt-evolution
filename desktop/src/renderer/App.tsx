@@ -4,7 +4,7 @@ import GoldenRadar from './components/GoldenRadar';
 import ProgressTracker from './components/ProgressTracker';
 import PersonalTips from './components/PersonalTips';
 import IssueList from './components/IssueList';
-import PromptComparison, { RewriteResult, VariantType } from './components/PromptComparison';
+import PromptComparison, { RewriteResult } from './components/PromptComparison';
 import ContextIndicator, { SessionContextInfo } from './components/ContextIndicator';
 import HistoryRecommendations from './components/HistoryRecommendations';
 import Settings from './components/Settings';
@@ -158,6 +158,14 @@ function App() {
 
   const handleCopy = async (text: string) => {
     await window.electronAPI.setClipboard(text);
+  };
+
+  const handleApply = async (text: string): Promise<{ success: boolean; message?: string }> => {
+    const result = await window.electronAPI.applyImprovedPrompt(text);
+    return {
+      success: result.success,
+      message: result.message,
+    };
   };
 
   const handleClose = () => {
@@ -323,20 +331,55 @@ function App() {
               <ContextIndicator context={projectToContextInfo(currentProject)} />
             )}
 
-            {/* Shortcut instructions */}
+            {/* Usage Guide */}
             {!showDirectInput && (
-              <div className="flex-1 flex flex-col items-center justify-center text-gray-500">
-                <BarChart3 size={48} className="mb-4 opacity-50" />
-                <div className="text-center space-y-3">
-                  <p className="text-sm font-medium text-gray-300">프롬프트 분석하기</p>
-                  <div className="text-xs space-y-1">
-                    <p className="text-gray-400">텍스트 선택 후</p>
-                    <p>
-                      <kbd className="px-2 py-1 bg-dark-surface rounded text-xs">⌘</kbd> +{' '}
-                      <kbd className="px-2 py-1 bg-dark-surface rounded text-xs">⇧</kbd> +{' '}
-                      <kbd className="px-2 py-1 bg-dark-surface rounded text-xs">P</kbd>
-                    </p>
+              <div className="flex-1 flex flex-col items-center justify-center px-4">
+                <BarChart3 size={40} className="mb-4 text-accent-primary opacity-70" />
+                <h2 className="text-base font-semibold text-gray-200 mb-4">프롬프트 품질 개선하기</h2>
+
+                {/* Step-by-step guide */}
+                <div className="w-full max-w-xs space-y-3 text-left">
+                  {/* Step 1 */}
+                  <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
+                    <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-200">프롬프트 선택</p>
+                      <p className="text-xs text-gray-500 mt-0.5">개선하고 싶은 텍스트를 드래그해서 선택</p>
+                    </div>
                   </div>
+
+                  {/* Step 2 */}
+                  <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
+                    <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-200">분석 실행</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
+                        <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⇧</kbd>{' '}
+                        <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">P</kbd> 누르기
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Step 3 */}
+                  <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
+                    <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">3</div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-200">개선안 적용</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        <span className="text-accent-success">[적용]</span> 버튼 또는{' '}
+                        <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
+                        <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">Enter</kbd>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tip */}
+                <div className="mt-4 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                  <p className="text-xs text-amber-400/90">
+                    💡 적용하면 원본 텍스트가 자동으로 개선된 프롬프트로 교체됩니다
+                  </p>
                 </div>
               </div>
             )}
@@ -402,6 +445,7 @@ function App() {
               originalPrompt={originalPrompt}
               variants={analysis.promptVariants}
               onCopy={handleCopy}
+              onApply={handleApply}
               onOpenSettings={() => setSettingsOpen(true)}
             />
           )}

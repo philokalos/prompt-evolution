@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, Globe, MousePointer2, Monitor, Key, EyeOff } from 'lucide-react';
+import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, Globe, MousePointer2, Monitor, Key, EyeOff, Zap } from 'lucide-react';
 
 interface AppSettings {
   shortcut: string;
@@ -12,19 +12,15 @@ interface AppSettings {
   pollingIntervalMs: number;
   claudeApiKey: string;
   useAiRewrite: boolean;
+  // Quick Action mode settings
+  quickActionMode: boolean;
+  quickActionAutoHide: number;
 }
 
 interface SettingsProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-// Shortcut display mapping
-const SHORTCUT_DISPLAY: Record<string, string> = {
-  'CommandOrControl+Shift+P': '⌘⇧P',
-  'CommandOrControl+Shift+L': '⌘⇧L',
-  'CommandOrControl+Shift+K': '⌘⇧K',
-};
 
 // Available shortcuts
 const AVAILABLE_SHORTCUTS = [
@@ -35,7 +31,7 @@ const AVAILABLE_SHORTCUTS = [
 
 export default function Settings({ isOpen, onClose }: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [_saving, setSaving] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
 
   // Load settings on mount
@@ -48,7 +44,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
   const loadSettings = async () => {
     try {
       const loaded = await window.electronAPI.getSettings();
-      setSettings(loaded as AppSettings);
+      setSettings(loaded as unknown as AppSettings);
     } catch (error) {
       console.error('Failed to load settings:', error);
     }
@@ -182,6 +178,73 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                   checked={settings.showNotifications}
                   onChange={(v) => updateSetting('showNotifications', v)}
                 />
+              </div>
+
+              {/* Apply Feature Info */}
+              <div className="pt-4 border-t border-dark-border space-y-3">
+                <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <Zap size={14} className="text-accent-primary" />
+                  프롬프트 적용 기능
+                </h3>
+
+                {/* Info box */}
+                <div className="p-3 bg-accent-primary/10 border border-accent-primary/20 rounded-lg space-y-2">
+                  <p className="text-xs text-gray-300 leading-relaxed">
+                    <strong className="text-accent-primary">[적용]</strong> 버튼을 누르면 개선된 프롬프트가
+                    원본 앱(Claude, ChatGPT 등)의 입력창에 자동으로 교체됩니다.
+                  </p>
+                  <div className="text-xs text-gray-400 space-y-1">
+                    <p>• <kbd className="px-1 bg-dark-hover rounded">⌘</kbd> + <kbd className="px-1 bg-dark-hover rounded">Enter</kbd> = 현재 선택된 개선안 적용</p>
+                    <p>• <kbd className="px-1 bg-dark-hover rounded">⌘</kbd> + <kbd className="px-1 bg-dark-hover rounded">1-4</kbd> = 개선안 복사</p>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-500">
+                  ※ VS Code, Cursor 등 일부 앱에서는 클립보드 복사 후 수동 붙여넣기가 필요합니다
+                </p>
+              </div>
+
+              {/* Quick Action Mode Section */}
+              <div className="pt-4 border-t border-dark-border space-y-3">
+                <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <Zap size={14} className="text-amber-400" />
+                  퀵액션 모드 (실험적)
+                </h3>
+
+                {/* Quick Action Toggle */}
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm">퀵액션 모드 사용</span>
+                    <span className="text-xs text-gray-500">분석 결과 대신 미니 패널만 표시</span>
+                  </div>
+                  <ToggleSwitch
+                    checked={settings.quickActionMode ?? false}
+                    onChange={(v) => updateSetting('quickActionMode', v)}
+                  />
+                </div>
+
+                {/* Auto-hide timer (only when quickActionMode is enabled) */}
+                {settings.quickActionMode && (
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-400">자동 숨김 시간</label>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min="0"
+                        max="5"
+                        value={settings.quickActionAutoHide ?? 3}
+                        onChange={(e) => updateSetting('quickActionAutoHide', parseInt(e.target.value))}
+                        className="flex-1 h-1.5 bg-dark-border rounded-lg appearance-none cursor-pointer accent-accent-primary"
+                      />
+                      <span className="text-sm text-gray-300 w-12 text-right">
+                        {(settings.quickActionAutoHide ?? 3) === 0 ? '비활성' : `${settings.quickActionAutoHide ?? 3}초`}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      0 = 자동 숨김 비활성화, 1-5초 자동 숨김
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Language */}
