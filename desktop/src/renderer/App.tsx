@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Minus, BarChart3, Lightbulb, ArrowLeft, Settings as SettingsIcon, Edit3, Send } from 'lucide-react';
+import { X, Minus, BarChart3, Lightbulb, ArrowLeft, Settings as SettingsIcon, Edit3, Send, Plus } from 'lucide-react';
 import GoldenRadar from './components/GoldenRadar';
 import ProgressTracker from './components/ProgressTracker';
 import PersonalTips from './components/PersonalTips';
@@ -168,6 +168,12 @@ function App() {
     window.electronAPI.minimizeWindow();
   };
 
+  const handleNewAnalysis = () => {
+    setAnalysis(null);
+    setOriginalPrompt('');
+    setShowDirectInput(true);
+  };
+
   const getGradeColor = (grade: string) => {
     switch (grade) {
       case 'A':
@@ -207,6 +213,15 @@ function App() {
           )}
         </div>
         <div className="flex items-center gap-1">
+          {viewMode === 'analysis' && analysis && (
+            <button
+              onClick={handleNewAnalysis}
+              className="p-1.5 rounded-md hover:bg-dark-hover transition-colors"
+              title="새 분석"
+            >
+              <Plus size={14} />
+            </button>
+          )}
           <button
             onClick={() => setSettingsOpen(true)}
             className="p-1.5 rounded-md hover:bg-dark-hover transition-colors"
