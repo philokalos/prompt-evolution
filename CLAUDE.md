@@ -4,98 +4,66 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**Prompt Evolution** is a meta-prompting platform that analyzes Claude Code conversations to extract prompt patterns and automatically improve prompting effectiveness.
+**Prompt Evolution** is a meta-prompting platform that analyzes Claude Code conversations to extract prompt patterns and improve prompting effectiveness.
 
 **Core Loop**: Capture → Parse → Analyze → Library → Evolve
 
-**Key Feature**: References official Anthropic Claude prompt engineering best practices (GOLDEN checklist, anti-pattern detection) for empirical prompt quality evaluation.
+**Key Feature**: Evaluates prompts against Anthropic's GOLDEN checklist (Goal, Output, Limits, Data, Evaluation, Next) for empirical quality assessment.
 
 **Three Components**:
 1. **CLI** (`src/`) - Parse and analyze Claude Code conversations
 2. **Web Dashboard** (`server/` + `web/`) - Express API + React visualization
-3. **Desktop App** (`desktop/`) - Electron app "PromptLint" for real-time analysis (Cmd+Shift+P)
+3. **Desktop App** (`desktop/`) - Electron app "PromptLint" with global hotkey (Cmd+Shift+P)
 
 ## Development Commands
 
 ```bash
-# CLI Development
-npm run dev                              # Watch mode with tsx
-npm run build                            # TypeScript build
-npm test                                 # Vitest
+# CLI
+npm run dev                    # Watch mode (tsx)
+npm run build                  # TypeScript build → dist/src/
+npm test                       # Vitest
+npx tsx src/cli.ts <command>   # Run CLI in development
 
-# Single test execution
-npx vitest run src/parser/__tests__/session-parser.test.ts  # Run single test file
-npx vitest -t "pattern"                  # Run tests matching pattern
+# Dashboard
+npm run dev:server             # Express API (:3001)
+npm run dev:web                # Vite dev (:5173)
+npm run build:server           # Build server → dist/server/
+npm run build:web              # Build React → web/dist/
+npm run build:all              # Build both
 
-# CLI execution
-npx tsx src/cli.ts <command>             # Development
-npm start <command>                      # Production (after build)
-pe <command>                             # Global install alias
+# Production
+npm start <command>            # CLI (after build)
+npm run start:dashboard        # Dashboard server
 
-# Dashboard Development
-cd web && npm install                    # Install web dependencies (first time)
-npm run dev:server                       # Express API server (:3001)
-npm run dev:web                          # Vite dev server (:5173)
-npm run build:web                        # Build React frontend
-npm run build:all                        # Build server + frontend
-
-# TypeScript Configs
-tsc                                      # CLI: tsconfig.json
-tsc -p tsconfig.server.json              # Server: separate config
+# Desktop App (separate package)
+cd desktop
+npm run dev:electron           # Build all + launch Electron
+npm run dist:mac               # macOS .dmg + .zip
 ```
 
 ### CLI Commands
 
 ```bash
 # Discovery
-projects                                 # List Claude Code projects
-sessions <project-id>                    # List sessions in project
-parse <project-id> [session]             # Parse and display conversation
+pe projects                        # List Claude Code projects
+pe sessions <project-id>           # List sessions in project
+pe parse <project-id> [session]    # Parse and display conversation
 
 # Database
-import [--incremental]                   # Import sessions to SQLite
-import --project <id>                    # Import specific project
-db-stats                                 # Database statistics
+pe import [--incremental]          # Import sessions to SQLite
+pe db-stats                        # Database statistics
 
 # Analysis
-analyze [--incremental]                  # Run quality signal detection
-analyze --conversation <id>              # Analyze specific conversation
-classify "<text>"                        # Classify single prompt
-classify --all                           # Classify all user turns
-classify --stats                         # Classification statistics
+pe analyze [--incremental]         # Run quality signal detection
+pe classify "<text>"               # Classify single prompt
+pe classify --all                  # Classify all user turns
 
 # Reporting
-insights                                 # Generate insights report
-insights --period 7d                     # Filter by period (7d, 30d, 90d, all)
-insights --problems | --strengths        # Filter by type
-report [--output <path>]                 # Generate HTML report
+pe insights [--period 7d|30d|90d]  # Generate insights report
+pe report [--output <path>]        # Generate HTML report
 ```
 
 Project ID format: Encoded path with dashes (e.g., `-Users-foo-project`)
-
-### Dashboard API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/stats` | GET | Overall database statistics |
-| `/api/projects` | GET | Project list with per-project stats |
-| `/api/insights` | GET | Insights report (problems, strengths, recommendations) |
-| `/api/trends` | GET | Time-series data for charts |
-| `/api/sync` | POST | Trigger manual data sync |
-| `/api/sync/status` | GET | Sync status and scheduler info |
-
-**Query Parameters**:
-- `period`: 7d, 30d, 90d, all
-- `metric`: volume, effectiveness, quality
-- `groupBy`: day, week, month
-- `project`: Filter by project ID
-
-### Scheduler
-
-Automatic data sync schedule:
-- **Every 30 minutes**: Import new sessions (incremental)
-- **Every 2 hours**: Analyze recent conversations (analyzeRecent)
-- **Daily at 03:00**: Full refresh (fullRefresh)
 
 ## Architecture
 
@@ -110,55 +78,37 @@ Automatic data sync schedule:
               ↓
       Analysis Layer (Signals, Classification, Scoring)
               ↓
-      Report Layer (CLI output, HTML reports)
+      Report Layer (CLI output, HTML reports, Dashboard API)
 ```
 
-### Core Modules
+### Module Structure
 
-**`src/parser/`** - JSONL parsing
-- Reads from `~/.claude/projects/`
-- Handles user message content as string OR array (text/tool_result blocks)
+**`src/parser/`** - JSONL parsing from `~/.claude/projects/`
 
-**`src/db/`** - SQLite persistence (better-sqlite3)
-- Schema: conversations, turns, tool_usages, quality_signals, summaries
-- Location: `~/.prompt-evolution/data.db`
-- WAL mode enabled for performance
+**`src/db/`** - SQLite persistence (better-sqlite3, WAL mode)
+- Tables: conversations, turns, tool_usages, quality_signals, summaries
 
-**`src/analysis/`** - Quality analysis
-- `signal-detector.ts`: Detects quality signals (clarifications, corrections, frustration, praise)
-- `classifier.ts`: Rule-based prompt classification (intent + task category)
-- `scorer.ts`: Effectiveness scoring
-- `insights.ts`: Aggregated insights generation (orchestrates all analysis modules)
-- `prompt-library.ts`: Extracts reusable prompt patterns from usage data
-- `guidelines-evaluator.ts`: GOLDEN checklist compliance evaluation (Goal, Output, Limits, Data, Evaluation, Next)
-- `self-improvement.ts`: Personalized learning feedback with Before/After examples
+**`src/analysis/`** - Quality analysis (main orchestrator: `insights.ts`)
+- `guidelines-evaluator.ts`: GOLDEN checklist scoring
+- `classifier.ts`: Intent + task category classification
+- `signal-detector.ts`: Quality signals (clarifications, corrections, frustration)
+- `prompt-library.ts`: Reusable pattern extraction
+- `self-improvement.ts`: Before/After improvement examples
 
-**`src/report/`** - Output generation
-- `html-generator.ts`: Static HTML reports with GOLDEN radar chart, prompt library, self-improvement sections
+**`src/report/`** - HTML report generation with GOLDEN radar chart
 
-**`src/cli.ts`** - Command entry point
+**`server/`** - Express API with scheduled sync
+- Routes: stats, projects, insights, trends, sync
+- Scheduler: 30min imports, 2hr analysis, daily full refresh
 
-**`server/`** - Express API server
-- `index.ts`: Express app entry point
-- `routes/`: API route handlers (stats, insights, projects, trends, sync)
-- `services/`: Business logic (sync-service, scheduler)
-- `middleware/`: Error handling
+**`web/`** - React dashboard (Vite + Tailwind + React Query)
 
-**`web/`** - React dashboard (Vite + Tailwind)
-- `src/api/`: API client with typed fetch functions
-- `src/hooks/`: React Query hooks (useStats, useInsights, useTrends, etc.)
-- `src/pages/`: Route components (Dashboard, Insights, Trends, Projects, Library, Guidebook)
-- `src/components/`: Reusable UI components (charts, layout, guidebook)
+### TypeScript Configs
 
-### Database Schema
-
-| Table | Purpose |
-|-------|---------|
-| conversations | Session metadata, token totals |
-| turns | Individual messages (user/assistant) |
-| tool_usages | Tools used per turn |
-| quality_signals | Detected quality indicators |
-| summaries | Session summaries |
+| Config | Scope | Output |
+|--------|-------|--------|
+| `tsconfig.json` | CLI (`src/`) | `dist/src/` |
+| `tsconfig.server.json` | CLI + Server | `dist/` |
 
 ### Classification Types
 
@@ -169,91 +119,48 @@ type TaskCategory = 'code-generation' | 'code-review' | 'bug-fix' | 'refactoring
   'explanation' | 'documentation' | 'testing' | 'architecture' | 'deployment' | 'data-analysis' | 'general' | 'unknown';
 ```
 
-### Claude Code JSONL Structure
-
-| Record Type | Key Fields |
-|-------------|------------|
-| `summary` | Session summary text |
-| `system` | System events |
-| `user` | User prompts (content: string \| ContentBlock[]) |
-| `assistant` | AI responses with content array (text, thinking, tool_use), model, usage |
-
-Records linked via `uuid` → `parentUuid`.
-
-### Analysis Modules Integration
-
-The `generateInsights()` function in `insights.ts` orchestrates:
-```typescript
-generateInsights(prompts, {
-  period: '7d',                    // Time filter
-  includeLibrary: true,            // Prompt pattern extraction
-  includeGuidelines: true,         // GOLDEN score evaluation
-  includeSelfImprovement: true,    // Learning feedback
-});
-```
-
-**GOLDEN Checklist** evaluates prompts against:
-- **G**oal: Clear objective stated
-- **O**utput: Expected format specified
-- **L**imits: Constraints defined
-- **D**ata: Context/data provided
-- **E**valuation: Success criteria given
-- **N**ext: Follow-up actions clear
-
-## Data Source
-
-Claude Code stores conversations at:
-```
-~/.claude/projects/{encoded-project-path}/
-├── {session-uuid}.jsonl      # Regular sessions
-└── agent-{hash}.jsonl        # Agent task sessions
-```
-
-## Desktop App (PromptLint)
-
-Separate Electron app in `desktop/` with its own `package.json`. See `desktop/CLAUDE.md` for detailed docs.
-
-```bash
-cd desktop
-npm run dev:electron              # Build all + launch Electron
-npm run dist:mac                  # macOS .dmg + .zip
-```
-
-**Key Architecture Points**:
-- Reuses analysis modules from parent `src/analysis/` (bundled as CJS via esbuild)
-- 4 separate tsconfigs: main (ESM), preload (CJS→.cjs), analysis (ESM), renderer (Vite)
-- Preload script must output `.cjs` because package.json has `"type": "module"`
-
 ## Important Patterns
 
 ### ESM-Only Codebase
-All packages use `"type": "module"`. Import paths must include `.js` extension:
+All packages use `"type": "module"`. Import paths require `.js` extension:
 ```typescript
 import { classifyPrompt } from './classifier.js';  // ✓
 import { classifyPrompt } from './classifier';     // ✗
 ```
 
 ### User Message Content Format
-Claude Code JSONL stores user content as string OR array - always handle both:
+Claude Code JSONL stores user content as string OR array:
 ```typescript
-// In parser/claude-code-parser.ts
 const text = typeof content === 'string'
   ? content
   : content.filter(b => b.type === 'text').map(b => b.text).join('\n');
 ```
 
-### Analysis Module Orchestration
-`insights.ts` is the main orchestrator that combines all analysis modules:
-```
-insights.ts
-├── classifier.ts      → Intent + category classification
-├── scorer.ts          → Quality and effectiveness scoring
-├── prompt-library.ts  → Pattern extraction
-├── guidelines-evaluator.ts → GOLDEN checklist
-└── self-improvement.ts → Learning feedback
-```
+### JSONL Record Structure
 
-### Three Data Layers
-1. **Raw**: `~/.claude/projects/*.jsonl` (Claude Code source)
-2. **Parsed**: In-memory `ParsedConversation` objects
-3. **Persisted**: SQLite `~/.prompt-evolution/data.db`
+| Record Type | Key Fields |
+|-------------|------------|
+| `summary` | Session summary text |
+| `user` | User prompts (content: string \| ContentBlock[]) |
+| `assistant` | AI responses with content array, model, usage |
+
+Records linked via `uuid` → `parentUuid`.
+
+## Desktop App
+
+Separate Electron app in `desktop/` with its own `package.json` and detailed `CLAUDE.md`.
+
+**Key Points**:
+- Reuses parent `src/analysis/` modules (bundled as CJS via esbuild)
+- 4 TypeScript configs: main (ESM), preload (CJS→.cjs), analysis (ESM), renderer (Vite)
+- Preload must output `.cjs` due to `"type": "module"` in package.json
+- Requires macOS Accessibility permission for text selection
+
+## Data Source
+
+Claude Code conversations at:
+```
+~/.claude/projects/{encoded-project-path}/
+├── {session-uuid}.jsonl      # Regular sessions
+└── agent-{hash}.jsonl        # Agent task sessions
+```
