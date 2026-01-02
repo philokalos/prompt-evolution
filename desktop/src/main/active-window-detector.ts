@@ -170,14 +170,58 @@ function parseVSCodeWindowTitle(windowTitle: string, appName: string): DetectedP
       };
     }
 
-    // 경로를 못 찾았지만 프로젝트 이름은 있음
-    return {
-      projectPath: projectPart,
-      projectName: projectPart,
-      currentFile: filePart,
-      ideName: appName.includes('Cursor') ? 'Cursor' : 'VS Code',
-      confidence: 'low',
-    };
+    // 경로를 못 찾았지만 프로젝트 이름으로 보이는 경우
+    // 프로젝트 이름처럼 보이는지 검증 (알파벳, 숫자, 하이픈, 언더스코어만)
+    // 특수문자나 공백이 포함된 창 제목 fragment는 거부
+    if (/^[\w-]+$/.test(projectPart) && projectPart.length >= 2 && projectPart.length <= 100) {
+      return {
+        projectPath: projectPart,
+        projectName: projectPart,
+        currentFile: filePart,
+        ideName: appName.includes('Cursor') ? 'Cursor' : 'VS Code',
+        confidence: 'low',
+      };
+    }
+
+    // 프로젝트 이름 형식이 아니면 null 반환
+    return null;
+  }
+
+  // 단일 이름 창 타이틀 (parts.length === 1)
+  // Cursor/VS Code에서 창 타이틀이 프로젝트 이름만 있는 경우
+  if (parts.length === 1) {
+    const projectPart = cleanedTitle.trim();
+
+    // 빈 문자열이나 파일 확장자가 있는 경우 무시 (파일 이름일 가능성)
+    if (!projectPart || /\.\w{1,5}$/.test(projectPart)) {
+      return null;
+    }
+
+    // 프로젝트 이름으로 실제 경로 찾기
+    const projectPath = findProjectPathByName(projectPart);
+
+    if (projectPath) {
+      console.log(`[ActiveWindow] Single-name title matched: ${projectPart} -> ${projectPath}`);
+      return {
+        projectPath,
+        projectName: path.basename(projectPath),
+        currentFile: undefined,
+        ideName: appName.includes('Cursor') ? 'Cursor' : 'VS Code',
+        confidence: isRemote ? 'low' : 'medium', // 단일 이름은 신뢰도 중간
+      };
+    }
+
+    // 경로를 못 찾았지만 프로젝트 이름으로 보이는 경우
+    // 프로젝트 이름처럼 보이는지 검증 (알파벳, 숫자, 하이픈, 언더스코어만)
+    if (/^[\w-]+$/.test(projectPart) && projectPart.length >= 2) {
+      return {
+        projectPath: projectPart,
+        projectName: projectPart,
+        currentFile: undefined,
+        ideName: appName.includes('Cursor') ? 'Cursor' : 'VS Code',
+        confidence: 'low',
+      };
+    }
   }
 
   return null;

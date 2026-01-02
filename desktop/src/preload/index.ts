@@ -81,7 +81,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   signalReady: (): Promise<boolean> => ipcRenderer.invoke('renderer-ready'),
 
   // Event listeners
+  // NOTE: Remove existing listeners BEFORE adding new one to prevent duplicates
+  // (React StrictMode calls useEffect twice, causing duplicate registrations)
   onClipboardText: (callback: (payload: ClipboardPayload) => void): void => {
+    ipcRenderer.removeAllListeners('clipboard-text');
     ipcRenderer.on('clipboard-text', (_event, payload: ClipboardPayload) => callback(payload));
   },
 
@@ -91,6 +94,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Project change event listener
   onProjectChanged: (callback: (project: unknown) => void): void => {
+    ipcRenderer.removeAllListeners('project-changed');
     ipcRenderer.on('project-changed', (_event, project) => callback(project));
   },
 

@@ -774,12 +774,10 @@ export async function generateAIRewrite(
   try {
     // v2: Use multi-variant generation if GOLDEN evaluator is provided
     if (goldenEvaluator) {
-      console.log('[PromptRewriter] Using multi-variant AI generation with GOLDEN evaluation');
-
       const result = await rewritePromptWithMultiVariant(apiKey, request, goldenEvaluator);
 
       if (!result.success || !result.rewrittenPrompt) {
-        console.warn('[PromptRewriter] Multi-variant AI rewrite failed:', result.error);
+        console.warn('[PromptRewriter] AI rewrite failed:', result.error);
         return null;
       }
 

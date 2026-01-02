@@ -46,8 +46,10 @@ interface AppSettings {
   quickActionAutoHide: number; // Auto-hide seconds (0 = disabled)
 }
 
-// Initialize settings store
+// Initialize settings store with explicit name to ensure consistency across dev/prod
 const store = new Store<AppSettings>({
+  name: 'config',
+  cwd: app.getPath('userData').replace(/Electron$/, 'PromptLint'), // Force PromptLint directory
   defaults: {
     shortcut: 'CommandOrControl+Shift+P',
     windowBounds: { width: 420, height: 600 },
@@ -64,6 +66,7 @@ const store = new Store<AppSettings>({
     quickActionAutoHide: 3, // 3 seconds auto-hide when enabled
   },
 });
+
 
 /**
  * Captured window context at hotkey time
@@ -113,7 +116,13 @@ function sendTextToRenderer(text: string, capturedContext: CapturedContext | nul
   const payload = { text, capturedContext };
 
   if (isRendererReady && mainWindow) {
+    console.log('[Main] Sending clipboard-text IPC with payload:', {
+      textLength: text?.length,
+      hasContext: !!capturedContext,
+      project: capturedContext?.project?.projectPath
+    });
     mainWindow.webContents.send('clipboard-text', payload);
+    console.log('[Main] IPC sent successfully');
   } else {
     pendingText = payload;
     console.log('[Main] Renderer not ready, queuing text for later');
@@ -390,9 +399,13 @@ function handleProjectChange(project: DetectedProject | null): void {
     console.log('[Main] No active project detected');
   }
 
-  // Notify renderer of project change
-  if (isRendererReady && mainWindow) {
-    mainWindow.webContents.send('project-changed', project);
+  // Notify renderer of project change (with safety checks)
+  if (isRendererReady && mainWindow && !mainWindow.isDestroyed()) {
+    try {
+      mainWindow.webContents.send('project-changed', project);
+    } catch {
+      // Window may have been closed during send - ignore
+    }
   }
 }
 

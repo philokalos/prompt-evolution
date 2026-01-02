@@ -476,7 +476,7 @@ export async function rewritePromptWithMultiVariant(
           temperature: temp,
         };
       } catch (error) {
-        console.error(`[ClaudeAPI] Variant ${index + 1} generation failed:`, error);
+        console.error(`[ClaudeAPI] Variant generation failed:`, error instanceof Error ? error.message : error);
         return null;
       }
     });

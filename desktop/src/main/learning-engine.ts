@@ -207,8 +207,23 @@ function convertToAnalysisResult(
   const severityOrder = { high: 0, medium: 1, low: 2 };
   issues.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-  // 3가지 변형 생성 (세션 컨텍스트 활용) - AI variants are generated separately in analyzePrompt
+  // 3가지 변형 생성 (세션 컨텍스트 활용)
   const promptVariants = generatePromptVariants(originalText, evaluation, sessionContext || undefined);
+
+  // AI placeholder 추가 (AI가 활성화되지 않았을 때 설정 안내 표시)
+  // analyzePrompt에서 AI가 성공하면 이 placeholder가 교체됨
+  const aiSettings = getAIRewriteSettings();
+  if (!aiSettings.enabled || !aiSettings.apiKey) {
+    promptVariants.unshift({
+      rewrittenPrompt: '',
+      keyChanges: [],
+      confidence: 0,
+      variant: 'ai' as VariantType,
+      variantLabel: 'AI 추천',
+      isAiGenerated: false,
+      needsSetup: true,
+    });
+  }
 
   return {
     overallScore: Math.round(evaluation.overallScore * 100),
@@ -287,23 +302,9 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
     if (capturedContext?.project) {
       // Use captured context - this ensures correct project even if user switched windows
       sessionContext = await getSessionContextForCapturedProject(capturedContext);
-      if (sessionContext) {
-        console.log(
-          '[LearningEngine] Session context from captured window:',
-          sessionContext.projectPath,
-          `(source: ${sessionContext.source}, confidence: ${sessionContext.confidence})`
-        );
-      }
     } else {
       // Fallback to real-time detection (legacy behavior)
       sessionContext = await getActiveWindowSessionContext();
-      if (sessionContext) {
-        console.log(
-          '[LearningEngine] Session context from active window:',
-          sessionContext.projectPath,
-          `(source: ${sessionContext.source}, confidence: ${sessionContext.confidence})`
-        );
-      }
     }
 
     // Run evaluation
@@ -347,14 +348,24 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
           goldenEvaluator
         );
 
-        // Replace variants if AI generation succeeded
-        if (aiVariants.length > 0 && aiVariants.some(v => v.isAiGenerated)) {
+        // Always replace variants - generateAllVariants includes AI variant or placeholder
+        if (aiVariants.length > 0) {
           result.promptVariants = aiVariants;
-          console.log('[LearningEngine] AI-powered variants generated successfully with multi-variant selection');
+          const hasRealAI = aiVariants.some(v => v.isAiGenerated);
+          console.log(`[LearningEngine] Variants updated (AI ${hasRealAI ? 'succeeded' : 'placeholder'})`);
         }
       } catch (aiError) {
-        console.warn('[LearningEngine] AI rewrite failed, using rule-based variants:', aiError);
-        // Continue with existing rule-based variants
+        console.warn('[LearningEngine] AI rewrite failed, adding placeholder:', aiError);
+        // Add AI placeholder at the beginning so user sees the AI tab with error state
+        result.promptVariants.unshift({
+          rewrittenPrompt: '',
+          keyChanges: [],
+          confidence: 0,
+          variant: 'ai' as VariantType,
+          variantLabel: 'AI 추천',
+          isAiGenerated: false,
+          needsSetup: true, // Shows setup UI with error hint
+        });
       }
     }
 

@@ -87,15 +87,19 @@ function App() {
       setCurrentProject(project as DetectedProject | null);
     });
 
+    console.log('[Renderer] Setting up clipboard listener');
     window.electronAPI.onClipboardText((payload) => {
+      console.log('[Renderer] >>> Clipboard text received! <<<');
       const { text, capturedContext } = payload;
-      console.log('[Renderer] Received clipboard text:', text?.substring(0, 50));
+      console.log('[Renderer] Text length:', text?.length, 'Preview:', text?.substring(0, 50));
       if (capturedContext?.project) {
         console.log('[Renderer] Captured project:', capturedContext.project.projectPath);
       }
+      console.log('[Renderer] Calling setOriginalPrompt and analyzePrompt');
       setOriginalPrompt(text);
       analyzePrompt(text);
     });
+    console.log('[Renderer] Clipboard listener registered');
 
     // Listen for project changes (polling)
     window.electronAPI.onProjectChanged((project) => {

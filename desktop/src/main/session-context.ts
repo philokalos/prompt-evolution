@@ -471,7 +471,7 @@ function extractTextFromContent(content: unknown): string {
 }
 
 /**
- * Extract user content (handles string | ContentBlock[])
+ * Extract user content (handles string | ContentBlock | ContentBlock[])
  */
 function extractUserContent(content: unknown): string {
   if (typeof content === 'string') {
@@ -484,6 +484,13 @@ function extractUserContent(content: unknown): string {
       )
       .map(block => block.text)
       .join('\n');
+  }
+  // Handle single ContentBlock object (not in array)
+  if (typeof content === 'object' && content !== null) {
+    const block = content as { type?: string; text?: string };
+    if (block.type === 'text' && typeof block.text === 'string') {
+      return block.text;
+    }
   }
   return '';
 }
@@ -505,30 +512,61 @@ function extractLastExchange(records: ClaudeRecord[]): LastExchangeContext | und
   const reversedRecords = [...records].reverse();
   const lastAssistant = reversedRecords.find(r => r.type === 'assistant');
 
-  if (!lastAssistant) return undefined;
+  if (!lastAssistant) {
+    return undefined;
+  }
 
-  // Find the user message that preceded this assistant response
+  // Find the user TEXT message that preceded this assistant response
+  // Skip tool_result records - those are automatic responses, not actual user messages
   const assistantIdx = reversedRecords.indexOf(lastAssistant);
   const lastUser = reversedRecords.slice(assistantIdx + 1)
-    .find(r => r.type === 'user');
+    .find(r => {
+      if (r.type !== 'user') return false;
+      const content = r.message?.content;
+      // Skip tool_result records
+      if (Array.isArray(content) && content.length > 0) {
+        const firstBlock = content[0] as { type?: string };
+        if (firstBlock.type === 'tool_result') return false;
+      }
+      return true;
+    });
 
   // Extract assistant response text (100 char summary)
   const content = lastAssistant.message?.content;
   const fullText = extractTextFromContent(content);
   const assistantSummary = truncateText(fullText, 100);
 
-  // Extract tools and files from assistant response
-  const { tools, files } = extractToolsFromContent(content);
+  // Extract tools and files from ALL assistant records in this exchange
+  // (between the user's text message and the final assistant response)
+  const allTools: string[] = [];
+  const allFiles: string[] = [];
+
+  // Find the index of the user's text message in reversed records
+  const userIdx = lastUser ? reversedRecords.indexOf(lastUser) : reversedRecords.length;
+
+  // Collect tools/files from all assistant records between user message and now
+  for (let i = 0; i < userIdx; i++) {
+    const record = reversedRecords[i];
+    if (record.type === 'assistant' && record.message?.content) {
+      const { tools, files } = extractToolsFromContent(record.message.content);
+      allTools.push(...tools);
+      allFiles.push(...files);
+    }
+  }
 
   // Extract user message (100 char summary)
   const userText = extractUserContent(lastUser?.message?.content);
   const userSummary = truncateText(userText, 100);
 
+  // Deduplicate tools and files
+  const uniqueTools = [...new Set(allTools)];
+  const uniqueFiles = [...new Set(allFiles)];
+
   return {
     userMessage: userSummary,
     assistantSummary,
-    assistantTools: tools.slice(0, 5),
-    assistantFiles: files.slice(0, 5),
+    assistantTools: uniqueTools.slice(0, 5),
+    assistantFiles: uniqueFiles.slice(0, 5),
     timestamp: new Date(lastAssistant.timestamp || Date.now()),
   };
 }
