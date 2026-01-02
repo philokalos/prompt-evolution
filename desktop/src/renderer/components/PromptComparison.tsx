@@ -11,12 +11,14 @@ export interface RewriteResult {
   variantLabel: string;
   isAiGenerated?: boolean;
   aiExplanation?: string;
+  needsSetup?: boolean; // API 미설정 시 true
 }
 
 interface PromptComparisonProps {
   originalPrompt: string;
   variants: RewriteResult[];
   onCopy: (text: string) => void;
+  onOpenSettings?: () => void; // Settings 열기 콜백
 }
 
 // Shortcut key mapping (support up to 4 variants with AI)
@@ -49,6 +51,7 @@ export default function PromptComparison({
   originalPrompt,
   variants,
   onCopy,
+  onOpenSettings,
 }: PromptComparisonProps) {
   // Default to AI variant (index 0) if available, otherwise balanced (index 1)
   const hasAiVariant = variants.length > 0 && variants[0].isAiGenerated;
@@ -120,18 +123,26 @@ export default function PromptComparison({
           {variants.map((v, i) => (
             <button
               key={v.variant + i}
-              onClick={() => copyVariant(i)}
-              title={`⌘${i + 1}`}
+              onClick={() => {
+                if (v.needsSetup) {
+                  setCurrentIndex(i);
+                } else {
+                  copyVariant(i);
+                }
+              }}
+              title={v.needsSetup ? '설정 필요' : `⌘${i + 1}`}
               className={`relative px-2 py-0.5 text-xs rounded transition-all flex items-center gap-1 ${
                 copiedIndex === i
                   ? 'bg-accent-success/30 text-accent-success ring-1 ring-accent-success'
                   : i === currentIndex
                   ? `${VARIANT_COLORS[v.variant].bg} ${VARIANT_COLORS[v.variant].text}`
+                  : v.needsSetup
+                  ? 'bg-dark-hover text-gray-500 hover:text-amber-400/70 border border-dashed border-amber-500/30'
                   : 'bg-dark-hover text-gray-500 hover:text-gray-400'
               }`}
             >
-              {v.isAiGenerated && <Wand2 size={10} />}
-              <span className="opacity-50 mr-0.5 text-[10px]">⌘{i + 1}</span>
+              {v.variant === 'ai' && <Wand2 size={10} />}
+              {!v.needsSetup && <span className="opacity-50 mr-0.5 text-[10px]">⌘{i + 1}</span>}
               {v.variantLabel}
               {copiedIndex === i && (
                 <span className="absolute -top-1 -right-1 w-3 h-3 flex items-center justify-center bg-accent-success rounded-full">
@@ -159,7 +170,7 @@ export default function PromptComparison({
         {/* Improved */}
         <div className={`bg-dark-surface rounded-lg p-3 border ${colors.border}`}>
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dark-border">
-            {currentVariant.isAiGenerated ? (
+            {currentVariant.isAiGenerated || currentVariant.variant === 'ai' ? (
               <Wand2 size={14} className={colors.text} />
             ) : (
               <Sparkles size={14} className={colors.text} />
@@ -173,19 +184,38 @@ export default function PromptComparison({
               </span>
             )}
           </div>
-          {currentVariant.aiExplanation && (
-            <div className="text-xs text-gray-400 mb-2 pb-2 border-b border-dark-border/50 italic">
-              {currentVariant.aiExplanation}
+          {currentVariant.needsSetup ? (
+            <div className="flex flex-col items-center justify-center py-4 text-center">
+              <Wand2 size={28} className="text-amber-400 mb-3" />
+              <p className="text-gray-300 text-sm mb-1">AI 프롬프트 개선 사용하기</p>
+              <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                Settings에서 Claude API 키를 설정하면<br/>
+                AI가 더 정확한 프롬프트 개선을 제안합니다
+              </p>
+              <button
+                onClick={() => onOpenSettings?.()}
+                className="px-4 py-2 bg-amber-500/20 text-amber-400 rounded-lg text-sm hover:bg-amber-500/30 transition-colors"
+              >
+                설정하기
+              </button>
             </div>
+          ) : (
+            <>
+              {currentVariant.aiExplanation && (
+                <div className="text-xs text-gray-400 mb-2 pb-2 border-b border-dark-border/50 italic">
+                  {currentVariant.aiExplanation}
+                </div>
+              )}
+              <div className="text-sm text-gray-200 whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+                {currentVariant.rewrittenPrompt}
+              </div>
+            </>
           )}
-          <div className="text-sm text-gray-200 whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
-            {currentVariant.rewrittenPrompt}
-          </div>
         </div>
       </div>
 
       {/* Key changes */}
-      {currentVariant.keyChanges.length > 0 && (
+      {!currentVariant.needsSetup && currentVariant.keyChanges.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {currentVariant.keyChanges.map((change, i) => (
             <span
@@ -200,26 +230,36 @@ export default function PromptComparison({
 
       {/* Actions */}
       <div className="flex items-center gap-2">
-        <button
-          onClick={handleCopy}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            copied
-              ? 'bg-accent-success/20 text-accent-success'
-              : 'bg-accent-primary hover:bg-accent-primary/90 text-white'
-          }`}
-        >
-          {copied ? (
-            <>
-              <Check size={16} />
-              복사됨!
-            </>
-          ) : (
-            <>
-              <Copy size={16} />
-              개선된 프롬프트 복사
-            </>
-          )}
-        </button>
+        {currentVariant.needsSetup ? (
+          <button
+            onClick={() => onOpenSettings?.()}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+          >
+            <Wand2 size={16} />
+            AI 개선 설정하기
+          </button>
+        ) : (
+          <button
+            onClick={handleCopy}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+              copied
+                ? 'bg-accent-success/20 text-accent-success'
+                : 'bg-accent-primary hover:bg-accent-primary/90 text-white'
+            }`}
+          >
+            {copied ? (
+              <>
+                <Check size={16} />
+                복사됨!
+              </>
+            ) : (
+              <>
+                <Copy size={16} />
+                개선된 프롬프트 복사
+              </>
+            )}
+          </button>
+        )}
 
         {variants.length > 1 && (
           <div className="flex items-center gap-1">

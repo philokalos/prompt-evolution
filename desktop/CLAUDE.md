@@ -34,6 +34,7 @@ npm run pack                      # Unpacked build for testing
 
 # Other
 npm run typecheck                 # TypeScript check
+npm run lint                      # ESLint
 npm run generate-icons            # Regenerate app icons from SVG
 ```
 
@@ -77,7 +78,7 @@ Learning Engine
   ├─→ GOLDEN Evaluation (analysis-bundle.cjs)
   ├─→ Prompt Classification (classifier-bundle.cjs)
   ├─→ Rule-based Variants (conservative/balanced/comprehensive)
-  ├─→ AI Variant (Claude API, if enabled + score < 80%)
+  ├─→ AI Variant (Claude API, if enabled)
   ├─→ History Enrichment (project patterns, recommendations)
   └─→ SQLite Save
        ↓
@@ -142,9 +143,9 @@ Three modes (configurable in settings):
 3. **Comprehensive** (~90-95%): Full GOLDEN structure, category-specific templates
 
 **AI-powered** (optional, requires API key):
-- Calls Claude API if score < 80%
-- Respects language (Korean → Korean output)
-- Inserted as highest priority variant
+- Always shown as first variant (with `needsSetup: true` placeholder if API not configured)
+- When configured: Calls Claude API, respects language (Korean → Korean output)
+- When not configured: Shows setup guidance UI with "설정하기" button
 
 ### Active Project Detection
 

@@ -387,6 +387,7 @@ function App() {
               originalPrompt={originalPrompt}
               variants={analysis.promptVariants}
               onCopy={handleCopy}
+              onOpenSettings={() => setSettingsOpen(true)}
             />
           )}
 
