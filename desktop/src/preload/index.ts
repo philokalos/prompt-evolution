@@ -65,6 +65,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeProjectListener: (): void => {
     ipcRenderer.removeAllListeners('project-changed');
   },
+
+  // Auto-updater
+  checkForUpdates: (): Promise<{ available: boolean; version?: string; error?: string }> =>
+    ipcRenderer.invoke('check-for-updates'),
+  downloadUpdate: (): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('download-update'),
+  installUpdate: (): Promise<void> => ipcRenderer.invoke('install-update'),
+  getUpdateStatus: (): Promise<unknown> => ipcRenderer.invoke('get-update-status'),
+  getAppVersion: (): Promise<string> => ipcRenderer.invoke('get-app-version'),
+
+  onUpdateStatus: (callback: (status: unknown) => void): void => {
+    ipcRenderer.on('update-status', (_event, status) => callback(status));
+  },
+
+  removeUpdateListener: (): void => {
+    ipcRenderer.removeAllListeners('update-status');
+  },
 });
 
 // Type definitions for TypeScript
@@ -95,6 +112,14 @@ declare global {
       removeClipboardListener: () => void;
       onProjectChanged: (callback: (project: unknown) => void) => void;
       removeProjectListener: () => void;
+      // Auto-updater
+      checkForUpdates: () => Promise<{ available: boolean; version?: string; error?: string }>;
+      downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
+      installUpdate: () => Promise<void>;
+      getUpdateStatus: () => Promise<unknown>;
+      getAppVersion: () => Promise<string>;
+      onUpdateStatus: (callback: (status: unknown) => void) => void;
+      removeUpdateListener: () => void;
     };
   }
 }

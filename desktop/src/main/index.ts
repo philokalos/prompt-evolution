@@ -16,6 +16,7 @@ import {
   detectActiveProject,
   type DetectedProject,
 } from './active-window-detector.js';
+import { initAutoUpdater } from './auto-updater.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -360,6 +361,9 @@ app.whenReady().then(async () => {
   // Create system tray
   if (mainWindow) {
     createTray(mainWindow);
+
+    // Initialize auto-updater (GitHub Releases)
+    initAutoUpdater(mainWindow);
   }
 
   // Register learning engine IPC handlers
