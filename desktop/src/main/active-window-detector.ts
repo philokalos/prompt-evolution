@@ -537,3 +537,146 @@ export function stopWindowPolling(): void {
 export function getLastDetectedProject(): string | null {
   return lastDetectedProject;
 }
+
+// ============================================================================
+// AI App Detection (Phase 3: Innovative Activation)
+// ============================================================================
+
+// AI 채팅 앱 목록 (앱 이름 또는 브라우저 탭 제목에서 감지)
+const AI_CHAT_APPS = [
+  'Claude',
+  'ChatGPT',
+  'Gemini',
+  'Copilot',
+  'Perplexity',
+  'Poe',
+  'Character.AI',
+  'Pi',
+  'Anthropic',
+  'OpenAI',
+] as const;
+
+export type AIAppName = typeof AI_CHAT_APPS[number];
+
+export interface DetectedAIApp {
+  appName: string;
+  aiAppType: AIAppName;
+  windowTitle: string;
+  isBrowser: boolean;
+}
+
+/**
+ * 앱 이름 또는 창 제목이 AI 앱인지 확인
+ */
+export function isAIApp(appName: string, windowTitle: string): AIAppName | null {
+  const combinedText = `${appName} ${windowTitle}`.toLowerCase();
+
+  for (const aiApp of AI_CHAT_APPS) {
+    if (combinedText.includes(aiApp.toLowerCase())) {
+      return aiApp;
+    }
+  }
+
+  // 추가 패턴: 브라우저 탭 URL/제목 패턴
+  const urlPatterns = [
+    { pattern: /claude\.ai/i, app: 'Claude' as const },
+    { pattern: /chat\.openai\.com/i, app: 'ChatGPT' as const },
+    { pattern: /chatgpt\.com/i, app: 'ChatGPT' as const },
+    { pattern: /gemini\.google\.com/i, app: 'Gemini' as const },
+    { pattern: /bard\.google\.com/i, app: 'Gemini' as const },
+    { pattern: /copilot\.microsoft\.com/i, app: 'Copilot' as const },
+    { pattern: /perplexity\.ai/i, app: 'Perplexity' as const },
+    { pattern: /poe\.com/i, app: 'Poe' as const },
+  ];
+
+  for (const { pattern, app } of urlPatterns) {
+    if (pattern.test(windowTitle)) {
+      return app;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 현재 활성 창이 AI 앱인지 감지
+ */
+export async function detectActiveAIApp(): Promise<DetectedAIApp | null> {
+  const windowInfo = await getActiveWindowInfo();
+
+  if (!windowInfo) {
+    return null;
+  }
+
+  const { appName, windowTitle } = windowInfo;
+
+  // 브라우저 여부 확인
+  const browsers = ['Safari', 'Chrome', 'Firefox', 'Arc', 'Edge', 'Brave', 'Opera'];
+  const isBrowser = browsers.some(browser =>
+    appName.includes(browser) || appName === browser
+  );
+
+  const aiAppType = isAIApp(appName, windowTitle);
+
+  if (aiAppType) {
+    return {
+      appName,
+      aiAppType,
+      windowTitle,
+      isBrowser,
+    };
+  }
+
+  return null;
+}
+
+// AI 앱 폴링 상태
+let aiAppPollingInterval: NodeJS.Timeout | null = null;
+let lastDetectedAIApp: AIAppName | null = null;
+type AIAppChangeCallback = (aiApp: DetectedAIApp | null) => void;
+let onAIAppChangeCallback: AIAppChangeCallback | null = null;
+
+/**
+ * AI 앱 감지 폴링 시작
+ */
+export function startAIAppPolling(
+  intervalMs: number = 2000,
+  onAIAppChange: AIAppChangeCallback
+): void {
+  if (aiAppPollingInterval) {
+    clearInterval(aiAppPollingInterval);
+  }
+
+  onAIAppChangeCallback = onAIAppChange;
+
+  aiAppPollingInterval = setInterval(async () => {
+    const aiApp = await detectActiveAIApp();
+    const currentAIApp = aiApp?.aiAppType || null;
+
+    if (currentAIApp !== lastDetectedAIApp) {
+      lastDetectedAIApp = currentAIApp;
+      onAIAppChangeCallback?.(aiApp);
+    }
+  }, intervalMs);
+
+  console.log(`[ActiveWindow] Started AI app polling every ${intervalMs}ms`);
+}
+
+/**
+ * AI 앱 감지 폴링 중지
+ */
+export function stopAIAppPolling(): void {
+  if (aiAppPollingInterval) {
+    clearInterval(aiAppPollingInterval);
+    aiAppPollingInterval = null;
+    lastDetectedAIApp = null;
+    console.log('[ActiveWindow] Stopped AI app polling');
+  }
+}
+
+/**
+ * 현재 감지된 AI 앱 가져오기
+ */
+export function getLastDetectedAIApp(): AIAppName | null {
+  return lastDetectedAIApp;
+}

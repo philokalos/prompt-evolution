@@ -2,7 +2,8 @@ import { app, BrowserWindow, globalShortcut, clipboard, ipcMain, screen } from '
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import Store from 'electron-store';
-import { createTray, destroyTray } from './tray.js';
+import { createTray, destroyTray, clearTrayBadge, setTrayBadge } from './tray.js';
+import { getClipboardWatcher, destroyClipboardWatcher, type DetectedPrompt } from './clipboard-watcher.js';
 import { registerLearningEngineHandlers } from './learning-engine.js';
 import {
   captureTextForAnalysis,
@@ -19,10 +20,19 @@ import {
   detectActiveProject,
   getActiveWindowInfo,
   parseWindowTitle,
+  startAIAppPolling,
+  stopAIAppPolling,
   type DetectedProject,
   type ActiveWindowInfo,
+  type DetectedAIApp,
 } from './active-window-detector.js';
 import { initAutoUpdater } from './auto-updater.js';
+import {
+  showAIContextButton,
+  hideAIContextButton,
+  destroyAIContextButton,
+  initAIContextPopupIPC,
+} from './ai-context-popup.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -44,6 +54,9 @@ interface AppSettings {
   // Quick Action mode settings
   quickActionMode: boolean; // Enable minimal floating panel mode
   quickActionAutoHide: number; // Auto-hide seconds (0 = disabled)
+  // Innovative activation methods
+  enableClipboardWatch: boolean; // Auto-detect prompts in clipboard
+  enableAIContextPopup: boolean; // Show popup when AI apps are active
 }
 
 // Initialize settings store with explicit name to ensure consistency across dev/prod
@@ -64,6 +77,9 @@ const store = new Store<AppSettings>({
     useAiRewrite: false,
     quickActionMode: false, // Default to full analysis view
     quickActionAutoHide: 3, // 3 seconds auto-hide when enabled
+    // Innovative activation - disabled by default for privacy
+    enableClipboardWatch: false,
+    enableAIContextPopup: false,
   },
 });
 
@@ -379,6 +395,50 @@ function registerShortcut(): void {
 }
 
 /**
+ * Analyze clipboard content immediately (for tray double-click)
+ * Simpler flow: just read clipboard and analyze, no text selection
+ */
+async function analyzeClipboardNow(): Promise<void> {
+  if (!mainWindow) return;
+
+  const clipboardText = clipboard.readText();
+
+  if (!clipboardText || clipboardText.trim().length < 10) {
+    console.log('[Main] Clipboard empty or too short for analysis');
+    return;
+  }
+
+  console.log('[Main] Double-click: analyzing clipboard content');
+
+  // Clear any existing badge since user is actively checking
+  clearTrayBadge();
+
+  // Get current window info for context (but don't require it)
+  const windowInfo = await getActiveWindowInfo();
+  const project = windowInfo?.isIDE ? parseWindowTitle(windowInfo) : null;
+
+  lastCapturedContext = {
+    windowInfo,
+    project,
+    timestamp: new Date(),
+  };
+
+  lastFrontmostApp = windowInfo?.appName || null;
+  lastAnalyzedText = clipboardText;
+
+  sendTextToRenderer(clipboardText, lastCapturedContext);
+
+  // Show window near cursor
+  if (!mainWindow.isVisible()) {
+    positionWindowNearCursor();
+    mainWindow.showInactive();
+    console.log('[Main] Showing analysis window');
+  } else {
+    mainWindow.focus();
+  }
+}
+
+/**
  * Handle project change detected by polling.
  * Sends notification to renderer when active project changes.
  */
@@ -427,6 +487,84 @@ function initProjectPolling(): void {
   }
 }
 
+/**
+ * Initialize or update clipboard watching based on settings.
+ */
+function initClipboardWatch(): void {
+  const enabled = store.get('enableClipboardWatch') as boolean;
+  const watcher = getClipboardWatcher();
+
+  // Remove existing listeners to avoid duplicates
+  watcher.removeAllListeners('prompt-detected');
+
+  if (enabled) {
+    // Set up prompt detection handler
+    watcher.on('prompt-detected', (detected: DetectedPrompt) => {
+      console.log(`[Main] Clipboard prompt detected: "${detected.text.substring(0, 50)}..."`);
+
+      // Show badge on tray icon
+      setTrayBadge(true);
+
+      // Optionally show notification
+      const showNotifications = store.get('showNotifications') as boolean;
+      if (showNotifications && mainWindow) {
+        // Send to renderer to show subtle notification
+        mainWindow.webContents.send('prompt-detected', {
+          text: detected.text,
+          confidence: detected.confidence,
+        });
+      }
+    });
+
+    watcher.start();
+    console.log('[Main] Clipboard watching enabled');
+  } else {
+    watcher.stop();
+    clearTrayBadge();
+    console.log('[Main] Clipboard watching disabled');
+  }
+}
+
+/**
+ * Handle AI app detection change.
+ * Shows or hides the floating context button accordingly.
+ */
+function handleAIAppChange(aiApp: DetectedAIApp | null): void {
+  if (aiApp) {
+    console.log(`[Main] AI app detected: ${aiApp.aiAppType} (${aiApp.appName})`);
+
+    // Show floating button
+    showAIContextButton(() => {
+      // On click: analyze clipboard content
+      analyzeClipboardNow();
+      // Hide the button after click
+      hideAIContextButton();
+    });
+  } else {
+    console.log('[Main] No AI app active, hiding button');
+    hideAIContextButton();
+  }
+}
+
+/**
+ * Initialize or update AI context popup based on settings.
+ */
+function initAIContextPolling(): void {
+  const enabled = store.get('enableAIContextPopup') as boolean;
+
+  // Stop any existing polling
+  stopAIAppPolling();
+
+  if (enabled) {
+    console.log('[Main] Starting AI app context polling');
+    // Poll every 2 seconds to detect AI app focus
+    startAIAppPolling(2000, handleAIAppChange);
+  } else {
+    console.log('[Main] AI context popup disabled');
+    hideAIContextButton();
+  }
+}
+
 // IPC Handlers
 ipcMain.handle('get-clipboard', () => {
   return clipboard.readText();
@@ -447,6 +585,16 @@ ipcMain.handle('set-setting', (_event, key: string, value: unknown) => {
   // Restart polling if polling settings changed
   if (key === 'enableProjectPolling' || key === 'pollingIntervalMs') {
     initProjectPolling();
+  }
+
+  // Toggle clipboard watching if setting changed
+  if (key === 'enableClipboardWatch') {
+    initClipboardWatch();
+  }
+
+  // Toggle AI context popup if setting changed
+  if (key === 'enableAIContextPopup') {
+    initAIContextPolling();
   }
 
   return true;
@@ -514,9 +662,22 @@ app.whenReady().then(async () => {
   createWindow();
   registerShortcut();
 
-  // Create system tray
+  // Create system tray with double-click handler for quick clipboard analysis
   if (mainWindow) {
-    createTray(mainWindow);
+    createTray(mainWindow, {
+      onToggleWindow: () => {
+        if (mainWindow?.isVisible()) {
+          mainWindow.hide();
+        } else {
+          mainWindow?.show();
+          mainWindow?.focus();
+        }
+      },
+      onDoubleClick: () => {
+        // Double-click: immediately analyze clipboard content
+        analyzeClipboardNow();
+      },
+    });
 
     // Initialize auto-updater (GitHub Releases)
     initAutoUpdater(mainWindow);
@@ -525,8 +686,17 @@ app.whenReady().then(async () => {
   // Register learning engine IPC handlers
   registerLearningEngineHandlers();
 
+  // Initialize AI context popup IPC
+  initAIContextPopupIPC();
+
   // Start project polling for active window detection
   initProjectPolling();
+
+  // Initialize clipboard watching (if enabled in settings)
+  initClipboardWatch();
+
+  // Initialize AI context popup (if enabled in settings)
+  initAIContextPolling();
 
   // Check accessibility permission for text selection capture
   // This is needed for AppleScript keyboard simulation (Cmd+C)
@@ -564,6 +734,9 @@ app.on('will-quit', () => {
     globalShortcut.unregisterAll();
   }
   stopWindowPolling();
+  stopAIAppPolling();
+  destroyClipboardWatcher();
+  destroyAIContextButton();
   destroyTray();
 });
 

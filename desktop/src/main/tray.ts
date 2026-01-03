@@ -9,6 +9,19 @@ const __dirname = path.dirname(__filename);
 
 let tray: Tray | null = null;
 
+// Double-click detection state
+let lastClickTime = 0;
+let pendingClickTimeout: NodeJS.Timeout | null = null;
+const DOUBLE_CLICK_THRESHOLD = 300; // ms
+
+// Callbacks for tray interactions
+type TrayCallbacks = {
+  onToggleWindow: () => void;
+  onDoubleClick?: () => void;
+};
+
+let trayCallbacks: TrayCallbacks | null = null;
+
 /**
  * Get the correct assets path for both dev and packaged app
  * Assets are at ../../assets relative to dist/main/ in both cases
@@ -19,7 +32,18 @@ function getAssetsPath(): string {
   return path.join(__dirname, '../../assets');
 }
 
-export function createTray(mainWindow: BrowserWindow): Tray {
+export function createTray(mainWindow: BrowserWindow, callbacks?: TrayCallbacks): Tray {
+  // Store callbacks for use in event handlers
+  trayCallbacks = callbacks || {
+    onToggleWindow: () => {
+      if (mainWindow.isVisible()) {
+        mainWindow.hide();
+      } else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    },
+  };
   // Load tray icon from assets
   let trayIcon: Electron.NativeImage;
   const assetsPath = getAssetsPath();
@@ -118,13 +142,37 @@ export function createTray(mainWindow: BrowserWindow): Tray {
 
   tray.setContextMenu(contextMenu);
 
-  // Click on tray icon toggles window
+  // Click on tray icon with double-click detection
   tray.on('click', () => {
-    if (mainWindow.isVisible()) {
-      mainWindow.hide();
+    const now = Date.now();
+    const timeSinceLastClick = now - lastClickTime;
+
+    // Clear any pending single-click timeout
+    if (pendingClickTimeout) {
+      clearTimeout(pendingClickTimeout);
+      pendingClickTimeout = null;
+    }
+
+    if (timeSinceLastClick < DOUBLE_CLICK_THRESHOLD && timeSinceLastClick > 50) {
+      // Double-click detected
+      console.log('[Tray] Double-click detected');
+      lastClickTime = 0; // Reset to prevent triple-click issues
+
+      if (trayCallbacks?.onDoubleClick) {
+        trayCallbacks.onDoubleClick();
+      } else {
+        // Default: toggle window (same as single click)
+        trayCallbacks?.onToggleWindow();
+      }
     } else {
-      mainWindow.show();
-      mainWindow.focus();
+      // Potential single click - wait to see if it's a double click
+      lastClickTime = now;
+
+      pendingClickTimeout = setTimeout(() => {
+        console.log('[Tray] Single-click confirmed');
+        trayCallbacks?.onToggleWindow();
+        pendingClickTimeout = null;
+      }, DOUBLE_CLICK_THRESHOLD);
     }
   });
 
@@ -181,4 +229,32 @@ export function destroyTray(): void {
 export function updateTrayMenu(recentAnalyses: Array<{ text: string; score: number }>): void {
   // This would update the "최근 분석" submenu with actual data
   // Implementation depends on how we store history
+}
+
+/**
+ * Set tray badge indicator (macOS only)
+ * Shows a small indicator next to the tray icon when a prompt is detected
+ */
+export function setTrayBadge(show: boolean): void {
+  if (!tray) return;
+
+  if (process.platform === 'darwin') {
+    // On macOS, use setTitle to show a small indicator next to the icon
+    tray.setTitle(show ? '•' : '');
+    console.log(`[Tray] Badge ${show ? 'shown' : 'hidden'}`);
+  }
+  // On Windows/Linux, we could use a different icon or tooltip
+  // For now, just update tooltip
+  if (show) {
+    tray.setToolTip('PromptLint - 새 프롬프트 감지됨!');
+  } else {
+    tray.setToolTip('PromptLint - 프롬프트 교정');
+  }
+}
+
+/**
+ * Clear tray badge (convenience function)
+ */
+export function clearTrayBadge(): void {
+  setTrayBadge(false);
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, Globe, MousePointer2, Monitor, Key, EyeOff, Zap } from 'lucide-react';
+import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, Globe, MousePointer2, Monitor, Key, EyeOff, Zap, Clipboard, Sparkles } from 'lucide-react';
 
 interface AppSettings {
   shortcut: string;
@@ -15,6 +15,9 @@ interface AppSettings {
   // Quick Action mode settings
   quickActionMode: boolean;
   quickActionAutoHide: number;
+  // Innovative activation methods
+  enableClipboardWatch: boolean;
+  enableAIContextPopup: boolean;
 }
 
 interface SettingsProps {
@@ -22,11 +25,15 @@ interface SettingsProps {
   onClose: () => void;
 }
 
-// Available shortcuts
+// Available shortcuts (ordered by conflict likelihood: safest first)
 const AVAILABLE_SHORTCUTS = [
-  { value: 'CommandOrControl+Shift+P', label: '⌘⇧P' },
-  { value: 'CommandOrControl+Shift+L', label: '⌘⇧L' },
-  { value: 'CommandOrControl+Shift+K', label: '⌘⇧K' },
+  { value: 'CommandOrControl+Shift+;', label: '⌘⇧;', desc: '권장 (충돌 최소)' },
+  { value: 'Alt+CommandOrControl+P', label: '⌥⌘P', desc: 'P 유지' },
+  { value: 'CommandOrControl+Alt+Shift+L', label: 'Hyper+L', desc: '충돌 없음' },
+  { value: 'CommandOrControl+Alt+Shift+P', label: 'Hyper+P', desc: '충돌 없음' },
+  { value: 'CommandOrControl+Shift+P', label: '⌘⇧P', desc: '기존 (충돌 가능)' },
+  { value: 'CommandOrControl+Shift+L', label: '⌘⇧L', desc: '' },
+  { value: 'CommandOrControl+Shift+K', label: '⌘⇧K', desc: '' },
 ];
 
 export default function Settings({ isOpen, onClose }: SettingsProps) {
@@ -100,12 +107,24 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                 >
                   {AVAILABLE_SHORTCUTS.map((s) => (
                     <option key={s.value} value={s.value}>
-                      {s.label}
+                      {s.label}{s.desc ? ` - ${s.desc}` : ''}
                     </option>
                   ))}
                 </select>
                 <p className="text-xs text-gray-500">
                   클립보드 분석을 위한 전역 단축키 (변경 후 앱 재시작 필요)
+                </p>
+                <p className="text-xs text-gray-500">
+                  💡 Hyper Key 사용 시{' '}
+                  <a
+                    href="https://karabiner-elements.pqrs.org/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-accent-primary hover:underline"
+                  >
+                    Karabiner-Elements
+                  </a>
+                  로 Caps Lock을 Hyper Key로 설정 가능
                 </p>
               </div>
 
@@ -202,6 +221,57 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                 <p className="text-xs text-gray-500">
                   ※ VS Code, Cursor 등 일부 앱에서는 클립보드 복사 후 수동 붙여넣기가 필요합니다
                 </p>
+              </div>
+
+              {/* Innovative Activation Methods Section */}
+              <div className="pt-4 border-t border-dark-border space-y-3">
+                <h3 className="text-sm font-medium text-gray-300 flex items-center gap-2">
+                  <Sparkles size={14} className="text-purple-400" />
+                  혁신적 활성화 방법
+                </h3>
+
+                {/* Clipboard Watch Toggle */}
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <Clipboard size={14} className="text-gray-400" />
+                      <span className="text-sm">클립보드 자동 감지</span>
+                    </div>
+                    <span className="text-xs text-gray-500">프롬프트 복사 시 트레이에 알림 표시</span>
+                  </div>
+                  <ToggleSwitch
+                    checked={settings.enableClipboardWatch ?? false}
+                    onChange={(v) => updateSetting('enableClipboardWatch', v)}
+                  />
+                </div>
+
+                {/* AI Context Popup Toggle */}
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={14} className="text-gray-400" />
+                      <span className="text-sm">AI 앱 컨텍스트 팝업</span>
+                    </div>
+                    <span className="text-xs text-gray-500">Claude, ChatGPT 사용 시 플로팅 버튼 표시</span>
+                  </div>
+                  <ToggleSwitch
+                    checked={settings.enableAIContextPopup ?? false}
+                    onChange={(v) => updateSetting('enableAIContextPopup', v)}
+                  />
+                </div>
+
+                {/* Info box */}
+                <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg space-y-2">
+                  <p className="text-xs text-gray-300 leading-relaxed">
+                    <strong className="text-purple-400">트레이 더블클릭</strong>: 클립보드 내용 즉시 분석
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    • 싱글클릭 = 창 토글 | 더블클릭 = 클립보드 분석
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    • 클립보드 감지 활성화 시 프롬프트 복사하면 트레이에 • 표시
+                  </p>
+                </div>
               </div>
 
               {/* Quick Action Mode Section */}
