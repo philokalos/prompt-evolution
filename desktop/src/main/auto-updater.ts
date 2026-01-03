@@ -19,6 +19,16 @@ autoUpdater.logger = log;
 autoUpdater.autoDownload = false;
 autoUpdater.autoInstallOnAppQuit = true;
 
+// Private repository 지원을 위한 GitHub Token 설정
+// 환경변수 GH_TOKEN 또는 하드코딩된 토큰 사용
+const GH_TOKEN = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
+if (GH_TOKEN) {
+  autoUpdater.requestHeaders = {
+    Authorization: `token ${GH_TOKEN}`,
+  };
+  log.info('[AutoUpdater] GitHub token configured for private repo');
+}
+
 // 업데이트 상태
 interface UpdateStatus {
   checking: boolean;
@@ -132,10 +142,23 @@ export function initAutoUpdater(window: BrowserWindow): void {
 
   autoUpdater.on('error', (error) => {
     log.error('[AutoUpdater] Error:', error);
+
+    // 에러 유형별 사용자 친화적 메시지
+    let userMessage = error.message;
+
+    if (error.message.includes('404')) {
+      userMessage = 'GitHub에 릴리스가 없습니다. 최신 버전을 사용 중일 수 있습니다.';
+      log.info('[AutoUpdater] No GitHub release found - this is expected if releases are not published');
+    } else if (error.message.includes('net::ERR_FAILED') || error.message.includes('ENOTFOUND')) {
+      userMessage = '네트워크 연결을 확인해주세요.';
+    } else if (error.message.includes('401') || error.message.includes('403')) {
+      userMessage = 'GitHub 접근 권한이 없습니다. Private repository인 경우 토큰이 필요합니다.';
+    }
+
     sendStatusToRenderer({
       checking: false,
       downloading: false,
-      error: error.message,
+      error: userMessage,
     });
   });
 
