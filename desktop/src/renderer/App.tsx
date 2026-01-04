@@ -454,7 +454,13 @@ function App() {
               <div className="flex-1 flex flex-col space-y-3">
                 <textarea
                   value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
+                  onChange={(e) => {
+                    setInputText(e.target.value);
+                    // Auto-expand: adjust height based on content
+                    const target = e.target;
+                    target.style.height = 'auto';
+                    target.style.height = `${Math.max(96, Math.min(target.scrollHeight, 300))}px`;
+                  }}
                   onKeyDown={(e) => {
                     // Cmd/Ctrl + Enter to submit
                     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && inputText.trim()) {
@@ -466,9 +472,14 @@ function App() {
                     }
                   }}
                   placeholder="분석할 프롬프트를 입력하세요... (⌘+Enter로 분석)"
-                  className="flex-1 w-full p-3 bg-dark-hover border border-dark-border rounded-lg text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent-primary placeholder-gray-600"
+                  className="w-full p-3 bg-dark-hover border border-dark-border rounded-lg text-sm resize-y focus:outline-none focus:ring-1 focus:ring-accent-primary placeholder-gray-600 min-h-[96px] max-h-[300px] transition-colors"
+                  style={{ height: '96px' }}
                   autoFocus
                 />
+                <div className="flex items-center justify-between text-[10px] text-gray-600 px-1">
+                  <span>{inputText.length}자</span>
+                  <span>⌘+Enter로 분석</span>
+                </div>
                 <button
                   onClick={() => {
                     if (inputText.trim()) {

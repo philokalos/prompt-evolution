@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Copy, Check, ChevronLeft, ChevronRight, Sparkles, FileText, Wand2, Play, AlertCircle } from 'lucide-react';
+import { Copy, Check, ChevronLeft, ChevronRight, Sparkles, FileText, Wand2, Play, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
 
 export type VariantType = 'conservative' | 'balanced' | 'comprehensive' | 'ai';
 
@@ -62,6 +62,11 @@ export default function PromptComparison({
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [applying, setApplying] = useState(false);
   const [applyResult, setApplyResult] = useState<{ success: boolean; message?: string } | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false); // 텍스트 영역 확장 상태
+
+  // 텍스트 길이에 따라 자동 확장 여부 결정 (200자 이상이면 축소 가능)
+  const shouldShowExpandToggle = originalPrompt.length > 200 ||
+    (variants[currentIndex] && variants[currentIndex].rewrittenPrompt.length > 200);
 
   // Copy a specific variant by index
   const copyVariant = useCallback((index: number) => {
@@ -199,14 +204,19 @@ export default function PromptComparison({
       </div>
 
       {/* Comparison panels */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {/* Original */}
         <div className="bg-dark-surface rounded-lg p-3 border border-dark-border">
           <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dark-border">
             <FileText size={14} className="text-gray-500" />
             <span className="text-xs text-gray-500 font-medium">원본</span>
+            <span className="text-[10px] text-gray-600 ml-auto">{originalPrompt.length}자</span>
           </div>
-          <div className="text-sm text-gray-400 whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+          <div
+            className={`text-sm text-gray-400 whitespace-pre-wrap break-words overflow-y-auto transition-all duration-200 ${
+              isExpanded ? 'max-h-[400px]' : 'max-h-24 sm:max-h-32'
+            }`}
+          >
             {originalPrompt}
           </div>
         </div>
@@ -226,6 +236,9 @@ export default function PromptComparison({
               <span className="px-1.5 py-0.5 bg-amber-500/30 text-amber-400 text-[10px] rounded font-medium">
                 AI
               </span>
+            )}
+            {!currentVariant.needsSetup && (
+              <span className="text-[10px] text-gray-600 ml-auto">{currentVariant.rewrittenPrompt.length}자</span>
             )}
           </div>
           {currentVariant.needsSetup ? (
@@ -250,13 +263,37 @@ export default function PromptComparison({
                   {currentVariant.aiExplanation}
                 </div>
               )}
-              <div className="text-sm text-gray-200 whitespace-pre-wrap break-words max-h-32 overflow-y-auto">
+              <div
+                className={`text-sm text-gray-200 whitespace-pre-wrap break-words overflow-y-auto transition-all duration-200 ${
+                  isExpanded ? 'max-h-[400px]' : 'max-h-24 sm:max-h-32'
+                }`}
+              >
                 {currentVariant.rewrittenPrompt}
               </div>
             </>
           )}
         </div>
       </div>
+
+      {/* Expand/Collapse Toggle */}
+      {shouldShowExpandToggle && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full flex items-center justify-center gap-1 py-1.5 text-xs text-gray-500 hover:text-gray-300 hover:bg-dark-hover rounded transition-colors"
+        >
+          {isExpanded ? (
+            <>
+              <ChevronUp size={14} />
+              접기
+            </>
+          ) : (
+            <>
+              <ChevronDown size={14} />
+              전체 보기
+            </>
+          )}
+        </button>
+      )}
 
       {/* Key changes */}
       {!currentVariant.needsSetup && currentVariant.keyChanges.length > 0 && (
