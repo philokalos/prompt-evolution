@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Minus, BarChart3, Lightbulb, ArrowLeft, Settings as SettingsIcon, Edit3, Send, Plus } from 'lucide-react';
+import { X, Minus, BarChart3, Lightbulb, ArrowLeft, Settings as SettingsIcon, Edit3, Send, Plus, HelpCircle } from 'lucide-react';
 import GoldenRadar from './components/GoldenRadar';
 import ProgressTracker from './components/ProgressTracker';
 import PersonalTips from './components/PersonalTips';
+import HelpView from './components/HelpView';
 import IssueList from './components/IssueList';
 import PromptComparison, { RewriteResult } from './components/PromptComparison';
 import ContextIndicator, { SessionContextInfo } from './components/ContextIndicator';
@@ -43,7 +44,7 @@ interface AnalysisResult {
   } | null;
 }
 
-type ViewMode = 'analysis' | 'progress' | 'tips';
+type ViewMode = 'analysis' | 'progress' | 'tips' | 'help';
 
 /**
  * Convert DetectedProject to minimal SessionContextInfo for display
@@ -74,6 +75,7 @@ function App() {
   const [showDirectInput, setShowDirectInput] = useState(false);
   const [inputText, setInputText] = useState('');
   const [currentProject, setCurrentProject] = useState<DetectedProject | null>(null);
+  const [shortcutError, setShortcutError] = useState<{ shortcut: string; message: string } | null>(null);
 
   // Listen for clipboard text from main process
   useEffect(() => {
@@ -107,9 +109,31 @@ function App() {
       setCurrentProject(project as DetectedProject | null);
     });
 
+    // Listen for navigation events (from tray menu)
+    window.electronAPI.onNavigate((view) => {
+      console.log('[Renderer] Navigate to:', view);
+      if (view === 'stats' || view === 'progress') {
+        setViewMode('progress');
+      } else if (view === 'help') {
+        setViewMode('help');
+      } else if (view === 'tips') {
+        setViewMode('tips');
+      } else {
+        setViewMode('analysis');
+      }
+    });
+
+    // Listen for shortcut registration failures
+    window.electronAPI.onShortcutFailed((data) => {
+      console.log('[Renderer] Shortcut registration failed:', data);
+      setShortcutError(data);
+    });
+
     return () => {
       window.electronAPI.removeClipboardListener();
       window.electronAPI.removeProjectListener();
+      window.electronAPI.removeNavigateListener();
+      window.electronAPI.removeShortcutFailedListener();
     };
   }, []);
 
@@ -218,7 +242,7 @@ function App() {
             </button>
           )}
           <span className="text-sm font-semibold">
-            {viewMode === 'analysis' ? 'PromptLint' : viewMode === 'progress' ? '내 진행 상황' : '맞춤 팁'}
+            {viewMode === 'analysis' ? 'PromptLint' : viewMode === 'progress' ? '내 진행 상황' : viewMode === 'tips' ? '맞춤 팁' : '기능 안내'}
           </span>
           {viewMode === 'analysis' && analysis && (
             <span
@@ -238,6 +262,13 @@ function App() {
               <Plus size={14} />
             </button>
           )}
+          <button
+            onClick={() => setViewMode(viewMode === 'help' ? 'analysis' : 'help')}
+            className={`p-1.5 rounded-md transition-colors ${viewMode === 'help' ? 'bg-accent-primary/20 text-accent-primary' : 'hover:bg-dark-hover'}`}
+            title="기능 안내"
+          >
+            <HelpCircle size={14} />
+          </button>
           <button
             onClick={() => setSettingsOpen(true)}
             className="p-1.5 rounded-md hover:bg-dark-hover transition-colors"
@@ -260,9 +291,35 @@ function App() {
         </div>
       </div>
 
+      {/* Shortcut Error Notification */}
+      {shortcutError && (
+        <div className="bg-amber-900/50 border-b border-amber-600/50 px-4 py-2 flex items-center justify-between">
+          <div className="flex items-center gap-2 text-amber-200 text-sm">
+            <span>⚠️</span>
+            <span>{shortcutError.message}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSettingsOpen(true)}
+              className="text-xs bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 rounded"
+            >
+              설정
+            </button>
+            <button
+              onClick={() => setShortcutError(null)}
+              className="text-amber-400 hover:text-amber-200"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {viewMode === 'progress' ? (
+        {viewMode === 'help' ? (
+          <HelpView />
+        ) : viewMode === 'progress' ? (
           <ProgressTracker />
         ) : viewMode === 'tips' ? (
           <PersonalTips currentTips={analysis?.personalTips} />

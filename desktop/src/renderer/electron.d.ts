@@ -54,6 +54,21 @@ export interface ElectronAPI {
   // Project change event listener (polling)
   onProjectChanged: (callback: (project: DetectedProject | null) => void) => void;
   removeProjectListener: () => void;
+
+  // Navigation (from tray menu)
+  onNavigate: (callback: (view: string) => void) => void;
+  removeNavigateListener: () => void;
+
+  // Shortcut registration failure
+  onShortcutFailed: (callback: (data: { shortcut: string; message: string }) => void) => void;
+  removeShortcutFailedListener: () => void;
+
+  // Prompt detected (from clipboard watching)
+  onPromptDetected: (callback: (data: { text: string; confidence: number }) => void) => void;
+  removePromptDetectedListener: () => void;
+
+  // External links
+  openExternal: (url: string) => Promise<void>;
 }
 
 export interface DetectedProject {

@@ -344,10 +344,15 @@ function createWindow(): void {
   });
 }
 
-function registerShortcut(): void {
+function registerShortcut(): boolean {
   const shortcut = store.get('shortcut') as string;
 
-  globalShortcut.register(shortcut, async () => {
+  // Unregister existing shortcut first
+  if (globalShortcut.isRegistered(shortcut)) {
+    globalShortcut.unregister(shortcut);
+  }
+
+  const success = globalShortcut.register(shortcut, async () => {
     if (!mainWindow) return;
 
     // 1. Capture window context FIRST - before any other operations
@@ -392,6 +397,15 @@ function registerShortcut(): void {
       console.log('[Main] Showing window near cursor (without stealing focus)');
     }
   });
+
+  if (success) {
+    console.log(`[Main] ✅ Global shortcut registered: ${shortcut}`);
+  } else {
+    console.error(`[Main] ❌ Failed to register global shortcut: ${shortcut}`);
+    console.error('[Main] Another app may be using this shortcut. Try changing it in Settings.');
+  }
+
+  return success;
 }
 
 /**
@@ -580,7 +594,23 @@ ipcMain.handle('get-settings', () => {
 });
 
 ipcMain.handle('set-setting', (_event, key: string, value: unknown) => {
+  // For shortcut changes, unregister old first
+  const oldShortcut = key === 'shortcut' ? (store.get('shortcut') as string) : null;
+
   store.set(key, value);
+
+  // Re-register shortcut if it changed
+  if (key === 'shortcut' && oldShortcut) {
+    globalShortcut.unregister(oldShortcut);
+    const success = registerShortcut();
+    if (!success && mainWindow) {
+      mainWindow.webContents.send('shortcut-failed', {
+        shortcut: value as string,
+        message: `단축키 (${value}) 등록 실패. 다른 앱이 사용 중입니다.`,
+      });
+    }
+    return success;
+  }
 
   // Restart polling if polling settings changed
   if (key === 'enableProjectPolling' || key === 'pollingIntervalMs') {
@@ -642,6 +672,12 @@ ipcMain.handle('minimize-window', () => {
   return true;
 });
 
+// IPC Handler: Open external URL
+ipcMain.handle('open-external', async (_event, url: string) => {
+  const { shell } = await import('electron');
+  await shell.openExternal(url);
+});
+
 // IPC Handler: Renderer ready signal (fixes race condition)
 ipcMain.handle('renderer-ready', () => {
   isRendererReady = true;
@@ -660,7 +696,24 @@ ipcMain.handle('renderer-ready', () => {
 // App lifecycle
 app.whenReady().then(async () => {
   createWindow();
-  registerShortcut();
+  const shortcutRegistered = registerShortcut();
+
+  // If primary shortcut failed, notify renderer after it's ready
+  if (!shortcutRegistered) {
+    const checkAndNotify = (): void => {
+      if (isRendererReady && mainWindow) {
+        const shortcut = store.get('shortcut') as string;
+        mainWindow.webContents.send('shortcut-failed', {
+          shortcut,
+          message: `글로벌 단축키 (${shortcut}) 등록 실패. 다른 앱이 사용 중일 수 있습니다. 트레이 아이콘을 더블클릭하거나 설정에서 단축키를 변경해 주세요.`,
+        });
+      } else {
+        // Retry after renderer is ready
+        setTimeout(checkAndNotify, 500);
+      }
+    };
+    setTimeout(checkAndNotify, 1000);
+  }
 
   // Create system tray with double-click handler for quick clipboard analysis
   if (mainWindow) {

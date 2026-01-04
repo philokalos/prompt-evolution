@@ -118,6 +118,39 @@ contextBridge.exposeInMainWorld('electronAPI', {
   removeUpdateListener: (): void => {
     ipcRenderer.removeAllListeners('update-status');
   },
+
+  // Navigation event (from tray menu)
+  onNavigate: (callback: (view: string) => void): void => {
+    ipcRenderer.removeAllListeners('navigate');
+    ipcRenderer.on('navigate', (_event, view: string) => callback(view));
+  },
+
+  removeNavigateListener: (): void => {
+    ipcRenderer.removeAllListeners('navigate');
+  },
+
+  // Shortcut registration failure event
+  onShortcutFailed: (callback: (data: { shortcut: string; message: string }) => void): void => {
+    ipcRenderer.removeAllListeners('shortcut-failed');
+    ipcRenderer.on('shortcut-failed', (_event, data) => callback(data));
+  },
+
+  removeShortcutFailedListener: (): void => {
+    ipcRenderer.removeAllListeners('shortcut-failed');
+  },
+
+  // Prompt detected event (from clipboard watching)
+  onPromptDetected: (callback: (data: { text: string; confidence: number }) => void): void => {
+    ipcRenderer.removeAllListeners('prompt-detected');
+    ipcRenderer.on('prompt-detected', (_event, data) => callback(data));
+  },
+
+  removePromptDetectedListener: (): void => {
+    ipcRenderer.removeAllListeners('prompt-detected');
+  },
+
+  // Open external URL
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke('open-external', url),
 });
 
 // Type definitions for TypeScript
@@ -184,6 +217,17 @@ declare global {
       getAppVersion: () => Promise<string>;
       onUpdateStatus: (callback: (status: unknown) => void) => void;
       removeUpdateListener: () => void;
+      // Navigation
+      onNavigate: (callback: (view: string) => void) => void;
+      removeNavigateListener: () => void;
+      // Shortcut registration failure
+      onShortcutFailed: (callback: (data: { shortcut: string; message: string }) => void) => void;
+      removeShortcutFailedListener: () => void;
+      // Prompt detection
+      onPromptDetected: (callback: (data: { text: string; confidence: number }) => void) => void;
+      removePromptDetectedListener: () => void;
+      // External links
+      openExternal: (url: string) => Promise<void>;
     };
   }
 }
