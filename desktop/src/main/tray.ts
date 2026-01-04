@@ -107,6 +107,14 @@ export function createTray(mainWindow: BrowserWindow, callbacks?: TrayCallbacks)
         mainWindow.webContents.send('navigate', 'stats');
       },
     },
+    {
+      label: '기능 안내',
+      click: () => {
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.webContents.send('navigate', 'help');
+      },
+    },
     { type: 'separator' },
     {
       label: '설정',
