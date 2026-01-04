@@ -99,6 +99,7 @@ export interface CapturedContext {
 export interface ClipboardPayload {
   text: string;
   capturedContext: CapturedContext | null;
+  isSourceAppBlocked: boolean; // True if source app doesn't support AppleScript paste
 }
 
 // Phase 2: History-based recommendation types

@@ -76,6 +76,7 @@ function App() {
   const [inputText, setInputText] = useState('');
   const [currentProject, setCurrentProject] = useState<DetectedProject | null>(null);
   const [shortcutError, setShortcutError] = useState<{ shortcut: string; message: string } | null>(null);
+  const [isSourceAppBlocked, setIsSourceAppBlocked] = useState(false); // True if source app doesn't support Apply
 
   // Listen for clipboard text from main process
   useEffect(() => {
@@ -92,13 +93,15 @@ function App() {
     console.log('[Renderer] Setting up clipboard listener');
     window.electronAPI.onClipboardText((payload) => {
       console.log('[Renderer] >>> Clipboard text received! <<<');
-      const { text, capturedContext } = payload;
+      const { text, capturedContext, isSourceAppBlocked: blocked } = payload;
       console.log('[Renderer] Text length:', text?.length, 'Preview:', text?.substring(0, 50));
+      console.log('[Renderer] Source app blocked:', blocked);
       if (capturedContext?.project) {
         console.log('[Renderer] Captured project:', capturedContext.project.projectPath);
       }
       console.log('[Renderer] Calling setOriginalPrompt and analyzePrompt');
       setOriginalPrompt(text);
+      setIsSourceAppBlocked(blocked);
       analyzePrompt(text);
     });
     console.log('[Renderer] Clipboard listener registered');
@@ -521,7 +524,7 @@ function App() {
               originalPrompt={originalPrompt}
               variants={analysis.promptVariants}
               onCopy={handleCopy}
-              onApply={handleApply}
+              onApply={isSourceAppBlocked ? undefined : handleApply}
               onOpenSettings={() => setSettingsOpen(true)}
             />
           )}

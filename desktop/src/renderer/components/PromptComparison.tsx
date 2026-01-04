@@ -416,11 +416,13 @@ export default function PromptComparison({
       {/* Shortcut Guide */}
       {!currentVariant.needsSetup && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-2 border-t border-dark-border/50 text-[10px] text-gray-500">
-          <span>
-            <kbd className="px-1 py-0.5 bg-dark-hover rounded">⌘</kbd>
-            <kbd className="px-1 py-0.5 bg-dark-hover rounded ml-0.5">Enter</kbd>
-            <span className="ml-1">적용</span>
-          </span>
+          {onApply && (
+            <span>
+              <kbd className="px-1 py-0.5 bg-dark-hover rounded">⌘</kbd>
+              <kbd className="px-1 py-0.5 bg-dark-hover rounded ml-0.5">Enter</kbd>
+              <span className="ml-1">적용</span>
+            </span>
+          )}
           <span>
             <kbd className="px-1 py-0.5 bg-dark-hover rounded">⌘</kbd>
             <kbd className="px-1 py-0.5 bg-dark-hover rounded ml-0.5">1-4</kbd>

@@ -58,7 +58,7 @@ export async function getFrontmostApp(): Promise<string | null> {
  * @param appName - Name of the application
  * @returns true if app should be blocked, false otherwise
  */
-function isBlockedApp(appName: string | null): boolean {
+export function isBlockedApp(appName: string | null): boolean {
   if (!appName) return false;
   return BLOCKED_APPS.some((blocked) =>
     appName.toLowerCase().includes(blocked.toLowerCase())

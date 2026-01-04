@@ -11,6 +11,7 @@ import {
   showAccessibilityPermissionDialog,
   applyTextToApp,
   getFrontmostApp,
+  isBlockedApp,
   type CaptureMode,
   type ApplyTextResult,
 } from './text-selection.js';
@@ -111,7 +112,7 @@ export function getAIRewriteSettings(): { apiKey: string; enabled: boolean } {
 // State tracking for improved hotkey behavior
 let lastAnalyzedText = '';
 let isRendererReady = false;
-let pendingText: { text: string; capturedContext: CapturedContext | null } | null = null;
+let pendingText: { text: string; capturedContext: CapturedContext | null; isSourceAppBlocked: boolean } | null = null;
 let currentProject: DetectedProject | null = null;
 let lastFrontmostApp: string | null = null; // Track source app for apply feature
 let lastCapturedContext: CapturedContext | null = null; // Captured at hotkey time
@@ -129,13 +130,16 @@ export function getLastCapturedContext(): CapturedContext | null {
  * Includes captured context from hotkey time for accurate project detection.
  */
 function sendTextToRenderer(text: string, capturedContext: CapturedContext | null = null): void {
-  const payload = { text, capturedContext };
+  // Check if source app is blocked for Apply feature
+  const sourceAppBlocked = isBlockedApp(lastFrontmostApp);
+  const payload = { text, capturedContext, isSourceAppBlocked: sourceAppBlocked };
 
   if (isRendererReady && mainWindow) {
     console.log('[Main] Sending clipboard-text IPC with payload:', {
       textLength: text?.length,
       hasContext: !!capturedContext,
-      project: capturedContext?.project?.projectPath
+      project: capturedContext?.project?.projectPath,
+      isSourceAppBlocked: sourceAppBlocked,
     });
     mainWindow.webContents.send('clipboard-text', payload);
     console.log('[Main] IPC sent successfully');

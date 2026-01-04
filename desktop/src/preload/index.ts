@@ -26,6 +26,7 @@ interface CapturedContext {
 interface ClipboardPayload {
   text: string;
   capturedContext: CapturedContext | null;
+  isSourceAppBlocked: boolean; // True if source app doesn't support AppleScript paste
 }
 
 // Expose protected APIs to renderer
@@ -180,6 +181,7 @@ declare global {
   interface ClipboardPayload {
     text: string;
     capturedContext: CapturedContext | null;
+    isSourceAppBlocked: boolean;
   }
 
   interface Window {
