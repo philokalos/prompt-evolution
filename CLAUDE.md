@@ -183,6 +183,69 @@ export ANTHROPIC_API_KEY=sk-ant-...
 
 Without API key, rule-based improvements still work (~11% → 71% improvement vs ~11% → 83% with AI).
 
+## Production Deployment (Dashboard)
+
+### Quick Start
+
+```bash
+# Build everything
+npm run build:all
+
+# Start server (manual)
+npm run prod:start
+
+# Check status
+npm run prod:status
+
+# View logs
+npm run prod:logs
+
+# Stop server
+npm run prod:stop
+```
+
+### Auto-Start on Login (macOS LaunchAgent)
+
+```bash
+# Install LaunchAgent (starts on login)
+npm run prod:install
+
+# Uninstall LaunchAgent
+npm run prod:uninstall
+```
+
+Dashboard runs at `http://localhost:3001`.
+
+### Production Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run prod:start` | Start server in background |
+| `npm run prod:stop` | Stop running server |
+| `npm run prod:status` | Check if server is running |
+| `npm run prod:logs` | Tail server logs |
+| `npm run prod:install` | Install macOS auto-start |
+| `npm run prod:uninstall` | Remove macOS auto-start |
+
+### PM2 Alternative
+
+If PM2 is installed globally (`npm i -g pm2`):
+
+```bash
+pm2 start ecosystem.config.cjs
+pm2 stop prompt-evolution
+pm2 logs prompt-evolution
+pm2 startup  # Enable PM2 auto-start
+```
+
+### Files
+
+- `scripts/start-server.sh` - Startup script
+- `scripts/stop-server.sh` - Shutdown script
+- `scripts/com.philokalos.prompt-evolution.plist` - macOS LaunchAgent
+- `ecosystem.config.cjs` - PM2 configuration
+- `logs/` - Server logs directory
+
 ## Repository Boundaries
 
 - `desktop/` is a standalone npm package with separate dependencies

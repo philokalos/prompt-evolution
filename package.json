@@ -19,7 +19,13 @@
     "start": "node dist/src/cli.js",
     "start:dashboard": "node dist/server/index.js",
     "parse": "tsx src/cli.ts parse",
-    "test": "vitest"
+    "test": "vitest",
+    "prod:start": "./scripts/start-server.sh",
+    "prod:stop": "./scripts/stop-server.sh",
+    "prod:status": "cat logs/server.pid 2>/dev/null && echo 'Running' || echo 'Not running'",
+    "prod:logs": "tail -f logs/server.log",
+    "prod:install": "cp scripts/com.philokalos.prompt-evolution.plist ~/Library/LaunchAgents/ && launchctl load ~/Library/LaunchAgents/com.philokalos.prompt-evolution.plist",
+    "prod:uninstall": "launchctl unload ~/Library/LaunchAgents/com.philokalos.prompt-evolution.plist 2>/dev/null; rm -f ~/Library/LaunchAgents/com.philokalos.prompt-evolution.plist"
   },
   "keywords": [
     "prompt",
