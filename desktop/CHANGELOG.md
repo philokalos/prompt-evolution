@@ -2,6 +2,32 @@
 
 All notable changes to PromptLint will be documented in this file.
 
+## [0.1.6] - 2026-01-02
+
+### Added
+- **Innovative Activation Methods**: Three ways to trigger analysis
+  - Global hotkey (Cmd+Shift+P, customizable)
+  - Clipboard Watch mode with automatic prompt detection
+  - Floating AI Context Button for one-click analysis
+- **Session Context Awareness**: Integration with Claude Code sessions
+  - Last exchange tracking (user message, assistant summary, modified files)
+  - Tech stack inference from project files
+  - Git branch detection
+- **Comprehensive Test Suite**: 183 tests across 4 test files
+  - claude-api.ts: 93.75% coverage (41 tests)
+  - prompt-rewriter.ts: 90.07% coverage (98 tests)
+  - clipboard-watcher.ts: 96.66% coverage (21 tests)
+  - ai-context-popup.ts: 94.28% coverage (23 tests)
+
+### Changed
+- Enhanced prompt rewriting with session context enrichment
+- Improved multi-variant AI generation with temperature control (0.3, 0.5, 0.7)
+- Better error handling for API failures (401, 429, 500, 503)
+
+### Fixed
+- Auto-updater with private repo support and user-friendly errors
+- TypeScript strict mode compliance in test files
+
 ## [0.1.1] - 2026-01-01
 
 ### Fixed
