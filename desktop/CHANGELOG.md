@@ -2,6 +2,31 @@
 
 All notable changes to PromptLint will be documented in this file.
 
+## [0.1.7] - 2026-01-04
+
+### Added
+- **Global Shortcut Validation**: Error handling and user notification
+  - Warning banner when shortcut registration fails (e.g., conflict with other apps)
+  - Automatic re-registration when shortcut setting is changed
+  - Guides user to Settings to configure alternative shortcut
+- **Expandable Text Areas**: Better UX for long prompts
+  - Auto-expanding input textarea (3 rows min, 300px max)
+  - Expand/collapse toggle for output (appears when >200 chars)
+  - Character count display for both input and output
+- **Help View**: In-app help accessible from tray menu
+  - Usage guide, keyboard shortcuts, and tips
+
+### Changed
+- **Smart Apply Button**: Only shown when applicable
+  - Hidden for blocked apps (Cursor, VS Code, Claude, terminals)
+  - These apps don't support AppleScript paste automation
+  - Copy button always available with Cmd+V guidance
+- **Responsive Layout**: Comparison grid adapts to screen size
+  - 1 column on mobile, 2 columns on desktop
+
+### Fixed
+- Global shortcut conflicts with apps like AntiGravity now handled gracefully
+
 ## [0.1.6] - 2026-01-02
 
 ### Added

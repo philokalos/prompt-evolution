@@ -1,6 +1,6 @@
 {
   "name": "promptlint",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Real-time prompt correction with AI-powered personalized learning",
   "type": "module",
   "main": "dist/main/index.js",
