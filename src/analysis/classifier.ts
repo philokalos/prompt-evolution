@@ -51,6 +51,11 @@ export interface ClassificationResult {
 }
 
 /**
+ * Type alias for backward compatibility
+ */
+export type PromptClassification = ClassificationResult;
+
+/**
  * Extracted prompt features
  */
 export interface PromptFeatures {

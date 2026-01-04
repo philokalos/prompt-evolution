@@ -411,7 +411,7 @@ export function improvePromptOffline(
   const keyChanges: string[] = [];
 
   // 카테고리별 기본 템플릿
-  const categoryTemplates = getCategoryTemplates(classification.category, language);
+  const categoryTemplates = getCategoryTemplates(classification.taskCategory, language);
 
   // 기술 스택 추론
   const techStack = context?.techStack?.join(', ') || inferTechStack(originalPrompt, language);
@@ -510,7 +510,7 @@ function extractGoal(prompt: string, classification: PromptClassification, langu
     'architecture': { ko: '시스템을 설계해 주세요', en: 'Design the system' },
   };
 
-  return categoryGoals[classification.category]?.[language] ||
+  return categoryGoals[classification.taskCategory]?.[language] ||
     (language === 'ko' ? '요청사항을 처리해 주세요' : 'Process the request');
 }
 
