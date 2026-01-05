@@ -34,14 +34,22 @@ npm run build:web              # Build React → web/dist/
 npm run build:all              # Build CLI + server + web
 npm run start:dashboard        # Production dashboard server
 
-# Web Linting
+# Testing
+npm test                       # Vitest (watch mode)
+npm test -- --run              # Run once without watch
+cd desktop && npm test         # Desktop app tests (Vitest)
+cd desktop && npm run test:run # Single run
+cd desktop && npm run test:coverage  # Coverage report
+
+# Linting
 cd web && npm run lint         # ESLint for React dashboard
+cd desktop && npm run lint     # ESLint for Electron app
+cd desktop && npm run typecheck  # TypeScript check all 4 configs
 
 # Desktop App (separate package)
 cd desktop
 npm run dev:electron           # Build all 4 configs + launch Electron
 npm run dist:mac               # macOS .dmg + .zip → release/
-npm run typecheck              # TypeScript check all configs
 ```
 
 ### CLI Commands
@@ -110,12 +118,28 @@ Project ID format: Encoded path with dashes (e.g., `-Users-foo-project`)
 - Hooks: useStats, useProjects, useInsights, useTrends, useSync
 - API client: Centralized in `api/client.ts`
 
+### Running Single Tests
+
+```bash
+# Root package (CLI/Server)
+npm test -- src/analysis/classifier.test.ts   # Single file
+npm test -- -t "pattern"                       # By test name
+
+# Desktop package
+cd desktop
+npm test -- src/main/__tests__/learning-engine.test.ts
+npm test -- -t "should detect project"
+```
+
 ### TypeScript Configs
 
 | Config | Scope | Output |
 |--------|-------|--------|
 | `tsconfig.json` | CLI (`src/`) | `dist/src/` |
 | `tsconfig.server.json` | CLI + Server | `dist/` |
+| `desktop/tsconfig.main.json` | Electron main process | `dist/main/` |
+| `desktop/tsconfig.preload.json` | Preload (CommonJS) | `dist/preload/*.cjs` |
+| `desktop/scripts/build-analysis.ts` | esbuild bundler | `dist/analysis/*.cjs` |
 
 ### Classification Types
 
