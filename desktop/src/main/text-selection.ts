@@ -22,11 +22,13 @@ const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 const BLOCKED_APPS = [
   'Cursor',           // Electron-based IDE - crashes with simulated keystrokes
   'Code',             // VS Code - may have similar issues
+  'Visual Studio Code', // VS Code alternative name
   'Claude',           // Claude desktop app
   'Terminal',         // Terminal apps handle clipboard differently
   'iTerm2',
   'Warp',
   'Hyper',
+  'Antigravity',      // AppleScript text selection capture doesn't work
 ];
 
 /**

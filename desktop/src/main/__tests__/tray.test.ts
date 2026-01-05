@@ -292,7 +292,7 @@ describe('tray', () => {
     });
 
     it('should return the tray instance', () => {
-      const _tray = createTray(mockState.mainWindow as unknown as Electron.BrowserWindow);
+      const tray = createTray(mockState.mainWindow as unknown as Electron.BrowserWindow);
 
       expect(tray).toBe(mockState.trayInstance);
     });

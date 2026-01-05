@@ -29,6 +29,20 @@ interface ClipboardPayload {
   isSourceAppBlocked: boolean; // True if source app doesn't support AppleScript paste
 }
 
+/**
+ * Empty state reason when no text is captured
+ */
+type EmptyStateReason = 'blocked-app' | 'no-selection' | 'empty-clipboard';
+
+/**
+ * Payload sent when hotkey is pressed but no text is captured
+ */
+interface EmptyStatePayload {
+  reason: EmptyStateReason;
+  appName: string | null;
+  capturedContext: CapturedContext | null;
+}
+
 // Expose protected APIs to renderer
 contextBridge.exposeInMainWorld('electronAPI', {
   // Clipboard operations
@@ -50,6 +64,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Analysis
   analyzePrompt: (text: string): Promise<unknown> => ipcRenderer.invoke('analyze-prompt', text),
+
+  // Phase 3.1: Async AI variant loading
+  getAIVariant: (text: string): Promise<unknown> => ipcRenderer.invoke('get-ai-variant', text),
 
   // History & Progress
   getHistory: (limit?: number): Promise<unknown[]> => ipcRenderer.invoke('get-history', limit),
@@ -150,6 +167,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeAllListeners('prompt-detected');
   },
 
+  // Empty state event (no text captured on hotkey)
+  onEmptyState: (callback: (payload: EmptyStatePayload) => void): void => {
+    ipcRenderer.removeAllListeners('empty-state');
+    ipcRenderer.on('empty-state', (_event, payload: EmptyStatePayload) => callback(payload));
+  },
+
+  removeEmptyStateListener: (): void => {
+    ipcRenderer.removeAllListeners('empty-state');
+  },
+
   // Open external URL
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('open-external', url),
 });
@@ -184,6 +211,20 @@ declare global {
     isSourceAppBlocked: boolean;
   }
 
+  /**
+   * Empty state reason when no text is captured
+   */
+  type EmptyStateReason = 'blocked-app' | 'no-selection' | 'empty-clipboard';
+
+  /**
+   * Payload sent when hotkey is pressed but no text is captured
+   */
+  interface EmptyStatePayload {
+    reason: EmptyStateReason;
+    appName: string | null;
+    capturedContext: CapturedContext | null;
+  }
+
   interface Window {
     electronAPI: {
       getClipboard: () => Promise<string>;
@@ -194,6 +235,7 @@ declare global {
       minimizeWindow: () => Promise<boolean>;
       applyImprovedPrompt: (text: string) => Promise<{ success: boolean; fallback?: string; message?: string }>;
       analyzePrompt: (text: string) => Promise<unknown>;
+      getAIVariant: (text: string) => Promise<unknown>;
       getHistory: (limit?: number) => Promise<unknown[]>;
       getScoreTrend: (days?: number) => Promise<unknown[]>;
       getGoldenAverages: (days?: number) => Promise<Record<string, number>>;
@@ -228,6 +270,9 @@ declare global {
       // Prompt detection
       onPromptDetected: (callback: (data: { text: string; confidence: number }) => void) => void;
       removePromptDetectedListener: () => void;
+      // Empty state (no text captured)
+      onEmptyState: (callback: (payload: EmptyStatePayload) => void) => void;
+      removeEmptyStateListener: () => void;
       // External links
       openExternal: (url: string) => Promise<void>;
     };

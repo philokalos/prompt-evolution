@@ -255,6 +255,7 @@ export interface RewriteResult {
   isAiGenerated?: boolean;
   aiExplanation?: string;
   needsSetup?: boolean; // API 미설정 시 true
+  isLoading?: boolean; // Phase 3.1: 비동기 AI 로딩 상태
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -883,6 +884,41 @@ function createAIPlaceholder(): RewriteResult {
     isAiGenerated: false,
     needsSetup: true,
   };
+}
+
+/**
+ * Phase 3.1: Generate only the AI variant asynchronously
+ * Called separately from main analysis to avoid blocking initial render
+ */
+export async function generateAIVariantOnly(
+  original: string,
+  evaluation: GuidelineEvaluation,
+  context?: SessionContext,
+  apiKey?: string,
+  goldenEvaluator?: GOLDENEvaluator
+): Promise<RewriteResult> {
+  if (!apiKey || apiKey.trim() === '') {
+    return {
+      rewrittenPrompt: '',
+      keyChanges: [],
+      confidence: 0,
+      variant: 'ai',
+      variantLabel: 'AI 추천',
+      isAiGenerated: false,
+      needsSetup: true,
+    };
+  }
+
+  try {
+    const aiVariant = await generateAIRewrite(apiKey, original, evaluation, context, goldenEvaluator);
+    if (aiVariant) {
+      return aiVariant;
+    }
+    return createAIPlaceholder();
+  } catch (error) {
+    console.warn('[PromptRewriter] Async AI variant generation failed:', error);
+    return createAIPlaceholder();
+  }
 }
 
 export { GuidelineEvaluation };

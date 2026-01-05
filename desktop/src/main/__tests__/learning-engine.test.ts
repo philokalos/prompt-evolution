@@ -237,29 +237,31 @@ describe('Learning Engine', () => {
       expect(aiVariant?.needsSetup).toBe(true);
     });
 
-    it('should use AI rewriting when enabled and API key is set', async () => {
+    it('should add AI loading placeholder when enabled and API key is set', async () => {
+      // Phase 3.1: analyzePrompt no longer calls generateAllVariants directly
+      // Instead, it adds a loading placeholder for async AI loading via get-ai-variant IPC
       mockState.getAIRewriteSettings.mockReturnValue({ enabled: true, apiKey: 'sk-test-key' });
-      mockState.generateAllVariants.mockResolvedValue([
-        { rewrittenPrompt: 'AI improved', variant: 'ai', confidence: 90, keyChanges: ['improved clarity'], variantLabel: 'AI 추천', isAiGenerated: true },
-        { rewrittenPrompt: 'conservative', variant: 'conservative', confidence: 60, keyChanges: [], variantLabel: '보수적' },
-      ]);
 
       const result = await analyzePrompt('Test prompt');
 
-      expect(mockState.generateAllVariants).toHaveBeenCalled();
-      expect(result.promptVariants.some(v => v.isAiGenerated)).toBe(true);
+      // Should have AI variant with isLoading flag
+      const aiVariant = result.promptVariants.find(v => v.variant === 'ai');
+      expect(aiVariant).toBeDefined();
+      expect(aiVariant?.isLoading).toBe(true);
+      expect(aiVariant?.isAiGenerated).toBe(false);
     });
 
-    it('should handle AI rewrite failure gracefully', async () => {
+    it('should add AI placeholder when AI is enabled (async loading flow)', async () => {
+      // The actual AI generation happens via separate get-ai-variant IPC call
       mockState.getAIRewriteSettings.mockReturnValue({ enabled: true, apiKey: 'sk-test-key' });
-      mockState.generateAllVariants.mockRejectedValue(new Error('API error'));
 
       const result = await analyzePrompt('Test prompt');
 
-      // Should still have variants (with AI placeholder)
+      // Should have AI loading placeholder
       expect(result.promptVariants.length).toBeGreaterThan(0);
       const aiVariant = result.promptVariants.find(v => v.variant === 'ai');
-      expect(aiVariant?.needsSetup).toBe(true);
+      expect(aiVariant).toBeDefined();
+      expect(aiVariant?.isLoading).toBe(true);
     });
 
     it('should save analysis to history', async () => {

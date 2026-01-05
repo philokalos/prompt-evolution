@@ -549,6 +549,9 @@ describe('text-selection', () => {
         'TERMINAL',
         'claude',
         'CLAUDE',
+        'antigravity',
+        'ANTIGRAVITY',
+        'Antigravity',
       ];
 
       for (const app of blockedApps) {

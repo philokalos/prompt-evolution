@@ -24,6 +24,9 @@ export interface ElectronAPI {
   // Analysis
   analyzePrompt: (text: string) => Promise<AnalysisResultWithContext>;
 
+  // Phase 3.1: Async AI variant loading
+  getAIVariant: (text: string) => Promise<AIVariantResult>;
+
   // History & Progress
   getHistory: (limit?: number) => Promise<unknown[]>;
   getScoreTrend: (days?: number) => Promise<unknown[]>;
@@ -67,6 +70,10 @@ export interface ElectronAPI {
   onPromptDetected: (callback: (data: { text: string; confidence: number }) => void) => void;
   removePromptDetectedListener: () => void;
 
+  // Empty state (no text captured)
+  onEmptyState: (callback: (payload: EmptyStatePayload) => void) => void;
+  removeEmptyStateListener: () => void;
+
   // External links
   openExternal: (url: string) => Promise<void>;
 }
@@ -100,6 +107,36 @@ export interface ClipboardPayload {
   text: string;
   capturedContext: CapturedContext | null;
   isSourceAppBlocked: boolean; // True if source app doesn't support AppleScript paste
+}
+
+/**
+ * Empty state reason when no text is captured
+ * Used to show contextual guidance to user
+ */
+export type EmptyStateReason = 'blocked-app' | 'no-selection' | 'empty-clipboard';
+
+/**
+ * Payload sent when hotkey is pressed but no text is captured
+ */
+export interface EmptyStatePayload {
+  reason: EmptyStateReason;
+  appName: string | null;
+  capturedContext: CapturedContext | null;
+}
+
+// Phase 3.1: Async AI variant result type
+export type VariantType = 'conservative' | 'balanced' | 'comprehensive' | 'ai';
+
+export interface AIVariantResult {
+  rewrittenPrompt: string;
+  keyChanges: string[];
+  confidence: number;
+  variant: VariantType;
+  variantLabel: string;
+  isAiGenerated?: boolean;
+  aiExplanation?: string;
+  needsSetup?: boolean;
+  isLoading?: boolean;
 }
 
 // Phase 2: History-based recommendation types

@@ -19,7 +19,7 @@ import {
   getImprovementAnalysis,
   getStats,
 } from './db/index.js';
-import { generatePromptVariants, generateAllVariants, RewriteResult, VariantType, type GOLDENEvaluator } from './prompt-rewriter.js';
+import { generatePromptVariants, generateAllVariants, generateAIVariantOnly, RewriteResult, VariantType, type GOLDENEvaluator } from './prompt-rewriter.js';
 import { getAIRewriteSettings, getLastCapturedContext } from './index.js';
 import {
   getSessionContext,
@@ -318,55 +318,22 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
 
     const result = convertToAnalysisResult(evaluation, text, classification, sessionContext);
 
-    // Try AI-powered prompt rewriting if enabled (Phase 3)
+    // Phase 3.1: Async AI loading - Add loading placeholder instead of blocking
+    // AI variant will be loaded separately via get-ai-variant IPC
     const aiSettings = getAIRewriteSettings();
     if (aiSettings.enabled && aiSettings.apiKey) {
-      try {
-        console.log('[LearningEngine] Attempting AI-powered rewrite with multi-variant generation...');
-
-        // v2: Create GOLDEN evaluator wrapper for multi-variant selection
-        const goldenEvaluator: GOLDENEvaluator | undefined = evaluatePromptAgainstGuidelines
-          ? (inputText: string) => {
-              const evalResult = evaluatePromptAgainstGuidelines!(inputText);
-              return {
-                total: evalResult.goldenScore.total,
-                goal: evalResult.goldenScore.goal,
-                output: evalResult.goldenScore.output,
-                limits: evalResult.goldenScore.limits,
-                data: evalResult.goldenScore.data,
-                evaluation: evalResult.goldenScore.evaluation,
-                next: evalResult.goldenScore.next,
-              };
-            }
-          : undefined;
-
-        const aiVariants = await generateAllVariants(
-          text,
-          evaluation,
-          sessionContext || undefined,
-          aiSettings.apiKey,
-          goldenEvaluator
-        );
-
-        // Always replace variants - generateAllVariants includes AI variant or placeholder
-        if (aiVariants.length > 0) {
-          result.promptVariants = aiVariants;
-          const hasRealAI = aiVariants.some(v => v.isAiGenerated);
-          console.log(`[LearningEngine] Variants updated (AI ${hasRealAI ? 'succeeded' : 'placeholder'})`);
-        }
-      } catch (aiError) {
-        console.warn('[LearningEngine] AI rewrite failed, adding placeholder:', aiError);
-        // Add AI placeholder at the beginning so user sees the AI tab with error state
-        result.promptVariants.unshift({
-          rewrittenPrompt: '',
-          keyChanges: [],
-          confidence: 0,
-          variant: 'ai' as VariantType,
-          variantLabel: 'AI 추천',
-          isAiGenerated: false,
-          needsSetup: true, // Shows setup UI with error hint
-        });
-      }
+      // Add AI loading placeholder at the beginning
+      result.promptVariants.unshift({
+        rewrittenPrompt: '',
+        keyChanges: [],
+        confidence: 0,
+        variant: 'ai' as VariantType,
+        variantLabel: 'AI 추천',
+        isAiGenerated: false,
+        needsSetup: false,
+        isLoading: true, // New flag for async loading state
+      } as RewriteResult);
+      console.log('[LearningEngine] AI placeholder added (async loading enabled)');
     }
 
     // Enrich with history-based recommendations (Phase 2)
@@ -535,6 +502,91 @@ export function registerLearningEngineHandlers(): void {
 
   ipcMain.handle('get-context-recommendations', async (_event, category: string | undefined, projectPath: string | undefined) => {
     return getContextRecommendations(category, projectPath);
+  });
+
+  // Phase 3.1: Async AI variant loading handler
+  ipcMain.handle('get-ai-variant', async (_event, text: string) => {
+    const aiSettings = getAIRewriteSettings();
+    if (!aiSettings.enabled || !aiSettings.apiKey) {
+      return {
+        rewrittenPrompt: '',
+        keyChanges: [],
+        confidence: 0,
+        variant: 'ai' as VariantType,
+        variantLabel: 'AI 추천',
+        isAiGenerated: false,
+        needsSetup: true,
+      };
+    }
+
+    // Load modules if not already loaded
+    if (!evaluatePromptAgainstGuidelines) {
+      const loaded = await loadAnalysisModules();
+      if (!loaded) {
+        console.warn('[LearningEngine] Cannot generate AI variant - modules not loaded');
+        return {
+          rewrittenPrompt: '',
+          keyChanges: [],
+          confidence: 0,
+          variant: 'ai' as VariantType,
+          variantLabel: 'AI 추천',
+          isAiGenerated: false,
+          needsSetup: false,
+        };
+      }
+    }
+
+    try {
+      // Get session context
+      const capturedContext = getLastCapturedContext();
+      let sessionContext: ActiveSessionContext | null = null;
+
+      if (capturedContext?.project) {
+        sessionContext = await getSessionContextForCapturedProject(capturedContext);
+      } else {
+        sessionContext = await getActiveWindowSessionContext();
+      }
+
+      // Run evaluation for AI variant generation
+      const evaluation = evaluatePromptAgainstGuidelines!(text);
+
+      // Create GOLDEN evaluator for multi-variant selection
+      const goldenEvaluator: GOLDENEvaluator = (prompt: string) => {
+        const evalResult = evaluatePromptAgainstGuidelines!(prompt);
+        return {
+          goal: evalResult.goldenScore.goal,
+          output: evalResult.goldenScore.output,
+          limits: evalResult.goldenScore.limits,
+          data: evalResult.goldenScore.data,
+          evaluation: evalResult.goldenScore.evaluation,
+          next: evalResult.goldenScore.next,
+          total: evalResult.goldenScore.total,
+        };
+      };
+
+      // Generate AI variant
+      const aiVariant = await generateAIVariantOnly(
+        text,
+        evaluation,
+        sessionContext || undefined,
+        aiSettings.apiKey,
+        goldenEvaluator
+      );
+
+      console.log('[LearningEngine] AI variant generated:', aiVariant.isAiGenerated ? 'success' : 'fallback');
+      return aiVariant;
+    } catch (error) {
+      console.error('[LearningEngine] AI variant generation error:', error);
+      return {
+        rewrittenPrompt: '',
+        keyChanges: [],
+        confidence: 0,
+        variant: 'ai' as VariantType,
+        variantLabel: 'AI 추천',
+        isAiGenerated: false,
+        needsSetup: false,
+      };
+    }
   });
 
   // Initialize by loading modules

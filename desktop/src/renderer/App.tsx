@@ -9,7 +9,7 @@ import PromptComparison, { RewriteResult } from './components/PromptComparison';
 import ContextIndicator, { SessionContextInfo } from './components/ContextIndicator';
 import HistoryRecommendations from './components/HistoryRecommendations';
 import Settings from './components/Settings';
-import type { DetectedProject, HistoryRecommendation } from './electron.d';
+import type { DetectedProject, HistoryRecommendation, EmptyStatePayload, AIVariantResult } from './electron.d';
 
 // Analysis result types
 interface Issue {
@@ -77,6 +77,7 @@ function App() {
   const [currentProject, setCurrentProject] = useState<DetectedProject | null>(null);
   const [shortcutError, setShortcutError] = useState<{ shortcut: string; message: string } | null>(null);
   const [isSourceAppBlocked, setIsSourceAppBlocked] = useState(false); // True if source app doesn't support Apply
+  const [emptyState, setEmptyState] = useState<EmptyStatePayload | null>(null); // Empty state when no text captured
 
   // Listen for clipboard text from main process
   useEffect(() => {
@@ -100,11 +101,23 @@ function App() {
         console.log('[Renderer] Captured project:', capturedContext.project.projectPath);
       }
       console.log('[Renderer] Calling setOriginalPrompt and analyzePrompt');
+      // Clear empty state when text is received
+      setEmptyState(null);
       setOriginalPrompt(text);
       setIsSourceAppBlocked(blocked);
       analyzePrompt(text);
     });
     console.log('[Renderer] Clipboard listener registered');
+
+    // Listen for empty state (no text captured on hotkey)
+    window.electronAPI.onEmptyState((payload) => {
+      console.log('[Renderer] Empty state received:', payload.reason, 'app:', payload.appName);
+      // Clear any previous analysis and show contextual guidance
+      setAnalysis(null);
+      setOriginalPrompt('');
+      setEmptyState(payload);
+    });
+    console.log('[Renderer] Empty state listener registered');
 
     // Listen for project changes (polling)
     window.electronAPI.onProjectChanged((project) => {
@@ -134,6 +147,7 @@ function App() {
 
     return () => {
       window.electronAPI.removeClipboardListener();
+      window.electronAPI.removeEmptyStateListener();
       window.electronAPI.removeProjectListener();
       window.electronAPI.removeNavigateListener();
       window.electronAPI.removeShortcutFailedListener();
@@ -160,7 +174,45 @@ function App() {
     try {
       // Call the analysis engine via IPC
       const result = await window.electronAPI.analyzePrompt(text);
-      setAnalysis(result as AnalysisResult);
+      const analysisResult = result as AnalysisResult;
+      setAnalysis(analysisResult);
+
+      // Phase 3.1: Check if AI variant needs async loading
+      const aiVariantIndex = analysisResult.promptVariants?.findIndex(
+        (v: RewriteResult) => v.variant === 'ai' && v.isLoading
+      );
+
+      if (aiVariantIndex !== undefined && aiVariantIndex >= 0) {
+        console.log('[Renderer] AI variant loading async...');
+        // Load AI variant asynchronously (don't await, fire-and-forget)
+        window.electronAPI.getAIVariant(text).then((aiVariant: AIVariantResult) => {
+          console.log('[Renderer] AI variant loaded:', aiVariant?.isAiGenerated);
+          // Update the analysis with the loaded AI variant
+          setAnalysis((prev) => {
+            if (!prev) return prev;
+            const updatedVariants = [...prev.promptVariants];
+            if (updatedVariants[aiVariantIndex]) {
+              updatedVariants[aiVariantIndex] = aiVariant as RewriteResult;
+            }
+            return { ...prev, promptVariants: updatedVariants };
+          });
+        }).catch((err: unknown) => {
+          console.error('[Renderer] AI variant loading failed:', err);
+          // Update with error state
+          setAnalysis((prev) => {
+            if (!prev) return prev;
+            const updatedVariants = [...prev.promptVariants];
+            if (updatedVariants[aiVariantIndex]) {
+              updatedVariants[aiVariantIndex] = {
+                ...updatedVariants[aiVariantIndex],
+                isLoading: false,
+                needsSetup: false,
+              };
+            }
+            return { ...prev, promptVariants: updatedVariants };
+          });
+        });
+      }
     } catch (error) {
       console.error('Analysis failed:', error);
       // Fallback to basic analysis if IPC fails
@@ -215,6 +267,7 @@ function App() {
   const handleNewAnalysis = () => {
     setAnalysis(null);
     setOriginalPrompt('');
+    setEmptyState(null);
     setShowDirectInput(true);
   };
 
@@ -400,56 +453,134 @@ function App() {
               <ContextIndicator context={projectToContextInfo(currentProject)} />
             )}
 
-            {/* Usage Guide */}
+            {/* Contextual Empty State or Usage Guide */}
             {!showDirectInput && (
               <div className="flex-1 flex flex-col items-center justify-center px-4">
-                <BarChart3 size={40} className="mb-4 text-accent-primary opacity-70" />
-                <h2 className="text-base font-semibold text-gray-200 mb-4">프롬프트 품질 개선하기</h2>
+                {/* Contextual guidance when no text captured */}
+                {emptyState ? (
+                  <>
+                    {emptyState.reason === 'blocked-app' ? (
+                      <>
+                        <div className="w-12 h-12 mb-4 bg-amber-500/20 rounded-full flex items-center justify-center">
+                          <span className="text-2xl">📋</span>
+                        </div>
+                        <h2 className="text-base font-semibold text-gray-200 mb-2">클립보드 모드</h2>
+                        <p className="text-sm text-gray-400 text-center mb-4">
+                          <span className="text-amber-400 font-medium">{emptyState.appName || '현재 앱'}</span>에서는
+                          <br />텍스트를 먼저 복사해주세요
+                        </p>
+                        <div className="w-full max-w-xs space-y-3 text-left">
+                          <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg border border-amber-500/20">
+                            <div className="flex-shrink-0 w-6 h-6 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-200">텍스트 복사</p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">C</kbd>로 복사
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
+                            <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-200">분석 실행</p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⇧</kbd>{' '}
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">P</kbd> 다시 누르기
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="mt-4 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                          <p className="text-xs text-blue-400/90">
+                            ℹ️ 일부 앱(VS Code, Cursor 등)에서는 자동 선택이 지원되지 않습니다
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 mb-4 bg-accent-primary/20 rounded-full flex items-center justify-center">
+                          <BarChart3 size={24} className="text-accent-primary" />
+                        </div>
+                        <h2 className="text-base font-semibold text-gray-200 mb-2">텍스트를 선택해주세요</h2>
+                        <p className="text-sm text-gray-400 text-center mb-4">
+                          분석할 프롬프트를 선택하거나 복사해주세요
+                        </p>
+                        <div className="w-full max-w-xs space-y-3 text-left">
+                          <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg border border-accent-primary/20">
+                            <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-200">텍스트 선택</p>
+                              <p className="text-xs text-gray-500 mt-0.5">드래그하여 텍스트 선택 또는 Cmd+C로 복사</p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
+                            <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-200">분석 실행</p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⇧</kbd>{' '}
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">P</kbd> 다시 누르기
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <BarChart3 size={40} className="mb-4 text-accent-primary opacity-70" />
+                    <h2 className="text-base font-semibold text-gray-200 mb-4">프롬프트 품질 개선하기</h2>
 
-                {/* Step-by-step guide */}
-                <div className="w-full max-w-xs space-y-3 text-left">
-                  {/* Step 1 */}
-                  <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
-                    <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">1</div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-200">프롬프트 선택</p>
-                      <p className="text-xs text-gray-500 mt-0.5">개선하고 싶은 텍스트를 드래그해서 선택</p>
+                    {/* Step-by-step guide */}
+                    <div className="w-full max-w-xs space-y-3 text-left">
+                      {/* Step 1 */}
+                      <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
+                        <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-200">프롬프트 선택</p>
+                          <p className="text-xs text-gray-500 mt-0.5">개선하고 싶은 텍스트를 드래그해서 선택</p>
+                        </div>
+                      </div>
+
+                      {/* Step 2 */}
+                      <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
+                        <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-200">분석 실행</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
+                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⇧</kbd>{' '}
+                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">P</kbd> 누르기
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Step 3 */}
+                      <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
+                        <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">3</div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-200">개선안 적용</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            <span className="text-accent-success">[적용]</span> 버튼 또는{' '}
+                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
+                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">Enter</kbd>
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Step 2 */}
-                  <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
-                    <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">2</div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-200">분석 실행</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
-                        <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⇧</kbd>{' '}
-                        <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">P</kbd> 누르기
+                    {/* Tip */}
+                    <div className="mt-4 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                      <p className="text-xs text-amber-400/90">
+                        💡 적용하면 원본 텍스트가 자동으로 개선된 프롬프트로 교체됩니다
                       </p>
                     </div>
-                  </div>
-
-                  {/* Step 3 */}
-                  <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
-                    <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">3</div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-200">개선안 적용</p>
-                      <p className="text-xs text-gray-500 mt-0.5">
-                        <span className="text-accent-success">[적용]</span> 버튼 또는{' '}
-                        <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
-                        <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">Enter</kbd>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Tip */}
-                <div className="mt-4 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                  <p className="text-xs text-amber-400/90">
-                    💡 적용하면 원본 텍스트가 자동으로 개선된 프롬프트로 교체됩니다
-                  </p>
-                </div>
+                  </>
+                )}
               </div>
             )}
 

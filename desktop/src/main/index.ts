@@ -150,6 +150,31 @@ function sendTextToRenderer(text: string, capturedContext: CapturedContext | nul
 }
 
 /**
+ * Empty state reason type
+ */
+type EmptyStateReason = 'blocked-app' | 'no-selection' | 'empty-clipboard';
+
+/**
+ * Send empty state notification to renderer.
+ * Called when hotkey is pressed but no text is captured.
+ * Shows contextual guidance to user based on reason.
+ */
+function sendEmptyStateToRenderer(
+  reason: EmptyStateReason,
+  appName: string | null,
+  capturedContext: CapturedContext | null
+): void {
+  const payload = { reason, appName, capturedContext };
+
+  if (isRendererReady && mainWindow) {
+    console.log('[Main] Sending empty-state IPC with reason:', reason, 'app:', appName);
+    mainWindow.webContents.send('empty-state', payload);
+  } else {
+    console.log('[Main] Renderer not ready, cannot send empty-state');
+  }
+}
+
+/**
  * Position the window near the mouse cursor.
  * Places window to the right of cursor, or left if not enough space.
  * Handles multi-monitor setups correctly.
@@ -383,9 +408,32 @@ function registerShortcut(): boolean {
     const { text: capturedText, source } = await captureTextForAnalysis(captureMode);
     console.log(`[Main] Captured text from ${source} (mode: ${captureMode}):`, capturedText?.substring(0, 50));
 
-    // No text captured - do nothing
+    // No text captured - show empty state with contextual guidance
     if (!capturedText) {
-      console.log('[Main] No text captured, ignoring');
+      const sourceAppBlocked = isBlockedApp(lastFrontmostApp);
+      const clipboardContent = clipboard.readText();
+
+      // Determine the reason for empty state
+      let reason: EmptyStateReason;
+      if (sourceAppBlocked) {
+        // Blocked app (VSCode, Antigravity, etc.) - clipboard fallback was used but empty
+        reason = clipboardContent ? 'no-selection' : 'blocked-app';
+      } else {
+        // Normal app - no text was selected
+        reason = 'no-selection';
+      }
+
+      console.log(`[Main] No text captured, showing empty state (reason: ${reason}, app: ${lastFrontmostApp})`);
+
+      // Send empty state to renderer
+      sendEmptyStateToRenderer(reason, lastFrontmostApp, lastCapturedContext);
+
+      // Show window with guidance
+      if (!mainWindow.isVisible()) {
+        positionWindowNearCursor();
+        mainWindow.showInactive();
+        console.log('[Main] Showing window with empty state guidance');
+      }
       return;
     }
 
