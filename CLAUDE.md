@@ -275,3 +275,102 @@ pm2 startup  # Enable PM2 auto-start
 - `desktop/` is a standalone npm package with separate dependencies
 - `web/` has its own package.json and builds independently
 - Parent's `src/analysis/` modules are shared via esbuild bundling into desktop
+
+## Domain Concepts
+
+### GOLDEN 체크리스트
+```typescript
+// guidelines-evaluator.ts:373-443
+G (Goal): 목표 명확성
+O (Output): 출력 형식 지정
+L (Limits): 제약조건/경계
+D (Data): 컨텍스트/데이터 제공
+E (Evaluation): 성공/검증 기준
+N (Next): 후속 단계 안내
+
+// 점수: 0-1 per dimension, length bonus 최대 +0.15 (50+ words)
+```
+
+### PromptIntent vs TaskCategory
+```typescript
+// Intent (사용자 의도)
+command | question | instruction | feedback | context | clarification | unknown
+
+// Category (작업 도메인)
+code-generation | code-review | bug-fix | refactoring |
+explanation | documentation | testing | architecture |
+deployment | data-analysis | general | unknown
+```
+
+### Quality Signals (7가지)
+```typescript
+positive_feedback | negative_feedback | retry_attempt |
+task_completion | question | command | context_providing
+```
+- Confidence: 키워드 수 × 0.3, 짧은 콘텐츠 보너스 1.1x
+
+## ⚠️ Anti-Patterns
+
+### ❌ ESM Import .js 확장자 누락
+```typescript
+// ❌ 잘못된 패턴
+import { classifyPrompt } from './classifier';
+
+// ✓ 올바른 패턴
+import { classifyPrompt } from './classifier.js';
+```
+- package.json: `"type": "module"`
+
+### ❌ UserContent 타입 미처리
+```typescript
+type UserContent = string | UserContentBlock[];
+
+// ❌ 위험한 패턴
+const text = content;  // array일 수 있음
+
+// ✓ 올바른 패턴
+function extractUserContent(content: UserContent): string {
+  if (typeof content === 'string') return content;
+  return content
+    .filter((item): item is { type: 'text'; text: string } => item.type === 'text')
+    .map((item) => item.text)
+    .join('\n');
+}
+```
+
+### ❌ JSONL 파싱 Silent 실패
+```typescript
+for (const line of lines) {
+  try { records.push(JSON.parse(line)); }
+  catch { continue; }  // 로깅 없이 skip
+}
+```
+- 일부 conversation 누락 가능
+
+### ❌ LLM 출력에 Placeholder 허용
+```typescript
+// AI가 반환할 수 있음:
+"Goal: [여기에_구체적인_기능명] component"
+// 반드시 검증: improved.includes('[') → reject
+```
+
+### ❌ Intent/Category Confidence 혼동
+```typescript
+// 잘못된 패턴
+if (ruleResult.intentConfidence >= 0.7) { ... }
+
+// 올바른 패턴
+if (ruleResult.intentConfidence >= 0.7 &&
+    ruleResult.categoryConfidence >= 0.7) { ... }
+```
+
+## Troubleshooting
+
+| 증상 | 원인 | 해결 |
+|------|------|------|
+| Import 오류 | .js 확장자 누락 | 모든 import에 .js 추가 |
+| Conversation 누락 | JSONL 파싱 실패 | 라인 번호 로깅 추가 |
+| 모든 분류 "unknown" | Confidence 임계값 너무 높음 | 0.7 → 0.6 조정 |
+| 빈 Insights 리포트 | 2턴 미만 대화 | 최소 턴 수 검증 추가 |
+| LLM 개선 실패 | Placeholder 미필터링 | `[`, `TODO` 문자열 검증 |
+| API quota 초과 | Rule-based classifier 미사용 | Confidence 임계값 낮춰서 rule 우선 |
