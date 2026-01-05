@@ -76,6 +76,9 @@ export interface ElectronAPI {
 
   // External links
   openExternal: (url: string) => Promise<void>;
+
+  // App version
+  getAppVersion: () => Promise<string>;
 }
 
 export interface DetectedProject {

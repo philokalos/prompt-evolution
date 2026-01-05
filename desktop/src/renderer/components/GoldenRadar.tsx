@@ -1,4 +1,5 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import { GOLDEN_EXPLANATIONS } from '../../shared/constants';
 
 interface GoldenRadarProps {
   scores: {
@@ -26,6 +27,7 @@ const GRID_LEVELS = [20, 40, 60, 80, 100] as const;
 export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
   const center = size / 2;
   const maxRadius = size / 2 - 30;
+  const [hoveredDimension, setHoveredDimension] = useState<string | null>(null);
 
   // Calculate points for each dimension
   const points = useMemo(() => {
@@ -180,38 +182,72 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
           </g>
         ))}
 
-        {/* Labels */}
-        {points.map((point) => (
-          <text
-            key={`label-${point.key}`}
-            x={point.labelX}
-            y={point.labelY}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            className="text-xs font-bold fill-gray-400"
-          >
-            {point.label}
-          </text>
-        ))}
+        {/* Labels - Interactive with hover */}
+        {points.map((point) => {
+          const explanation = GOLDEN_EXPLANATIONS[point.label];
+          return (
+            <g
+              key={`label-${point.key}`}
+              onMouseEnter={() => setHoveredDimension(point.label)}
+              onMouseLeave={() => setHoveredDimension(null)}
+              className="cursor-pointer"
+            >
+              <circle
+                cx={point.labelX}
+                cy={point.labelY}
+                r="12"
+                fill="transparent"
+                className="hover:fill-gray-800"
+              />
+              <text
+                x={point.labelX}
+                y={point.labelY}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className={`text-xs font-bold transition-colors ${
+                  hoveredDimension === point.label ? 'fill-indigo-400' : 'fill-gray-400'
+                }`}
+              >
+                {point.label}
+              </text>
+              <title>{`${explanation.name} (${explanation.nameKo}): ${explanation.short}`}</title>
+            </g>
+          );
+        })}
       </svg>
+
+      {/* Hover tooltip */}
+      {hoveredDimension && (
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-gray-800 border border-gray-700 rounded-lg p-2 text-xs max-w-[200px] shadow-lg z-10">
+          <div className="font-bold text-indigo-400">
+            {GOLDEN_EXPLANATIONS[hoveredDimension].name} ({GOLDEN_EXPLANATIONS[hoveredDimension].nameKo})
+          </div>
+          <div className="text-gray-300 mt-1">
+            {GOLDEN_EXPLANATIONS[hoveredDimension].short}
+          </div>
+        </div>
+      )}
 
       {/* Score legend */}
       <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-4 text-xs">
-        {points.map((point) => (
-          <div
-            key={`score-${point.key}`}
-            className="flex items-center gap-1"
-            title={point.fullName}
-          >
-            <span className="text-gray-500">{point.label}</span>
-            <span
-              className="font-medium"
-              style={{ color: getScoreColor(point.value) }}
+        {points.map((point) => {
+          const explanation = GOLDEN_EXPLANATIONS[point.label];
+          return (
+            <div
+              key={`score-${point.key}`}
+              className="flex items-center gap-1 cursor-help"
+              title={`${explanation.name} (${explanation.nameKo})\n${explanation.short}\n\n💡 ${explanation.improvement}`}
             >
-              {point.value}%
-            </span>
-          </div>
-        ))}
+              <span className="text-gray-500">{point.label}</span>
+              <span
+                className="font-medium"
+                style={{ color: getScoreColor(point.value) }}
+              >
+                {point.value}%
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -526,7 +526,13 @@ function handleProjectChange(project: DetectedProject | null): void {
   }
 
   // Notify renderer of project change (with safety checks)
-  if (isRendererReady && mainWindow && !mainWindow.isDestroyed()) {
+  if (
+    isRendererReady &&
+    mainWindow &&
+    !mainWindow.isDestroyed() &&
+    mainWindow.webContents &&
+    !mainWindow.webContents.isDestroyed()
+  ) {
     try {
       mainWindow.webContents.send('project-changed', project);
     } catch {
@@ -634,6 +640,11 @@ function initAIContextPolling(): void {
 // IPC Handlers
 ipcMain.handle('get-clipboard', () => {
   return clipboard.readText();
+});
+
+// IPC Handler: Get app version (for Settings display)
+ipcMain.handle('get-app-version', () => {
+  return app.getVersion();
 });
 
 ipcMain.handle('set-clipboard', (_event, text: string) => {

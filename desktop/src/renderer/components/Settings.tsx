@@ -40,11 +40,14 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [, setSaving] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [appVersion, setAppVersion] = useState<string>('');
 
-  // Load settings on mount
+  // Load settings and version on mount
   useEffect(() => {
     if (isOpen) {
       loadSettings();
+      // Load app version
+      window.electronAPI.getAppVersion().then(setAppVersion).catch(console.error);
     }
   }, [isOpen]);
 
@@ -382,7 +385,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
               {/* App Info */}
               <div className="pt-4 border-t border-dark-border">
                 <div className="text-xs text-gray-500 space-y-1">
-                  <p>PromptLint v0.1.4</p>
+                  <p>PromptLint v{appVersion || '...'}</p>
                   <p>© 2025 philokalos</p>
                 </div>
               </div>

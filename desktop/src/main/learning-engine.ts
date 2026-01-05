@@ -299,11 +299,19 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
     const capturedContext = getLastCapturedContext();
     let sessionContext: ActiveSessionContext | null = null;
 
-    if (capturedContext?.project) {
-      // Use captured context - this ensures correct project even if user switched windows
-      sessionContext = await getSessionContextForCapturedProject(capturedContext);
+    if (capturedContext) {
+      // We have captured context from hotkey time
+      if (capturedContext.project) {
+        // IDE app with detected project - use captured project context
+        sessionContext = await getSessionContextForCapturedProject(capturedContext);
+      } else {
+        // Non-IDE app (e.g., Antigravity, Safari) - no project context
+        // Do NOT fallback to real-time detection to avoid showing wrong project
+        console.log('[LearningEngine] Non-IDE app detected, no project context');
+        sessionContext = null;
+      }
     } else {
-      // Fallback to real-time detection (legacy behavior)
+      // No captured context available - use real-time detection (legacy behavior)
       sessionContext = await getActiveWindowSessionContext();
     }
 

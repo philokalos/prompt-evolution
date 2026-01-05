@@ -41,10 +41,14 @@ cd desktop && npm test         # Desktop app tests (Vitest)
 cd desktop && npm run test:run # Single run
 cd desktop && npm run test:coverage  # Coverage report
 
-# Linting
+# Linting (ESLint v9 flat config)
 cd web && npm run lint         # ESLint for React dashboard
 cd desktop && npm run lint     # ESLint for Electron app
-cd desktop && npm run typecheck  # TypeScript check all 4 configs
+
+# TypeScript Checks
+npx tsc --noEmit               # CLI (src/) type check
+npx tsc -p tsconfig.server.json --noEmit  # CLI + server type check
+cd desktop && npm run typecheck  # Desktop: all 4 configs (main, preload, renderer, shared)
 
 # Desktop App (separate package)
 cd desktop
@@ -121,14 +125,16 @@ Project ID format: Encoded path with dashes (e.g., `-Users-foo-project`)
 ### Running Single Tests
 
 ```bash
-# Root package (CLI/Server)
+# Root package (CLI/Server) - Vitest
 npm test -- src/analysis/classifier.test.ts   # Single file
-npm test -- -t "pattern"                       # By test name
+npm test -- -t "pattern"                       # By test name pattern
+npm test -- --run src/analysis/classifier.test.ts  # Single run (no watch)
 
-# Desktop package
+# Desktop package - Vitest
 cd desktop
 npm test -- src/main/__tests__/learning-engine.test.ts
 npm test -- -t "should detect project"
+npm run test:run -- src/main/__tests__/learning-engine.test.ts  # Single run
 ```
 
 ### TypeScript Configs

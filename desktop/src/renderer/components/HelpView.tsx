@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Keyboard,
   MonitorSmartphone,
@@ -12,7 +12,11 @@ import {
   ChevronRight,
   Command,
   ExternalLink,
+  Target,
+  CheckCircle,
+  AlertCircle,
 } from 'lucide-react';
+import { GOLDEN_EXPLANATIONS, APP_COMPATIBILITY, shortcutToKeys, formatShortcut } from '../../shared/constants';
 
 interface HelpSection {
   id: string;
@@ -27,7 +31,12 @@ interface HelpSection {
   badge?: 'essential' | 'optional' | 'advanced';
 }
 
-const helpSections: HelpSection[] = [
+// Generate help sections with dynamic shortcut
+function createHelpSections(currentShortcut: string): HelpSection[] {
+  const shortcutKeys = shortcutToKeys(currentShortcut);
+  const shortcutDisplay = formatShortcut(currentShortcut);
+
+  return [
   {
     id: 'hotkey',
     icon: <Keyboard size={20} />,
@@ -37,7 +46,7 @@ const helpSections: HelpSection[] = [
     details: {
       howToUse: [
         '분석하고 싶은 텍스트를 선택 (드래그)',
-        '⌘⇧P (또는 설정한 단축키) 누르기',
+        `${shortcutDisplay} 누르기`,
         '선택한 텍스트가 자동으로 분석됨',
       ],
       tips: [
@@ -45,7 +54,7 @@ const helpSections: HelpSection[] = [
         '일부 앱에서는 텍스트 선택 후 ⌘C 복사가 필요할 수 있음',
       ],
       shortcuts: [
-        { keys: ['⌘', '⇧', 'P'], action: '분석 실행 (기본값)' },
+        { keys: shortcutKeys, action: '분석 실행' },
         { keys: ['Esc'], action: '창 닫기' },
       ],
     },
@@ -193,9 +202,24 @@ const helpSections: HelpSection[] = [
     },
   },
 ];
+}
 
 function HelpView() {
   const [expandedSection, setExpandedSection] = useState<string | null>('hotkey');
+  const [currentShortcut, setCurrentShortcut] = useState<string>('CommandOrControl+Shift+P');
+
+  // Load current shortcut from settings
+  useEffect(() => {
+    window.electronAPI?.getSettings?.().then((settings) => {
+      if (settings?.shortcut) {
+        setCurrentShortcut(settings.shortcut as string);
+      }
+    }).catch(console.error);
+  }, []);
+
+  // Generate help sections with current shortcut
+  const helpSections = useMemo(() => createHelpSections(currentShortcut), [currentShortcut]);
+  const shortcutKeys = useMemo(() => shortcutToKeys(currentShortcut), [currentShortcut]);
 
   const toggleSection = (id: string) => {
     setExpandedSection(expandedSection === id ? null : id);
@@ -370,9 +394,9 @@ function HelpView() {
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="flex items-center gap-2 text-gray-400">
             <div className="flex gap-0.5">
-              <kbd className="px-1 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>
-              <kbd className="px-1 py-0.5 bg-dark-hover rounded text-[10px]">⇧</kbd>
-              <kbd className="px-1 py-0.5 bg-dark-hover rounded text-[10px]">P</kbd>
+              {shortcutKeys.map((key, idx) => (
+                <kbd key={idx} className="px-1 py-0.5 bg-dark-hover rounded text-[10px]">{key}</kbd>
+              ))}
             </div>
             <span>분석</span>
           </div>
@@ -397,6 +421,66 @@ function HelpView() {
             <span>복사</span>
           </div>
         </div>
+      </div>
+
+      {/* GOLDEN Checklist Explanation */}
+      <div className="bg-dark-surface rounded-lg p-3 space-y-3">
+        <h3 className="text-xs font-medium text-gray-400 flex items-center gap-1.5">
+          <Target size={12} />
+          GOLDEN 체크리스트란?
+        </h3>
+        <p className="text-xs text-gray-500 leading-relaxed">
+          Anthropic의 공식 프롬프트 작성 가이드라인을 기반으로 한 6가지 품질 지표입니다.
+        </p>
+        <div className="space-y-2">
+          {Object.values(GOLDEN_EXPLANATIONS).map((dim) => (
+            <div key={dim.key} className="flex items-start gap-2">
+              <span className="flex-shrink-0 w-5 h-5 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-[10px] font-bold">
+                {dim.key}
+              </span>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-gray-300">
+                  <span className="font-medium">{dim.name}</span>
+                  <span className="text-gray-500 ml-1">({dim.nameKo})</span>
+                </div>
+                <p className="text-[10px] text-gray-500 leading-relaxed">{dim.short}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* App Compatibility */}
+      <div className="bg-dark-surface rounded-lg p-3 space-y-3">
+        <h3 className="text-xs font-medium text-gray-400 flex items-center gap-1.5">
+          <MonitorSmartphone size={12} />
+          앱 호환성
+        </h3>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle size={12} className="text-green-400 flex-shrink-0" />
+            <span className="text-xs text-gray-300">완전 지원</span>
+            <span className="text-[10px] text-gray-500">
+              {APP_COMPATIBILITY.filter(a => a.mode === 'full').map(a => a.name).join(', ')}
+            </span>
+          </div>
+          <div className="flex items-start gap-2">
+            <AlertCircle size={12} className="text-amber-400 flex-shrink-0 mt-0.5" />
+            <div>
+              <span className="text-xs text-gray-300">클립보드만</span>
+              <span className="text-[10px] text-gray-500 ml-1">
+                (⌘C 복사 후 단축키)
+              </span>
+              <p className="text-[10px] text-gray-500">
+                {APP_COMPATIBILITY.filter(a => a.mode === 'clipboard').map(a => a.name).join(', ')}
+              </p>
+            </div>
+          </div>
+        </div>
+        <p className="text-[10px] text-gray-500 leading-relaxed">
+          일부 앱(Cursor, VS Code, Terminal 등)에서는 AppleScript 제한으로 텍스트 선택 캡처가 불가능합니다.
+          이 경우 텍스트를 선택 후 ⌘C로 복사한 뒤 단축키를 누르세요.
+        </p>
       </div>
 
       {/* Footer */}
