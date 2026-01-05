@@ -53,6 +53,25 @@ export default function QuickAction({
     return () => clearInterval(timer);
   }, [autoHideSeconds, onCancel]);
 
+  const handleApply = useCallback(async () => {
+    if (applying) return;
+
+    setApplying(true);
+    try {
+      const result = await onApply();
+      setResult(result);
+
+      if (result.success) {
+        // Auto-close after success
+        setTimeout(onCancel, 500);
+      }
+    } catch {
+      setResult({ success: false, message: '적용 실패' });
+    } finally {
+      setApplying(false);
+    }
+  }, [applying, onApply, onCancel]);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -67,26 +86,7 @@ export default function QuickAction({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onCancel]);
-
-  const handleApply = useCallback(async () => {
-    if (applying) return;
-
-    setApplying(true);
-    try {
-      const result = await onApply();
-      setResult(result);
-
-      if (result.success) {
-        // Auto-close after success
-        setTimeout(onCancel, 500);
-      }
-    } catch (error) {
-      setResult({ success: false, message: '적용 실패' });
-    } finally {
-      setApplying(false);
-    }
-  }, [applying, onApply, onCancel]);
+  }, [onCancel, handleApply]);
 
   const originalColor = GRADE_COLORS[originalGrade] || 'text-gray-400';
   const improvedColor = GRADE_COLORS[improvedGrade] || 'text-gray-400';

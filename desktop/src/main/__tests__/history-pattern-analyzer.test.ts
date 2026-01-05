@@ -22,8 +22,8 @@ import {
   analyzeProjectPatterns,
   getContextRecommendations,
   enrichAnalysisWithHistory,
-  type HistoryRecommendation,
-  type ProjectPatternAnalysis,
+  type HistoryRecommendation as _HistoryRecommendation,
+  type ProjectPatternAnalysis as _ProjectPatternAnalysis,
 } from '../history-pattern-analyzer.js';
 
 describe('history-pattern-analyzer', () => {
@@ -698,7 +698,7 @@ describe('history-pattern-analyzer', () => {
       const result = analyzeProjectPatterns('/test');
 
       // Should not crash, just not create a recommendation for unknown dimension
-      const unknownRec = result.recommendations.find((r) => r.dimension === undefined);
+      const _unknownRec = result.recommendations.find((r) => r.dimension === undefined);
       // The weakness recommendation should be skipped for unknown dimensions
       const weaknessRecs = result.recommendations.filter((r) => r.type === 'weakness');
       expect(weaknessRecs.length).toBe(0);

@@ -138,7 +138,7 @@ describe('tray', () => {
       Object.defineProperty(process, 'platform', { value: 'darwin', configurable: true });
       mockState.iconExists = true;
 
-      const tray = createTray(mockState.mainWindow as unknown as Electron.BrowserWindow);
+      const _tray = createTray(mockState.mainWindow as unknown as Electron.BrowserWindow);
 
       expect(Tray).toHaveBeenCalled();
       expect(nativeImage.createFromPath).toHaveBeenCalledWith(
@@ -292,7 +292,7 @@ describe('tray', () => {
     });
 
     it('should return the tray instance', () => {
-      const tray = createTray(mockState.mainWindow as unknown as Electron.BrowserWindow);
+      const _tray = createTray(mockState.mainWindow as unknown as Electron.BrowserWindow);
 
       expect(tray).toBe(mockState.trayInstance);
     });

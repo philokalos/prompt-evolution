@@ -14,7 +14,7 @@ import {
   generatePromptVariants,
   generateAllVariants,
   generateAIRewrite,
-  type RewriteResult,
+  type RewriteResult as _RewriteResult,
 } from '../prompt-rewriter.js';
 
 import { rewritePromptWithClaude, rewritePromptWithMultiVariant } from '../claude-api.js';

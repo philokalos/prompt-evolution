@@ -10,11 +10,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { homedir } from 'os';
 import { app } from 'electron';
-import { detectActiveProject, type DetectedProject } from './active-window-detector.js';
+import { detectActiveProject, type DetectedProject as _DetectedProject } from './active-window-detector.js';
 import {
   findMatchingProjectEnhanced,
-  decodeProjectPathEnhanced,
-  findProjectPathByNameEnhanced,
+  decodeProjectPathEnhanced as _decodeProjectPathEnhanced,
+  findProjectPathByNameEnhanced as _findProjectPathByNameEnhanced,
   type DetectionResult,
   type DetectionOptions,
 } from './project-detector-enhanced.js';
@@ -199,7 +199,7 @@ export function findMatchingProjectWithDetails(cwd: string, options?: DetectionO
  * Legacy function - kept for backward compatibility
  * @deprecated Use findMatchingProject instead
  */
-function findMatchingProjectLegacy(cwd: string): string | null {
+function _findMatchingProjectLegacy(cwd: string): string | null {
   if (!fs.existsSync(CLAUDE_PROJECTS_PATH)) {
     return null;
   }
@@ -905,7 +905,7 @@ export async function getSessionContextForCapturedProject(
   capturedContext: CapturedContextLike
 ): Promise<ActiveSessionContext | null> {
   try {
-    const { project, windowInfo } = capturedContext;
+    const { project } = capturedContext;
 
     if (!project) {
       console.log('[SessionContext] No project in captured context, falling back');

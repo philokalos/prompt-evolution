@@ -110,7 +110,7 @@ export function getAIRewriteSettings(): { apiKey: string; enabled: boolean } {
 }
 
 // State tracking for improved hotkey behavior
-let lastAnalyzedText = '';
+let _lastAnalyzedText = '';
 let isRendererReady = false;
 let pendingText: { text: string; capturedContext: CapturedContext | null; isSourceAppBlocked: boolean } | null = null;
 let currentProject: DetectedProject | null = null;
@@ -184,7 +184,7 @@ function positionWindowNearCursor(): void {
  * Create a minimal quick action window near the cursor.
  * This window shows only the grade change and apply/cancel buttons.
  */
-function createQuickActionWindow(): void {
+function _createQuickActionWindow(): void {
   const cursor = screen.getCursorScreenPoint();
   const display = screen.getDisplayNearestPoint(cursor);
   const { width: screenW } = display.workAreaSize;
@@ -390,7 +390,7 @@ function registerShortcut(): boolean {
     }
 
     // Always analyze (even if same text)
-    lastAnalyzedText = capturedText;
+    _lastAnalyzedText = capturedText;
     sendTextToRenderer(capturedText, lastCapturedContext);
     console.log('[Main] Analyzing text with captured context');
 
@@ -442,7 +442,7 @@ async function analyzeClipboardNow(): Promise<void> {
   };
 
   lastFrontmostApp = windowInfo?.appName || null;
-  lastAnalyzedText = clipboardText;
+  _lastAnalyzedText = clipboardText;
 
   sendTextToRenderer(clipboardText, lastCapturedContext);
 

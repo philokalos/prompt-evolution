@@ -7,3 +7,7 @@ dist/
 .claude/
 logs/
 reports/
+
+# Build artifacts
+*.tsbuildinfo
+coverage/

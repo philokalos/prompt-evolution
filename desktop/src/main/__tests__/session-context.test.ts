@@ -180,7 +180,7 @@ describe('Session Context', () => {
     });
 
     it('should return the most recent session file', () => {
-      const projectPath = '/Users/testuser/.claude/projects/-Users-testuser-project';
+      const _projectPath = '/Users/testuser/.claude/projects/-Users-testuser-project';
 
       mockState.existsSync.mockReturnValue(true);
       mockState.readdirSync.mockReturnValue([

@@ -5,7 +5,7 @@
  * to analysis modules and provides history tracking.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi, type Mock as _Mock } from 'vitest';
 
 // Use vi.hoisted() to ensure mock state is available when vi.mock runs
 const mockState = vi.hoisted(() => ({
@@ -63,7 +63,7 @@ const mockState = vi.hoisted(() => ({
     return {};
   })),
   // Analysis module mocks
-  mockEvaluate: vi.fn((text: string) => ({
+  mockEvaluate: vi.fn((_text: string) => ({
     overallScore: 0.65,
     grade: 'C' as const,
     goldenScore: {
@@ -84,7 +84,7 @@ const mockState = vi.hoisted(() => ({
     ],
     recommendations: ['Add more context', 'Be specific'],
   })),
-  mockClassify: vi.fn((text: string) => ({
+  mockClassify: vi.fn((_text: string) => ({
     intent: 'instruction',
     category: 'code-generation',
     confidence: 0.85,

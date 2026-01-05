@@ -178,7 +178,7 @@ describe('text-selection', () => {
         mockState.clipboardText = 'selected text';
       }, 10);
 
-      const result = await tryGetSelectedText();
+      const _result = await tryGetSelectedText();
 
       // The function reads clipboard before and after, if different it returns new content
       // In this test the clipboard changes between reads
@@ -373,7 +373,7 @@ describe('text-selection', () => {
       // We need to simulate the clipboard changing between the save and read
       // This is tricky with our mock setup, so we'll test the fallback case
 
-      const result = await captureTextForAnalysis('auto');
+      const _result = await captureTextForAnalysis('auto');
 
       // Should have attempted to get selected text
       expect(mockState.execAsync).toHaveBeenCalled();
@@ -426,7 +426,7 @@ describe('text-selection', () => {
         .mockResolvedValueOnce({ stdout: '' });
       mockState.clipboardText = 'test';
 
-      const result = await captureTextForAnalysis();
+      const _result = await captureTextForAnalysis();
 
       // Default should attempt selection
       expect(mockState.execAsync).toHaveBeenCalled();
@@ -532,7 +532,7 @@ describe('text-selection', () => {
       mockState.execAsync.mockResolvedValue({ stdout: '' });
 
       // When frontmost app is empty string
-      const result = await tryGetSelectedText();
+      const _result = await tryGetSelectedText();
 
       // Should proceed with keystroke simulation since empty string is not blocked
       expect(mockState.execAsync).toHaveBeenCalledTimes(2);

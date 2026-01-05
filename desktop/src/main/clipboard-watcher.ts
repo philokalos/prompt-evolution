@@ -67,7 +67,7 @@ const SENSITIVE_PATTERNS = [
 ];
 
 // Apps where we should NOT watch clipboard (to avoid feedback loops)
-const IGNORED_SOURCES = [
+const _IGNORED_SOURCES = [
   'PromptLint',
   'promptlint',
 ];

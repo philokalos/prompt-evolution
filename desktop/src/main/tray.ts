@@ -53,7 +53,7 @@ export function createTray(mainWindow: BrowserWindow, callbacks?: TrayCallbacks)
   if (process.platform === 'darwin') {
     // Use template icon for macOS (supports dark/light mode)
     const iconPath = path.join(assetsPath, 'icons/trayTemplate.png');
-    const icon2xPath = path.join(assetsPath, 'icons/trayTemplate@2x.png');
+    const _icon2xPath = path.join(assetsPath, 'icons/trayTemplate@2x.png');
     console.log('[Tray] Looking for icon at:', iconPath);
     console.log('[Tray] Icon file exists:', fs.existsSync(iconPath));
 
@@ -234,7 +234,7 @@ export function destroyTray(): void {
   }
 }
 
-export function updateTrayMenu(recentAnalyses: Array<{ text: string; score: number }>): void {
+export function updateTrayMenu(_recentAnalyses: Array<{ text: string; score: number }>): void {
   // This would update the "최근 분석" submenu with actual data
   // Implementation depends on how we store history
 }

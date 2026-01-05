@@ -16,7 +16,7 @@ const execAsync = promisify(exec);
 // 지연 로딩: 순환 의존성 방지
 let findProjectPathByNameEnhanced: ((name: string, options?: Record<string, unknown>) => string | null) | null = null;
 
-async function getEnhancedFinder(): Promise<typeof findProjectPathByNameEnhanced> {
+async function _getEnhancedFinder(): Promise<typeof findProjectPathByNameEnhanced> {
   if (!findProjectPathByNameEnhanced) {
     try {
       const module = await import('./project-detector-enhanced.js');
@@ -59,7 +59,7 @@ export interface DetectedProject {
 }
 
 // 캐시: 프로젝트 경로 유효성 검증 결과
-const projectPathCache = new Map<string, boolean>();
+const _projectPathCache = new Map<string, boolean>();
 
 /**
  * AppleScript로 현재 활성 창 정보 가져오기

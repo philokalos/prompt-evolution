@@ -138,7 +138,8 @@ function App() {
       window.electronAPI.removeNavigateListener();
       window.electronAPI.removeShortcutFailedListener();
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // analyzePrompt is stable (useCallback with empty deps), mount-only effect
 
   // Escape key to hide window
   useEffect(() => {

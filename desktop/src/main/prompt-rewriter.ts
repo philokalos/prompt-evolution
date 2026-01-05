@@ -13,7 +13,7 @@
  */
 
 import type { SessionContext } from './session-context.js';
-import { rewritePromptWithClaude, rewritePromptWithMultiVariant, type RewriteRequest, type RewriteResult as AIRewriteResult } from './claude-api.js';
+import { rewritePromptWithClaude, rewritePromptWithMultiVariant, type RewriteRequest, type RewriteResult as _AIRewriteResult } from './claude-api.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 헬퍼 함수: 원본 분석 및 컨텍스트 추출
@@ -142,7 +142,7 @@ function extractErrorFromPrompt(text: string): string | null {
 /**
  * 최근 도구에서 작업 유형 추론
  */
-function inferWorkFromTools(tools: string[]): string | null {
+function _inferWorkFromTools(tools: string[]): string | null {
   if (tools.length === 0) return null;
 
   const toolActions: Record<string, string> = {
@@ -208,7 +208,7 @@ function extractCoreRequest(text: string): string {
 /**
  * 언어 감지 (한국어/영어)
  */
-function detectLanguage(text: string): 'ko' | 'en' {
+function _detectLanguage(text: string): 'ko' | 'en' {
   const koreanChars = text.match(/[가-힣]/g)?.length || 0;
   const totalChars = text.length;
   return koreanChars / totalChars > 0.3 ? 'ko' : 'en';

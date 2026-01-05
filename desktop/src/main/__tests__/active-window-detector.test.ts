@@ -68,7 +68,7 @@ import {
   stopAIAppPolling,
   getLastDetectedAIApp,
   type ActiveWindowInfo,
-  type DetectedProject,
+  type DetectedProject as _DetectedProject,
 } from '../active-window-detector.js';
 
 describe('active-window-detector', () => {
@@ -1257,7 +1257,7 @@ describe('active-window-detector', () => {
 
       // Need to re-import or the mock won't take effect in the findProjectPathByName function
       // Since findProjectPathByName is internal, we test through parseWindowTitle
-      const windowInfo: ActiveWindowInfo = {
+      const _windowInfo: ActiveWindowInfo = {
         appName: 'Code',
         windowTitle: 'file.ts — enhanced-project — VS Code',
         isIDE: true,

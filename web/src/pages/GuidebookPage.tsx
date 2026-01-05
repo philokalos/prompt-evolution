@@ -28,7 +28,10 @@ export default function GuidebookPage() {
 
   // Extract data (hooks must be called unconditionally)
   const selfImprovement = insights?.selfImprovement;
-  const allExamples = selfImprovement?.rewriteExamples ?? [];
+  const allExamples = useMemo(
+    () => selfImprovement?.rewriteExamples ?? [],
+    [selfImprovement?.rewriteExamples]
+  );
 
   // Get unique categories from examples (must be before any returns)
   const availableCategories = useMemo(() => {

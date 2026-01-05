@@ -101,7 +101,7 @@ export default function PromptComparison({
       setTimeout(() => {
         setApplyResult(null);
       }, 3000);
-    } catch (error) {
+    } catch {
       setApplyResult({ success: false, message: '적용 실패' });
     } finally {
       setApplying(false);

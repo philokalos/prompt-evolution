@@ -21,10 +21,11 @@ const GOLDEN_LABELS = [
   { key: 'next', label: 'N', fullName: 'Next' },
 ] as const;
 
+const GRID_LEVELS = [20, 40, 60, 80, 100] as const;
+
 export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
   const center = size / 2;
   const maxRadius = size / 2 - 30;
-  const levels = [20, 40, 60, 80, 100];
 
   // Calculate points for each dimension
   const points = useMemo(() => {
@@ -55,7 +56,7 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
 
   // Generate grid lines (hexagon levels)
   const gridLevels = useMemo(() => {
-    return levels.map((level) => {
+    return GRID_LEVELS.map((level) => {
       const radius = (level / 100) * maxRadius;
       const angleStep = (2 * Math.PI) / 6;
       const startAngle = -Math.PI / 2;

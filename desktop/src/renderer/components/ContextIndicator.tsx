@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Folder, GitBranch, Cpu, Clock, ChevronDown, ChevronUp, Zap, Monitor, MousePointer, MessageSquare, FileCode } from 'lucide-react';
 
 export interface SessionContextInfo {
@@ -37,6 +37,19 @@ interface ContextIndicatorProps {
 export default function ContextIndicator({ context }: ContextIndicatorProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
+  // All hooks must be called before any conditional returns
+  // Compute time-based values only when context exists
+  const { isRecent, timeAgo } = useMemo(() => {
+    if (!context) return { isRecent: false, timeAgo: '' };
+    const now = Date.now(); // eslint-disable-line react-hooks/purity
+    const activity = typeof context.lastActivity === 'string'
+      ? new Date(context.lastActivity)
+      : context.lastActivity;
+    const recent = now - activity.getTime() < 60 * 60 * 1000; // Within 1 hour
+    const ago = formatTimeAgo(activity, now);
+    return { isRecent: recent, timeAgo: ago };
+  }, [context]);
+
   if (!context) {
     return (
       <div className="mb-3 px-3 py-2 rounded-lg bg-dark-surface/50 border border-dark-border/50">
@@ -51,12 +64,6 @@ export default function ContextIndicator({ context }: ContextIndicatorProps) {
 
   // Extract project name from path
   const projectName = context.projectPath.split('/').pop() || 'Unknown';
-
-  // Format last activity
-  const lastActivity = typeof context.lastActivity === 'string'
-    ? new Date(context.lastActivity)
-    : context.lastActivity;
-  const isRecent = Date.now() - lastActivity.getTime() < 60 * 60 * 1000; // Within 1 hour
 
   // Compact tech stack display (first 2)
   const compactTechStack = context.techStack.slice(0, 2);
@@ -233,7 +240,7 @@ export default function ContextIndicator({ context }: ContextIndicatorProps) {
           {!isRecent && (
             <div className="flex items-center gap-1.5 text-xs text-gray-600">
               <Clock size={10} />
-              <span>마지막 활동: {formatTimeAgo(lastActivity)}</span>
+              <span>마지막 활동: {timeAgo}</span>
             </div>
           )}
 
@@ -248,10 +255,10 @@ export default function ContextIndicator({ context }: ContextIndicatorProps) {
 }
 
 /**
- * Format time ago string
+ * Format time ago string (pure function - now passed as parameter)
  */
-function formatTimeAgo(date: Date): string {
-  const diff = Date.now() - date.getTime();
+function formatTimeAgo(date: Date, now: number): string {
+  const diff = now - date.getTime();
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const days = Math.floor(hours / 24);
 

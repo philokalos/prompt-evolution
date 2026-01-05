@@ -38,7 +38,7 @@ const AVAILABLE_SHORTCUTS = [
 
 export default function Settings({ isOpen, onClose }: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [_saving, setSaving] = useState(false);
+  const [, setSaving] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
 
   // Load settings on mount
