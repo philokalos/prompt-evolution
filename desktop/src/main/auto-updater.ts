@@ -197,9 +197,7 @@ export function initAutoUpdater(window: BrowserWindow): void {
     return updateStatus;
   });
 
-  ipcMain.handle('get-app-version', () => {
-    return app.getVersion();
-  });
+  // Note: 'get-app-version' is already registered in index.ts
 
   // 앱 시작 시 업데이트 체크 (5초 후)
   setTimeout(() => {

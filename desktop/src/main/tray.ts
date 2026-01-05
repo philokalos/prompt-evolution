@@ -1,11 +1,6 @@
 import { app, Tray, Menu, nativeImage, BrowserWindow } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
-import { fileURLToPath } from 'url';
-
-// ESM-compatible __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 let tray: Tray | null = null;
 
@@ -24,12 +19,22 @@ let trayCallbacks: TrayCallbacks | null = null;
 
 /**
  * Get the correct assets path for both dev and packaged app
- * Assets are at ../../assets relative to dist/main/ in both cases
- * (Electron handles asar paths transparently)
+ *
+ * In packaged app:
+ * - Icons are unpacked to: resources/app.asar.unpacked/assets/icons/
+ * - process.resourcesPath points to: /path/to/app/Contents/Resources
+ *
+ * In development:
+ * - Assets are at project root: /path/to/desktop/assets
+ * - app.getAppPath() returns: /path/to/desktop
  */
 function getAssetsPath(): string {
-  // Both dev and packaged: assets is at ../../assets from dist/main
-  return path.join(__dirname, '../../assets');
+  if (app.isPackaged) {
+    // Packaged app: icons are in app.asar.unpacked (due to asarUnpack config)
+    return path.join(process.resourcesPath, 'app.asar.unpacked', 'assets');
+  }
+  // Development: assets at project root
+  return path.join(app.getAppPath(), 'assets');
 }
 
 export function createTray(mainWindow: BrowserWindow, callbacks?: TrayCallbacks): Tray {
@@ -47,7 +52,8 @@ export function createTray(mainWindow: BrowserWindow, callbacks?: TrayCallbacks)
   // Load tray icon from assets
   let trayIcon: Electron.NativeImage;
   const assetsPath = getAssetsPath();
-  console.log('[Tray] __dirname:', __dirname);
+  console.log('[Tray] isPackaged:', app.isPackaged);
+  console.log('[Tray] resourcesPath:', process.resourcesPath);
   console.log('[Tray] Assets path:', assetsPath);
 
   if (process.platform === 'darwin') {

@@ -147,7 +147,7 @@ describe('auto-updater', () => {
       expect(mockState.ipcHandlers['download-update']).toBeDefined();
       expect(mockState.ipcHandlers['install-update']).toBeDefined();
       expect(mockState.ipcHandlers['get-update-status']).toBeDefined();
-      expect(mockState.ipcHandlers['get-app-version']).toBeDefined();
+      // Note: 'get-app-version' is registered in index.ts, not auto-updater
     });
   });
 
@@ -428,12 +428,7 @@ describe('auto-updater', () => {
       expect(result).toHaveProperty('downloaded');
     });
 
-    it('should handle get-app-version', () => {
-      const handler = mockState.ipcHandlers['get-app-version'];
-      const result = handler();
-
-      expect(result).toBe('1.0.0');
-    });
+    // Note: 'get-app-version' handler is tested in index.test.ts
   });
 
   describe('checkForUpdates', () => {

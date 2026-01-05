@@ -52,6 +52,8 @@ vi.mock('electron', () => ({
     quit: vi.fn(),
     getLoginItemSettings: vi.fn(() => mockState.loginItemSettings),
     setLoginItemSettings: vi.fn(),
+    isPackaged: false,
+    getAppPath: vi.fn(() => '/mock/app/path'),
   },
   Tray: vi.fn(function (this: unknown) {
     // Constructor function pattern

@@ -94,7 +94,8 @@
     ],
     "asar": true,
     "asarUnpack": [
-      "**/*.node"
+      "**/*.node",
+      "assets/icons/**/*"
     ],
     "mac": {
       "category": "public.app-category.developer-tools",
