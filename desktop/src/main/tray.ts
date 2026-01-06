@@ -50,41 +50,44 @@ export function createTray(mainWindow: BrowserWindow, callbacks?: TrayCallbacks)
     },
   };
   // Load tray icon from assets
-  let trayIcon: Electron.NativeImage;
   const assetsPath = getAssetsPath();
   console.log('[Tray] isPackaged:', app.isPackaged);
   console.log('[Tray] resourcesPath:', process.resourcesPath);
   console.log('[Tray] Assets path:', assetsPath);
 
+  // Load the professionally designed template icon
+  let trayIcon: Electron.NativeImage;
+
   if (process.platform === 'darwin') {
-    // Use template icon for macOS (supports dark/light mode)
-    const iconPath = path.join(assetsPath, 'icons/trayTemplate.png');
-    const _icon2xPath = path.join(assetsPath, 'icons/trayTemplate@2x.png');
-    console.log('[Tray] Looking for icon at:', iconPath);
-    console.log('[Tray] Icon file exists:', fs.existsSync(iconPath));
+    // Use template icon for macOS (auto-adapts to light/dark mode)
+    const templatePath = path.join(assetsPath, 'icons/trayTemplate.png');
 
-    // Try to load icon, fallback to generated if empty
-    trayIcon = nativeImage.createFromPath(iconPath);
-
-    if (trayIcon.isEmpty()) {
-      console.warn('[Tray] Icon not found at:', iconPath, '- using fallback');
-      trayIcon = createTemplateIcon();
-    } else {
-      console.log('[Tray] Icon loaded successfully, size:', trayIcon.getSize());
+    if (fs.existsSync(templatePath)) {
+      trayIcon = nativeImage.createFromPath(templatePath);
       trayIcon.setTemplateImage(true);
+      console.log('[Tray] Template icon loaded:', trayIcon.getSize());
+    } else {
+      console.warn('[Tray] Template icon not found, using fallback');
+      trayIcon = createTemplateIcon();
     }
   } else {
     // Use color icon for Windows/Linux
     const iconPath = path.join(assetsPath, 'icons/tray.png');
-    trayIcon = nativeImage.createFromPath(iconPath);
+    const icon = nativeImage.createFromPath(iconPath);
 
-    if (trayIcon.isEmpty()) {
+    if (icon.isEmpty()) {
       console.warn('[Tray] Icon not found at:', iconPath);
       trayIcon = nativeImage.createEmpty();
+    } else {
+      trayIcon = icon;
     }
   }
 
   console.log('[Tray] Creating tray with icon size:', trayIcon.getSize());
+  console.log('[Tray] Icon isEmpty:', trayIcon.isEmpty());
+  console.log('[Tray] Icon aspectRatio:', trayIcon.getAspectRatio());
+
+  // Create tray
   tray = new Tray(trayIcon);
   tray.setToolTip('PromptLint - 프롬프트 교정');
   console.log('[Tray] Tray created successfully');

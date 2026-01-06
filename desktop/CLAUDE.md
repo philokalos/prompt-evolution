@@ -32,10 +32,22 @@ npm run build:all                 # All of the above
 npm run dist:mac                  # macOS .dmg + .zip (output: release/)
 npm run pack                      # Unpacked build for testing
 
+# Testing
+npm test                          # Vitest (watch mode)
+npm run test:run                  # Single run
+npm run test:coverage             # Coverage report
+
 # Other
-npm run typecheck                 # TypeScript check
+npm run typecheck                 # TypeScript check (renderer only)
 npm run lint                      # ESLint
-npm run generate-icons            # Regenerate app icons from SVG
+npm run generate-icons            # Regenerate all app icons from SVG
+```
+
+**Note**: `npm run typecheck` only checks the renderer (tsconfig.json). For full type checking across all 4 configs:
+```bash
+tsc -p tsconfig.main.json --noEmit && \
+tsc -p tsconfig.preload.json --noEmit && \
+npm run typecheck
 ```
 
 ## Architecture
@@ -57,6 +69,11 @@ Main Process (Node.js, ESM)              Renderer Process (Chromium)
 │ active-window-detector.ts  │           └──────────────────────────┘
 │ - IDE window parsing       │
 │ - Project path resolution  │
+│                            │
+│ tray.ts                    │
+│ - Tray icon management     │
+│ - Double-click detection   │
+│ - Badge indicator          │
 │                            │
 │ claude-api.ts              │
 │ - AI-powered rewriting     │
@@ -110,6 +127,7 @@ Renderer UI (radar, issues, variants, tips)
 | `prompt-rewriter.ts` | 3 rule-based variants with tech stack hints |
 | `claude-api.ts` | Anthropic SDK integration for AI rewriting |
 | `history-pattern-analyzer.ts` | Project-specific patterns, dimensional weaknesses |
+| `tray.ts` | System tray icon, menu, double-click detection, badge indicator |
 | `db/` | SQLite schema, migrations, history repository |
 
 ### Renderer (`src/renderer/`)
@@ -134,6 +152,15 @@ Three modes (configurable in settings):
 - **clipboard**: Only existing clipboard content
 
 **App Blocklist**: Cursor, VS Code, Claude, terminals crash with AppleScript keystroke simulation → automatic clipboard fallback.
+
+### Tray Interactions
+
+- **Single-click**: Toggle main window visibility (300ms debounce)
+- **Double-click**: Customizable via `onDoubleClick` callback (default: same as single-click)
+- **Right-click**: Context menu (recent analyses, stats, settings, quit)
+- **Badge indicator** (macOS): Shows "•" next to icon when prompt detected via `setTrayBadge(true)`
+
+The tray module uses sophisticated double-click detection with a 300ms threshold. Single-clicks are debounced to avoid false triggers.
 
 ### Prompt Variant Generation
 
@@ -202,18 +229,26 @@ Schema migrations tracked in `schema_version` table.
 
 ## Gotchas
 
-1. **Preload must be `.cjs`**: Due to `"type": "module"`, Electron preload requires explicit CommonJS.
+1. **Preload must be `.cjs`**: Due to `"type": "module"`, Electron preload requires explicit CommonJS. The build script automatically renames `dist/preload/index.js` to `index.cjs`.
 
-2. **Analysis modules bundled as CJS**: Parent uses ESM, Electron packaging requires CJS. The `build:analysis` script uses esbuild.
+2. **Analysis modules bundled as CJS**: Parent uses ESM, Electron packaging requires CJS. The `build:analysis` script uses esbuild to create `analysis-bundle.cjs` and `classifier-bundle.cjs` from parent's `src/analysis/` modules.
 
-3. **IPC race condition**: Renderer may not be ready when main sends text. Use `renderer-ready` signal + queue pending text.
+3. **IPC race condition**: Renderer may not be ready when main sends text. The main process waits for `renderer-ready` signal before sending initial data. If text is captured during app launch, it's queued in `pendingText` variable (in `index.ts`) and sent once renderer signals ready. This prevents the "IPC handler not found" error.
 
-4. **AppleScript crashes some apps**: Cursor, VS Code, Claude, terminals crash with simulated keystrokes. Blocklist with clipboard fallback.
+4. **AppleScript crashes some apps**: Cursor, VS Code, Claude, terminals crash with simulated keystrokes. Blocklist detection in `text-selection.ts` automatically falls back to clipboard mode for these apps.
 
-5. **Text selection requires Accessibility**: Check with `systemPreferences.isTrustedAccessibilityClient()`.
+5. **Text selection requires Accessibility**: Check with `systemPreferences.isTrustedAccessibilityClient()`. macOS will prompt user to grant permission in System Preferences → Security & Privacy → Privacy → Accessibility.
 
-6. **Window positioning**: Use `screen.getDisplayNearestPoint()` for multi-monitor setups.
+6. **Window positioning**: Use `screen.getDisplayNearestPoint()` for multi-monitor setups. The window positions itself near the cursor to support workflows across multiple displays.
 
-7. **Large session files**: Size-aware parsing (full for <10MB, last 100 lines for larger).
+7. **Large session files**: Size-aware parsing in `session-context.ts` (full parse for <10MB, last 100 lines for larger files to avoid performance issues).
 
-8. **Global shortcut cleanup**: `globalShortcut.unregisterAll()` must check `app.isReady()` in `will-quit`.
+8. **Global shortcut cleanup**: `globalShortcut.unregisterAll()` must check `app.isReady()` in `will-quit` event. Attempting to unregister before app is ready causes crashes.
+
+9. **Tray icon not showing in packaged app**: The tray icon must be in `asarUnpack` config (`package.json` build section) AND use correct path resolution. In packaged apps, icons are at `process.resourcesPath/app.asar.unpacked/assets/icons/`, not in the asar archive. The `getAssetsPath()` function in `tray.ts` handles this automatically. During development, test icons (`trayTest.png`) take precedence over template icons if present.
+
+10. **⚠️ RESOLVED: macOS Menu Bar Space Issue (not Electron bug)**: On MacBooks with notch, menu bar space is limited. macOS automatically hides tray icons when space is insufficient, even if the app is enabled in "System Settings > Menu Bar". The tray icon loads correctly (isEmpty: false, correct size, successful creation) but macOS hides it due to space constraints. **Solution**:
+   - **System Settings > Menu Bar**: Disable unused menu bar items to free up space
+   - **Primary access**: Use global shortcut `Cmd+Shift+;` instead of tray icon
+   - **Diagnosis**: If tray icon appears after enabling another app's menu bar item, this confirms it's a space issue, not an Electron bug
+   - **Testing**: Tested with both Electron 37.7.0 and 39.2.7 - both work correctly when space is available
