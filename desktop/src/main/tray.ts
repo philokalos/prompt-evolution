@@ -85,7 +85,6 @@ export function createTray(mainWindow: BrowserWindow, callbacks?: TrayCallbacks)
 
   console.log('[Tray] Creating tray with icon size:', trayIcon.getSize());
   console.log('[Tray] Icon isEmpty:', trayIcon.isEmpty());
-  console.log('[Tray] Icon aspectRatio:', trayIcon.getAspectRatio());
 
   // Create tray
   tray = new Tray(trayIcon);
