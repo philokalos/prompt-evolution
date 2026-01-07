@@ -19,7 +19,7 @@ import {
   getImprovementAnalysis,
   getStats,
 } from './db/index.js';
-import { generatePromptVariants, generateAllVariants, generateAIVariantOnly, RewriteResult, VariantType, type GOLDENEvaluator } from './prompt-rewriter.js';
+import { generatePromptVariants, generateAIVariantOnly, RewriteResult, VariantType, type GOLDENEvaluator } from './prompt-rewriter.js';
 import { getAIRewriteSettings, getLastCapturedContext } from './index.js';
 import {
   getSessionContext,
