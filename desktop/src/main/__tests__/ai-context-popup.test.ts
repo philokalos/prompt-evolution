@@ -18,6 +18,7 @@ const mockState = vi.hoisted(() => ({
   isVisible: vi.fn(() => false),
   loadURL: vi.fn().mockResolvedValue(undefined),
   setVisibleOnAllWorkspaces: vi.fn(),
+  setIgnoreMouseEvents: vi.fn(),  // Fix keyboard focus passthrough
   ipcMainOn: vi.fn(),
 }));
 
@@ -33,6 +34,7 @@ vi.mock('electron', async () => {
     this.isVisible = mockState.isVisible;
     this.loadURL = mockState.loadURL;
     this.setVisibleOnAllWorkspaces = mockState.setVisibleOnAllWorkspaces;
+    this.setIgnoreMouseEvents = mockState.setIgnoreMouseEvents;  // Fix keyboard focus passthrough
     this.webContents = { on: mockState.webContentsOn };
   };
 
@@ -358,6 +360,45 @@ describe('AI Context Popup', () => {
       expect(mockState.constructorCalls[0][0]).toMatchObject({
         hasShadow: true,
       });
+    });
+
+    it('should set ignore mouse events for keyboard passthrough', () => {
+      const onClick = vi.fn();
+      showAIContextButton(onClick);
+
+      // Critical: This allows typing in other apps while floating button is visible
+      expect(mockState.setIgnoreMouseEvents).toHaveBeenCalledWith(true, { forward: true });
+    });
+
+    it('should have acceptFirstMouse set to false', () => {
+      const onClick = vi.fn();
+      showAIContextButton(onClick);
+
+      expect(mockState.constructorCalls[0][0]).toMatchObject({
+        acceptFirstMouse: false,
+      });
+    });
+  });
+
+  describe('Keyboard Focus Passthrough', () => {
+    it('should have pointer-events: none on body in HTML', () => {
+      const onClick = vi.fn();
+      showAIContextButton(onClick);
+
+      const loadedUrl = mockState.loadURL?.mock.calls[0][0] as string;
+      const htmlContent = decodeURIComponent(loadedUrl.replace('data:text/html;charset=utf-8,', ''));
+
+      expect(htmlContent).toContain('pointer-events: none');
+    });
+
+    it('should have pointer-events: auto on button in HTML', () => {
+      const onClick = vi.fn();
+      showAIContextButton(onClick);
+
+      const loadedUrl = mockState.loadURL?.mock.calls[0][0] as string;
+      const htmlContent = decodeURIComponent(loadedUrl.replace('data:text/html;charset=utf-8,', ''));
+
+      expect(htmlContent).toContain('pointer-events: auto');
     });
   });
 });

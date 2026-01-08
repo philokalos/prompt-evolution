@@ -53,12 +53,19 @@ export function showAIContextButton(onClick: () => void): void {
     movable: false,
     focusable: false,
     hasShadow: true,
+    // Prevent window from accepting keyboard input
+    acceptFirstMouse: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, '../preload/index.cjs'),
     },
   });
+
+  // CRITICAL FIX: Make window pass-through for keyboard events
+  // This allows typing in other apps while the floating button is visible
+  // The button (opaque pixels) remains clickable, transparent areas pass through
+  floatingWindow.setIgnoreMouseEvents(true, { forward: true });
 
   // Set window level to be always visible but not intrusive
   floatingWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
@@ -128,6 +135,8 @@ function getFloatingButtonHTML(): string {
       background: transparent;
       overflow: hidden;
       -webkit-app-region: no-drag;
+      /* Allow mouse events to pass through transparent areas */
+      pointer-events: none;
     }
 
     .floating-button {
@@ -142,6 +151,8 @@ function getFloatingButtonHTML(): string {
       justify-content: center;
       transition: all 0.2s ease;
       box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+      /* Re-enable mouse events for the button itself */
+      pointer-events: auto;
     }
 
     .floating-button:hover {
