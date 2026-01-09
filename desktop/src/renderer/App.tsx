@@ -63,6 +63,7 @@ function projectToContextInfo(project: DetectedProject): SessionContextInfo {
     ideName: project.ideName,
     currentFile: project.currentFile,
     confidence: project.confidence,
+    isManual: project.isManual,
   };
 }
 
@@ -78,6 +79,28 @@ function App() {
   const [shortcutError, setShortcutError] = useState<{ shortcut: string; message: string } | null>(null);
   const [isSourceAppBlocked, setIsSourceAppBlocked] = useState(false); // True if source app doesn't support Apply
   const [emptyState, setEmptyState] = useState<EmptyStatePayload | null>(null); // Empty state when no text captured
+
+  // Project selection handlers
+  const handleProjectSelect = useCallback(async (projectPath: string | null) => {
+    try {
+      await window.electronAPI.selectProject(projectPath);
+      // Refresh current project state
+      const project = await window.electronAPI.getCurrentProject();
+      setCurrentProject(project as DetectedProject | null);
+    } catch (error) {
+      console.error('Failed to select project:', error);
+    }
+  }, []);
+
+  const loadAllProjects = useCallback(async (): Promise<DetectedProject[]> => {
+    try {
+      const projects = await window.electronAPI.getAllOpenProjects();
+      return projects as DetectedProject[];
+    } catch (error) {
+      console.error('Failed to load projects:', error);
+      return [];
+    }
+  }, []);
 
   // Listen for clipboard text from main process
   useEffect(() => {
@@ -389,6 +412,8 @@ function App() {
             {/* Session Context Indicator - prefer analysis context, fallback to polling */}
             <ContextIndicator
               context={analysis.sessionContext || (currentProject ? projectToContextInfo(currentProject) : null)}
+              onProjectSelect={handleProjectSelect}
+              onLoadProjects={loadAllProjects}
             />
 
             {/* GOLDEN Score Summary with Radar Chart */}
@@ -449,9 +474,11 @@ function App() {
         ) : (
           <div className="flex flex-col h-full">
             {/* Show current project from polling even without analysis */}
-            {currentProject && (
-              <ContextIndicator context={projectToContextInfo(currentProject)} />
-            )}
+            <ContextIndicator
+              context={currentProject ? projectToContextInfo(currentProject) : null}
+              onProjectSelect={handleProjectSelect}
+              onLoadProjects={loadAllProjects}
+            />
 
             {/* Contextual Empty State or Usage Guide */}
             {!showDirectInput && (

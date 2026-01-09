@@ -494,6 +494,15 @@ let lastDetectedProject: string | null = null;
 type ProjectChangeCallback = (project: DetectedProject | null) => void;
 let onProjectChangeCallback: ProjectChangeCallback | null = null;
 
+// 최근 감지된 프로젝트 캐시 (projectPath -> {project, lastSeen})
+// 폴링에서 감지된 프로젝트들을 기억하여 드롭다운에서 사용
+interface CachedProject {
+  project: DetectedProject;
+  lastSeen: number;
+}
+const recentProjectsCache = new Map<string, CachedProject>();
+const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5분 후 만료
+
 /**
  * 창 전환 감지 폴링 시작
  */
@@ -510,6 +519,14 @@ export function startWindowPolling(
   pollingInterval = setInterval(async () => {
     const project = await detectActiveProject();
     const currentPath = project?.projectPath || null;
+
+    // 프로젝트가 감지되면 캐시에 저장 (드롭다운용)
+    if (project && project.projectPath) {
+      recentProjectsCache.set(project.projectPath, {
+        project,
+        lastSeen: Date.now(),
+      });
+    }
 
     if (currentPath !== lastDetectedProject) {
       lastDetectedProject = currentPath;
@@ -536,6 +553,40 @@ export function stopWindowPolling(): void {
  */
 export function getLastDetectedProject(): string | null {
   return lastDetectedProject;
+}
+
+// ============================================================================
+// Multi-Project Detection (열린 모든 IDE 프로젝트 감지)
+// ============================================================================
+
+/**
+ * 최근 감지된 모든 프로젝트 반환 (캐시 기반)
+ * 폴링에서 감지된 프로젝트들을 캐시에서 가져옴
+ * AppleScript 권한 문제 없이 빠르게 동작
+ */
+export async function detectAllOpenProjects(): Promise<DetectedProject[]> {
+  const now = Date.now();
+  const projects: DetectedProject[] = [];
+
+  // 캐시에서 만료되지 않은 프로젝트들 수집
+  for (const [path, cached] of recentProjectsCache.entries()) {
+    if (now - cached.lastSeen < CACHE_EXPIRY_MS) {
+      projects.push(cached.project);
+    } else {
+      // 만료된 항목 제거
+      recentProjectsCache.delete(path);
+    }
+  }
+
+  // lastSeen 기준 최신순 정렬
+  projects.sort((a, b) => {
+    const aCache = recentProjectsCache.get(a.projectPath);
+    const bCache = recentProjectsCache.get(b.projectPath);
+    return (bCache?.lastSeen || 0) - (aCache?.lastSeen || 0);
+  });
+
+  console.log(`[ActiveWindow] Returning ${projects.length} cached projects:`, projects.map(p => p.projectName));
+  return projects;
 }
 
 // ============================================================================

@@ -19,6 +19,7 @@ import {
   startWindowPolling,
   stopWindowPolling,
   detectActiveProject,
+  detectAllOpenProjects,
   getActiveWindowInfo,
   parseWindowTitle,
   startAIAppPolling,
@@ -58,6 +59,8 @@ interface AppSettings {
   // Innovative activation methods
   enableClipboardWatch: boolean; // Auto-detect prompts in clipboard
   enableAIContextPopup: boolean; // Show popup when AI apps are active
+  // Manual project override
+  manualProjectPath: string; // Empty = auto-detect, path = manual override
 }
 
 // Initialize settings store with explicit name to ensure consistency across dev/prod
@@ -81,6 +84,8 @@ const store = new Store<AppSettings>({
     // Innovative activation - disabled by default for privacy
     enableClipboardWatch: false,
     enableAIContextPopup: false,
+    // Manual project override - empty = auto-detect
+    manualProjectPath: '',
   },
 });
 
@@ -116,6 +121,8 @@ let pendingText: { text: string; capturedContext: CapturedContext | null; isSour
 let currentProject: DetectedProject | null = null;
 let lastFrontmostApp: string | null = null; // Track source app for apply feature
 let lastCapturedContext: CapturedContext | null = null; // Captured at hotkey time
+// User-selected project: load from store on startup, save on change
+let selectedProjectPath: string | null = store.get('manualProjectPath') || null;
 
 /**
  * Get the last captured context (for learning engine to use)
@@ -695,11 +702,41 @@ ipcMain.handle('set-setting', (_event, key: string, value: unknown) => {
 
 // IPC Handler: Get current detected project
 ipcMain.handle('get-current-project', async () => {
-  // Return cached project or detect fresh
+  // Check for user-selected project first (runtime state)
+  if (selectedProjectPath) {
+    // Find the selected project from open projects
+    const allProjects = await detectAllOpenProjects();
+    const selected = allProjects.find(p => p.projectPath === selectedProjectPath);
+    if (selected) {
+      return { ...selected, isManual: true };
+    }
+    // If selected project is no longer open, reset to auto-detect
+    selectedProjectPath = null;
+  }
+  // Return cached project or detect fresh (auto-detect mode)
   if (currentProject) {
     return currentProject;
   }
   return await detectActiveProject();
+});
+
+// IPC Handler: Get all open IDE projects
+ipcMain.handle('get-all-open-projects', async () => {
+  console.log('[Main] get-all-open-projects called');
+  const projects = await detectAllOpenProjects();
+  console.log('[Main] get-all-open-projects result:', projects.length, 'projects');
+  if (projects.length > 0) {
+    console.log('[Main] Projects:', projects.map(p => p.projectName));
+  }
+  return projects;
+});
+
+// IPC Handler: Select a project (persisted to store)
+ipcMain.handle('select-project', (_event, projectPath: string | null) => {
+  selectedProjectPath = projectPath;
+  store.set('manualProjectPath', projectPath || '');
+  console.log(`[Main] Project ${projectPath ? 'selected: ' + projectPath : 'reset to auto-detect'}`);
+  return true;
 });
 
 ipcMain.handle('hide-window', () => {

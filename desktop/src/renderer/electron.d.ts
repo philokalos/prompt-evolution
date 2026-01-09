@@ -42,6 +42,8 @@ export interface ElectronAPI {
 
   // Active project detection (polling-based)
   getCurrentProject: () => Promise<DetectedProject | null>;
+  getAllOpenProjects: () => Promise<DetectedProject[]>;
+  selectProject: (projectPath: string | null) => Promise<boolean>;
 
   // Phase 2: History-based recommendations
   getProjectPatterns: (projectPath: string) => Promise<ProjectPatternAnalysis>;
@@ -83,10 +85,11 @@ export interface ElectronAPI {
 
 export interface DetectedProject {
   projectPath: string;
-  projectName?: string;
-  ideName?: string;
+  projectName: string;
+  ideName: string;
   currentFile?: string;
   confidence: 'high' | 'medium' | 'low';
+  isManual?: boolean;
 }
 
 /**

@@ -88,6 +88,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Active project detection
   getCurrentProject: (): Promise<unknown> => ipcRenderer.invoke('get-current-project'),
+  getAllOpenProjects: (): Promise<unknown[]> => ipcRenderer.invoke('get-all-open-projects'),
+  selectProject: (projectPath: string | null): Promise<boolean> =>
+    ipcRenderer.invoke('select-project', projectPath),
 
   // Phase 2: History-based recommendations
   getProjectPatterns: (projectPath: string): Promise<unknown> =>
@@ -246,6 +249,8 @@ declare global {
       getImprovementAnalysis: () => Promise<unknown>;
       getSessionContext: () => Promise<unknown>;
       getCurrentProject: () => Promise<unknown>;
+      getAllOpenProjects: () => Promise<unknown[]>;
+      selectProject: (projectPath: string | null) => Promise<boolean>;
       getProjectPatterns: (projectPath: string) => Promise<unknown>;
       getContextRecommendations: (category: string | undefined, projectPath: string | undefined) => Promise<unknown>;
       signalReady: () => Promise<boolean>;
