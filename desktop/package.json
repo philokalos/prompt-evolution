@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.71.2",
-    "better-sqlite3": "^11.7.0",
+    "better-sqlite3": "^12.5.0",
     "diff": "^8.0.2",
     "electron-log": "^5.4.3",
     "electron-store": "^8.1.0",

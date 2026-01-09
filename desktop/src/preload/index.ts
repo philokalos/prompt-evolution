@@ -182,6 +182,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Open external URL
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('open-external', url),
+
+  // Send one-way message to main process (for floating button)
+  send: (channel: string, ...args: unknown[]): void => {
+    ipcRenderer.send(channel, ...args);
+  },
 });
 
 // Type definitions for TypeScript
@@ -280,6 +285,8 @@ declare global {
       removeEmptyStateListener: () => void;
       // External links
       openExternal: (url: string) => Promise<void>;
+      // Send one-way message
+      send: (channel: string, ...args: unknown[]) => void;
     };
   }
 }

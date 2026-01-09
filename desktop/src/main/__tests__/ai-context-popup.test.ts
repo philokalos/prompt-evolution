@@ -97,8 +97,8 @@ describe('AI Context Popup', () => {
 
       expect(mockState.constructorCalls.length).toBe(1);
       expect(mockState.constructorCalls[0][0]).toMatchObject({
-        width: 48,
-        height: 48,
+        width: 36,
+        height: 36,
         frame: false,
         transparent: true,
         alwaysOnTop: true,
@@ -113,12 +113,12 @@ describe('AI Context Popup', () => {
       const onClick = vi.fn();
       showAIContextButton(onClick);
 
-      // Screen size: 1920x1080, Button size: 48x48, Margin: 16
-      // Expected x: 1920 - 48 - 16 = 1856
-      // Expected y: 1080 - 48 - 16 = 1016
+      // Screen size: 1920x1080, Button size: 36x36, Margin: 20
+      // Expected x: 1920 - 36 - 20 = 1864
+      // Expected y: 1080 - 36 - 20 = 1024
       expect(mockState.constructorCalls[0][0]).toMatchObject({
-        x: 1856,
-        y: 1016,
+        x: 1864,
+        y: 1024,
       });
     });
 
@@ -157,11 +157,15 @@ describe('AI Context Popup', () => {
       expect(mockState.show).toHaveBeenCalled();
     });
 
-    it('should register IPC message handler', () => {
+    it('should store callback for IPC handler', () => {
       const onClick = vi.fn();
       showAIContextButton(onClick);
 
-      expect(mockState.webContentsOn).toHaveBeenCalledWith(
+      // Callback is stored, not immediately invoked
+      expect(onClick).not.toHaveBeenCalled();
+
+      // No longer uses webContents 'ipc-message' - uses global ipcMain.on instead
+      expect(mockState.webContentsOn).not.toHaveBeenCalledWith(
         'ipc-message',
         expect.any(Function)
       );
@@ -261,38 +265,35 @@ describe('AI Context Popup', () => {
   });
 
   describe('Click Callback', () => {
-    it('should invoke callback when button is clicked via IPC message', () => {
+    it('should invoke callback when button is clicked via IPC', () => {
+      // First register the IPC handler
+      initAIContextPopupIPC();
+
       const onClick = vi.fn();
       showAIContextButton(onClick);
 
-      // Get the IPC message handler
-      const ipcMessageCall = mockState.webContentsOn?.mock.calls.find(
-        (call: unknown[]) => call[0] === 'ipc-message'
+      // Get the IPC handler that was registered
+      const ipcHandlerCall = (ipcMain.on as unknown as ReturnType<typeof vi.fn>).mock.calls.find(
+        (call: unknown[]) => call[0] === 'floating-button-click'
       );
-      expect(ipcMessageCall).toBeDefined();
+      expect(ipcHandlerCall).toBeDefined();
 
-      const ipcMessageHandler = ipcMessageCall![1] as (event: unknown, channel: string) => void;
+      const handler = ipcHandlerCall![1] as () => void;
 
-      // Simulate click
-      ipcMessageHandler({}, 'floating-button-click');
+      // Simulate IPC event
+      handler();
 
       expect(onClick).toHaveBeenCalledTimes(1);
     });
 
-    it('should not invoke callback for other IPC channels', () => {
+    it('should store callback for later IPC invocation', () => {
       const onClick = vi.fn();
       showAIContextButton(onClick);
 
-      // Get the IPC message handler
-      const ipcMessageCall = mockState.webContentsOn?.mock.calls.find(
-        (call: unknown[]) => call[0] === 'ipc-message'
-      );
-      const ipcMessageHandler = ipcMessageCall![1] as (event: unknown, channel: string) => void;
-
-      // Simulate other message
-      ipcMessageHandler({}, 'other-channel');
-
+      // Callback should not be called immediately
       expect(onClick).not.toHaveBeenCalled();
+
+      // It will be called when IPC handler is invoked
     });
   });
 

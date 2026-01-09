@@ -145,6 +145,15 @@ export function createTray(mainWindow: BrowserWindow, callbacks?: TrayCallbacks)
             });
           },
         },
+        { type: 'separator' },
+        {
+          label: '개발자 도구',
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.openDevTools({ mode: 'detach' });
+            }
+          },
+        },
       ],
     },
     { type: 'separator' },

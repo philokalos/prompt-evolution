@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, clipboard, ipcMain, screen } from 'electron';
+import { app, BrowserWindow, globalShortcut, clipboard, ipcMain, screen, Notification } from 'electron';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import Store from 'electron-store';
@@ -46,7 +46,6 @@ interface AppSettings {
   windowBounds: { width: number; height: number };
   alwaysOnTop: boolean;
   hideOnCopy: boolean;
-  language: 'ko' | 'en';
   showNotifications: boolean;
   captureMode: 'auto' | 'selection' | 'clipboard';
   enableProjectPolling: boolean;
@@ -55,10 +54,11 @@ interface AppSettings {
   useAiRewrite: boolean;
   // Quick Action mode settings
   quickActionMode: boolean; // Enable minimal floating panel mode
-  quickActionAutoHide: number; // Auto-hide seconds (0 = disabled)
   // Innovative activation methods
   enableClipboardWatch: boolean; // Auto-detect prompts in clipboard
   enableAIContextPopup: boolean; // Show popup when AI apps are active
+  autoAnalyzeOnCopy: boolean; // Automatically analyze when prompt is detected
+  autoShowWindow: boolean; // Automatically show window after analysis completes
   // Manual project override
   manualProjectPath: string; // Empty = auto-detect, path = manual override
 }
@@ -72,7 +72,6 @@ const store = new Store<AppSettings>({
     windowBounds: { width: 420, height: 600 },
     alwaysOnTop: true,
     hideOnCopy: false,
-    language: 'ko',
     showNotifications: true,
     captureMode: 'auto',
     enableProjectPolling: true,
@@ -80,15 +79,26 @@ const store = new Store<AppSettings>({
     claudeApiKey: '',
     useAiRewrite: false,
     quickActionMode: false, // Default to full analysis view
-    quickActionAutoHide: 3, // 3 seconds auto-hide when enabled
     // Innovative activation - disabled by default for privacy
     enableClipboardWatch: false,
     enableAIContextPopup: false,
+    autoAnalyzeOnCopy: false, // User must opt-in for automatic analysis
+    autoShowWindow: true, // Auto-show window after analysis (convenient)
     // Manual project override - empty = auto-detect
     manualProjectPath: '',
   },
 });
 
+/**
+ * Show macOS notification if enabled in settings
+ */
+function showNotification(title: string, body: string): void {
+  const showNotifications = store.get('showNotifications') as boolean;
+  if (showNotifications) {
+    const notification = new Notification({ title, body });
+    notification.show();
+  }
+}
 
 /**
  * Captured window context at hotkey time
@@ -501,13 +511,18 @@ async function analyzeClipboardNow(): Promise<void> {
 
   sendTextToRenderer(clipboardText, lastCapturedContext);
 
-  // Show window near cursor
-  if (!mainWindow.isVisible()) {
-    positionWindowNearCursor();
-    mainWindow.showInactive();
-    console.log('[Main] Showing analysis window');
+  // Show window near cursor (if auto-show is enabled)
+  const autoShowWindow = store.get('autoShowWindow') as boolean;
+  if (autoShowWindow !== false) { // Default to true if not set
+    if (!mainWindow.isVisible()) {
+      positionWindowNearCursor();
+      mainWindow.showInactive();
+      console.log('[Main] Showing analysis window (auto-show enabled)');
+    } else {
+      mainWindow.focus();
+    }
   } else {
-    mainWindow.focus();
+    console.log('[Main] Analysis started (auto-show disabled)');
   }
 }
 
@@ -584,7 +599,15 @@ function initClipboardWatch(): void {
       // Show badge on tray icon
       setTrayBadge(true);
 
-      // Optionally show notification
+      // Check if auto-analyze is enabled
+      const autoAnalyze = store.get('autoAnalyzeOnCopy') as boolean;
+      if (autoAnalyze) {
+        console.log('[Main] Auto-analyzing detected prompt');
+        analyzeClipboardNow();
+        return; // Skip notification if auto-analyzing
+      }
+
+      // Otherwise, show notification
       const showNotifications = store.get('showNotifications') as boolean;
       if (showNotifications && mainWindow) {
         // Send to renderer to show subtle notification
@@ -749,6 +772,7 @@ ipcMain.handle('apply-improved-prompt', async (_event, text: string): Promise<Ap
   if (!lastFrontmostApp) {
     // No source app tracked, just copy to clipboard
     clipboard.writeText(text);
+    showNotification('PromptLint', '클립보드에 복사됨 - Cmd+V로 붙여넣기 해주세요');
     return {
       success: false,
       fallback: 'clipboard',
@@ -759,9 +783,12 @@ ipcMain.handle('apply-improved-prompt', async (_event, text: string): Promise<Ap
   // Apply text to the source app
   const result = await applyTextToApp(text, lastFrontmostApp);
 
-  // Hide PromptLint window after applying
+  // Show notification based on result
   if (result.success) {
+    showNotification('PromptLint', '프롬프트가 적용되었습니다');
     mainWindow?.hide();
+  } else if (result.fallback === 'clipboard') {
+    showNotification('PromptLint', result.message || '클립보드에 복사됨');
   }
 
   return result;

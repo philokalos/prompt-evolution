@@ -284,16 +284,22 @@ function generatePersonalTips(evaluation: GuidelineEvaluation): string[] {
  * Also saves to history for progress tracking
  */
 async function analyzePrompt(text: string): Promise<AnalysisResult> {
+  console.log('[LearningEngine] analyzePrompt START - text length:', text.length);
+
   // Ensure modules are loaded
   if (!evaluatePromptAgainstGuidelines) {
+    console.log('[LearningEngine] Loading analysis modules...');
     const loaded = await loadAnalysisModules();
     if (!loaded) {
+      console.log('[LearningEngine] Failed to load modules, returning fallback');
       // Return fallback analysis if modules can't be loaded
       return createFallbackAnalysis(text);
     }
+    console.log('[LearningEngine] Modules loaded successfully');
   }
 
   try {
+    console.log('[LearningEngine] Getting session context...');
     // Get session context for enhanced rewriting
     // Use captured context (from hotkey time) if available, otherwise fallback to real-time detection
     const capturedContext = getLastCapturedContext();
@@ -316,15 +322,21 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
     }
 
     // Run evaluation
+    console.log('[LearningEngine] Running GOLDEN evaluation...');
     const evaluation = evaluatePromptAgainstGuidelines!(text);
+    console.log('[LearningEngine] GOLDEN evaluation complete');
 
     // Run classification if available
     let classification: PromptClassification | undefined;
     if (classifyPrompt) {
+      console.log('[LearningEngine] Running classification...');
       classification = classifyPrompt(text);
+      console.log('[LearningEngine] Classification complete:', classification);
     }
 
+    console.log('[LearningEngine] Converting to analysis result...');
     const result = convertToAnalysisResult(evaluation, text, classification, sessionContext);
+    console.log('[LearningEngine] Conversion complete');
 
     // Phase 3.1: Async AI loading - Add loading placeholder instead of blocking
     // AI variant will be loaded separately via get-ai-variant IPC
@@ -350,6 +362,7 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
 
     if (projectPath) {
       try {
+        console.log('[LearningEngine] Enriching with history for project:', projectPath);
         const historyEnrichment = enrichAnalysisWithHistory(
           {
             overallScore: result.overallScore,
@@ -359,6 +372,7 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
           projectPath,
           category
         );
+        console.log('[LearningEngine] History enrichment complete');
 
         result.historyRecommendations = historyEnrichment.historyRecommendations;
         result.comparisonWithHistory = historyEnrichment.comparisonWithHistory;
@@ -373,6 +387,7 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
 
     // Save to history for progress tracking (with project/intent/category)
     try {
+      console.log('[LearningEngine] Saving analysis to database...');
       saveAnalysis({
         promptText: text,
         overallScore: result.overallScore,
@@ -384,10 +399,12 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
         intent: classification?.intent,
         category: category,
       });
+      console.log('[LearningEngine] Database save complete');
     } catch (dbError) {
       console.warn('[LearningEngine] Failed to save to history:', dbError);
     }
 
+    console.log('[LearningEngine] analyzePrompt COMPLETE - returning result');
     return result;
   } catch (error) {
     console.error('[LearningEngine] Analysis error:', error);

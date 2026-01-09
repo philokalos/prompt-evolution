@@ -180,6 +180,7 @@ function PromptComparisonInner({
   // Copy a specific variant by index - stable callback
   const copyVariant = useCallback((index: number) => {
     if (index >= 0 && index < variants.length && !variants[index].needsSetup) {
+      console.log('[PromptComparison] Copying variant, calling onCopy...');
       onCopy(variants[index].rewrittenPrompt);
       dispatch({ type: 'COPY_SUCCESS', index });
       setTimeout(() => dispatch({ type: 'COPY_RESET' }), 2000);

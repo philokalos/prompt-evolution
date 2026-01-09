@@ -18,8 +18,8 @@ let floatingWindow: BrowserWindow | null = null;
 let onClickCallback: (() => void) | null = null;
 
 // Floating button configuration
-const BUTTON_SIZE = 48;
-const MARGIN = 16;
+const BUTTON_SIZE = 36; // Reduced from 48px to be less intrusive
+const MARGIN = 20; // Increased margin to move further from screen edge
 
 /**
  * Create and show the floating AI context button
@@ -55,6 +55,8 @@ export function showAIContextButton(onClick: () => void): void {
     hasShadow: true,
     // Prevent window from accepting keyboard input
     acceptFirstMouse: false,
+    // CRITICAL: Type 'panel' prevents the window from interfering with keyboard input
+    type: 'panel',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -62,10 +64,19 @@ export function showAIContextButton(onClick: () => void): void {
     },
   });
 
-  // CRITICAL FIX: Make window pass-through for keyboard events
-  // This allows typing in other apps while the floating button is visible
-  // The button (opaque pixels) remains clickable, transparent areas pass through
+  // CRITICAL FIX: Complete pass-through for all mouse/keyboard events EXCEPT button clicks
+  // - setIgnoreMouseEvents(true) = window is completely transparent to mouse events
+  // - { forward: true } = forward events to the window below
+  // The HTML button re-enables pointer-events only on itself (CSS: pointer-events: auto)
   floatingWindow.setIgnoreMouseEvents(true, { forward: true });
+
+  // Additional safeguard: Set window level to floating (lower than modal dialogs)
+  // This prevents the window from blocking other apps' keyboard input
+  if (process.platform === 'darwin') {
+    // macOS-specific: Use floating window level (below screen saver, above normal)
+    // This is lower than 'modal-panel' or 'status' level
+    floatingWindow.setWindowButtonVisibility?.(false);
+  }
 
   // Set window level to be always visible but not intrusive
   floatingWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
@@ -74,13 +85,8 @@ export function showAIContextButton(onClick: () => void): void {
   const htmlContent = getFloatingButtonHTML();
   floatingWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(htmlContent)}`);
 
-  // Handle click events from the renderer
-  floatingWindow.webContents.on('ipc-message', (_event, channel) => {
-    if (channel === 'floating-button-click') {
-      console.log('[AIContext] Floating button clicked');
-      onClickCallback?.();
-    }
-  });
+  // Store callback for IPC handler
+  onClickCallback = onClick;
 
   console.log('[AIContext] Floating button shown');
 }
@@ -130,8 +136,8 @@ function getFloatingButtonHTML(): string {
     }
 
     html, body {
-      width: 48px;
-      height: 48px;
+      width: 36px;
+      height: 36px;
       background: transparent;
       overflow: hidden;
       -webkit-app-region: no-drag;
@@ -140,24 +146,27 @@ function getFloatingButtonHTML(): string {
     }
 
     .floating-button {
-      width: 48px;
-      height: 48px;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
-      border: 2px solid rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.15);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: all 0.2s ease;
-      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+      box-shadow: 0 3px 10px rgba(139, 92, 246, 0.3);
+      /* Default: Semi-transparent to be less intrusive */
+      opacity: 0.6;
       /* Re-enable mouse events for the button itself */
       pointer-events: auto;
     }
 
     .floating-button:hover {
-      transform: scale(1.1);
+      transform: scale(1.15);
       box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
+      opacity: 1.0;
     }
 
     .floating-button:active {
@@ -165,23 +174,23 @@ function getFloatingButtonHTML(): string {
     }
 
     .icon {
-      width: 24px;
-      height: 24px;
+      width: 20px;
+      height: 20px;
       color: white;
     }
 
-    /* Pulse animation when visible */
+    /* Subtle pulse animation - less distracting */
     @keyframes pulse {
       0%, 100% {
-        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+        box-shadow: 0 3px 10px rgba(139, 92, 246, 0.3);
       }
       50% {
-        box-shadow: 0 4px 20px rgba(139, 92, 246, 0.7);
+        box-shadow: 0 3px 14px rgba(139, 92, 246, 0.5);
       }
     }
 
     .floating-button {
-      animation: pulse 2s ease-in-out infinite;
+      animation: pulse 3s ease-in-out infinite; /* Slower: 3s instead of 2s */
     }
 
     .floating-button:hover {

@@ -79,6 +79,7 @@ function App() {
   const [shortcutError, setShortcutError] = useState<{ shortcut: string; message: string } | null>(null);
   const [isSourceAppBlocked, setIsSourceAppBlocked] = useState(false); // True if source app doesn't support Apply
   const [emptyState, setEmptyState] = useState<EmptyStatePayload | null>(null); // Empty state when no text captured
+  const [quickActionMode, setQuickActionMode] = useState(false);
 
   // Project selection handlers
   const handleProjectSelect = useCallback(async (projectPath: string | null) => {
@@ -112,6 +113,11 @@ function App() {
     // Get initial project state
     window.electronAPI.getCurrentProject().then((project) => {
       setCurrentProject(project as DetectedProject | null);
+    });
+
+    // Load quick action settings
+    window.electronAPI.getSettings().then((settings) => {
+      setQuickActionMode((settings.quickActionMode as boolean) ?? false);
     });
 
     console.log('[Renderer] Setting up clipboard listener');
@@ -268,7 +274,19 @@ function App() {
   }, []);
 
   const handleCopy = async (text: string) => {
-    await window.electronAPI.setClipboard(text);
+    try {
+      await window.electronAPI.setClipboard(text);
+
+      // Check hideOnCopy setting and close window if enabled
+      const settings = await window.electronAPI.getSettings();
+      console.log('[App] handleCopy - hideOnCopy setting:', settings.hideOnCopy);
+      if (settings.hideOnCopy) {
+        console.log('[App] Hiding window after copy');
+        await window.electronAPI.hideWindow();
+      }
+    } catch (error) {
+      console.error('[App] handleCopy error:', error);
+    }
   };
 
   const handleApply = async (text: string): Promise<{ success: boolean; message?: string }> => {
@@ -409,66 +427,79 @@ function App() {
           </div>
         ) : analysis ? (
           <>
-            {/* Session Context Indicator - prefer analysis context, fallback to polling */}
-            <ContextIndicator
-              context={analysis.sessionContext || (currentProject ? projectToContextInfo(currentProject) : null)}
-              onProjectSelect={handleProjectSelect}
-              onLoadProjects={loadAllProjects}
-            />
-
-            {/* GOLDEN Score Summary with Radar Chart */}
-            <div className="bg-dark-surface rounded-lg p-4">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <span className="text-sm text-gray-400">GOLDEN Score</span>
-                  <div className="text-2xl font-bold">{analysis.overallScore}%</div>
-                </div>
-                <span
-                  className={`grade-badge text-4xl font-bold ${getGradeColor(analysis.grade)}`}
-                >
+            {quickActionMode ? (
+              /* Quick Action Mode: Minimal UI */
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <span className={`grade-badge text-3xl font-bold ${getGradeColor(analysis.grade)}`}>
                   {analysis.grade}
                 </span>
+                <span className="text-xl font-medium">{analysis.overallScore}%</span>
               </div>
-              <div className="flex justify-center">
-                <GoldenRadar scores={analysis.goldenScores} size={200} />
-              </div>
-            </div>
+            ) : (
+              /* Full Analysis Mode */
+              <>
+                {/* Session Context Indicator - prefer analysis context, fallback to polling */}
+                <ContextIndicator
+                  context={analysis.sessionContext || (currentProject ? projectToContextInfo(currentProject) : null)}
+                  onProjectSelect={handleProjectSelect}
+                  onLoadProjects={loadAllProjects}
+                />
 
-            {/* Issues */}
-            <IssueList issues={analysis.issues} />
-
-            {/* History-based Recommendations (Phase 2) */}
-            {(analysis.historyRecommendations?.length || analysis.comparisonWithHistory?.improvement) && (
-              <HistoryRecommendations
-                recommendations={analysis.historyRecommendations || []}
-                comparisonWithHistory={analysis.comparisonWithHistory}
-              />
-            )}
-
-            {/* Personal Tips Preview */}
-            {analysis.personalTips.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <Lightbulb size={16} className="text-accent-primary" />
-                    <span>맞춤 팁</span>
-                  </div>
-                  <button
-                    onClick={() => setViewMode('tips')}
-                    className="text-xs text-accent-primary hover:underline"
-                  >
-                    더 보기
-                  </button>
-                </div>
-                <div className="bg-dark-surface rounded-lg p-3 space-y-2">
-                  {analysis.personalTips.slice(0, 2).map((tip, index) => (
-                    <div key={index} className="flex items-start gap-2 text-sm">
-                      <span className="text-accent-secondary">•</span>
-                      <span className="text-gray-300">{tip}</span>
+                {/* GOLDEN Score Summary with Radar Chart */}
+                <div className="bg-dark-surface rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <span className="text-sm text-gray-400">GOLDEN Score</span>
+                      <div className="text-2xl font-bold">{analysis.overallScore}%</div>
                     </div>
-                  ))}
+                    <span
+                      className={`grade-badge text-4xl font-bold ${getGradeColor(analysis.grade)}`}
+                    >
+                      {analysis.grade}
+                    </span>
+                  </div>
+                  <div className="flex justify-center">
+                    <GoldenRadar scores={analysis.goldenScores} size={200} />
+                  </div>
                 </div>
-              </div>
+
+                {/* Issues */}
+                <IssueList issues={analysis.issues} />
+
+                {/* History-based Recommendations (Phase 2) */}
+                {(analysis.historyRecommendations?.length || analysis.comparisonWithHistory?.improvement) && (
+                  <HistoryRecommendations
+                    recommendations={analysis.historyRecommendations || []}
+                    comparisonWithHistory={analysis.comparisonWithHistory}
+                  />
+                )}
+
+                {/* Personal Tips Preview */}
+                {analysis.personalTips.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Lightbulb size={16} className="text-accent-primary" />
+                        <span>맞춤 팁</span>
+                      </div>
+                      <button
+                        onClick={() => setViewMode('tips')}
+                        className="text-xs text-accent-primary hover:underline"
+                      >
+                        더 보기
+                      </button>
+                    </div>
+                    <div className="bg-dark-surface rounded-lg p-3 space-y-2">
+                      {analysis.personalTips.slice(0, 2).map((tip, index) => (
+                        <div key={index} className="flex items-start gap-2 text-sm">
+                          <span className="text-accent-secondary">•</span>
+                          <span className="text-gray-300">{tip}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </>
         ) : (
