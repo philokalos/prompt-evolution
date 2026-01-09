@@ -2,7 +2,44 @@
 
 All notable changes to PromptLint will be documented in this file.
 
-## [0.1.7] - 2026-01-04
+## [0.1.7] - 2026-01-09
+
+### Added
+- **Automatic Analysis Workflow**: Streamlined UX for instant prompt analysis
+  - `autoAnalyzeOnCopy`: Automatically analyze when prompt is detected in clipboard
+  - `autoShowWindow`: Automatically show window after analysis completes
+  - Eliminates need to manually click tray or floating button
+  - Tray badge indicator when prompt is detected
+- **World-Class Icon Design**: Premium AI sparkle design
+  - Beautiful gradient background (purple → blue → teal)
+  - Large 4-point sparkle star with glow effect
+  - 4 accent sparkles with varied sizes and opacity
+  - Depth elements (highlight, shadow, SVG filters)
+  - macOS Big Sur/Monterey style with 22% rounded corners
+  - Vector-based SVG source for perfect sharpness at all sizes
+- **Professional Tray Icon**: High-quality sparkle design
+  - Vector-based generation for crisp edges
+  - Template image format (auto-adapts to light/dark mode)
+  - Optimized for menu bar display
+- **Multi-Project Detection**: Smart project identification
+  - Detects multiple open projects in VS Code, Cursor, terminals
+  - Manual project selection via dropdown
+  - Auto-selects most active project by default
+
+### Changed
+- Settings UI reorganized with new automation options
+- Floating button click now uses global IPC handler (more reliable)
+
+### Fixed
+- **Floating Button Click**: Fixed IPC communication issue
+  - Added `send()` method to preload bridge
+  - Button clicks now properly trigger analysis
+- **Keyboard Focus Passthrough**: Floating button no longer blocks typing
+  - Uses `type: 'panel'` window mode
+  - `setIgnoreMouseEvents(true, { forward: true })`
+  - Proper pointer-events CSS handling
+
+## [0.1.6] - 2026-01-04
 
 ### Added
 - **Global Shortcut Validation**: Error handling and user notification

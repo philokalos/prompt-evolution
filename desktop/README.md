@@ -2,7 +2,7 @@
 
 Real-time prompt quality analysis with AI-powered personalized learning. Think of it as **Grammarly for AI prompts**.
 
-![Version](https://img.shields.io/badge/version-0.1.6-blue.svg)
+![Version](https://img.shields.io/badge/version-0.1.7-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-macOS-lightgrey.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
@@ -17,10 +17,15 @@ Evaluates prompts against 6 dimensions:
 - **E**valuation - Success criteria
 - **N**ext - Follow-up actions
 
-### Three Activation Methods
-1. **Global Hotkey** - `Cmd+Shift+P` (customizable)
-2. **Clipboard Watch** - Automatic detection of prompt-like text
-3. **Floating Button** - Click to analyze current clipboard
+### Streamlined Workflow
+- **Automatic Analysis** - Copy text → Auto-detect → Auto-analyze → Window auto-shows
+  - Enable "자동으로 분석" in Settings for instant analysis on clipboard detection
+  - No manual trigger needed - works seamlessly in the background
+  - Tray badge indicator shows when prompt is detected
+- **Three Activation Methods** (when auto-analyze is disabled)
+  1. **Global Hotkey** - `Cmd+Shift+P` (customizable)
+  2. **Clipboard Watch** - Automatic detection of prompt-like text
+  3. **Floating Button** - Click to analyze current clipboard
 
 ### Smart Prompt Variants
 - **Conservative** (~60% improvement) - Minimal, safe changes
@@ -39,6 +44,16 @@ Evaluates prompts against 6 dimensions:
 - Project-specific pattern analysis
 - Dimensional weakness detection
 - Progress tracking with trends
+
+### Premium Design
+- **World-Class App Icon** - Professional AI sparkle design
+  - Beautiful gradient background (purple → blue → teal)
+  - Large 4-point sparkle star with glow effect
+  - Vector-based for perfect sharpness at all sizes
+  - macOS Big Sur/Monterey style
+- **Professional Tray Icon** - Crisp sparkle design
+  - Auto-adapts to light/dark mode
+  - Optimized for menu bar display
 
 ## Installation
 
@@ -63,7 +78,14 @@ npm run dist:mac
 
 ## Usage
 
-### Quick Start
+### Quick Start (Automatic Mode)
+1. Launch PromptLint - appears in system tray
+2. Enable "복사할 때 감지" and "자동으로 분석" in Settings
+3. Copy any prompt text - that's it!
+4. Analysis window automatically shows with GOLDEN scores and variants
+5. Click to copy improved version
+
+### Manual Mode
 1. Launch PromptLint - appears in system tray
 2. Copy a prompt to clipboard
 3. Press `Cmd+Shift+P` (or click tray icon)
@@ -110,6 +132,7 @@ Modify in Settings or `~/.promptlint/config.json`:
 npm run dev:electron      # Development mode
 npm run build:all         # Build all components
 npm run dist:mac          # macOS distribution
+npm run generate-icons    # Regenerate app icons from SVG
 npm run typecheck         # TypeScript check
 npm run test              # Run tests
 npm run test:coverage     # Coverage report
@@ -160,7 +183,14 @@ Only needed for AI rewriting feature with Anthropic API.
 
 ## Changelog
 
-See [CHANGELOG.md](./CHANGELOG.md) for version history.
+### Latest (v0.1.7)
+- ✨ Automatic analysis workflow (copy → auto-analyze → window auto-shows)
+- 🎨 World-class app icon with AI sparkle design
+- 🔧 Professional tray icon optimized for menu bar
+- 🐛 Fixed floating button click and keyboard passthrough
+- 🚀 Multi-project detection and manual selection
+
+See [CHANGELOG.md](./CHANGELOG.md) for complete version history.
 
 ## License
 
