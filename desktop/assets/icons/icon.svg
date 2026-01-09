@@ -1,25 +1,109 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#6366f1"/>
-      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    <!-- Main gradient background (purple to blue to teal) -->
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8B5CF6;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#6366F1;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#3B82F6;stop-opacity:1" />
     </linearGradient>
-    <linearGradient id="check" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#10b981"/>
-      <stop offset="100%" style="stop-color:#34d399"/>
+
+    <!-- Sparkle gradient (white to light blue) -->
+    <linearGradient id="sparkleGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E0E7FF;stop-opacity:1" />
     </linearGradient>
+
+    <!-- Accent sparkle gradient (cyan to white) -->
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06B6D4;stop-opacity:0.9" />
+      <stop offset="100%" style="stop-color:#FFFFFF;stop-opacity:1" />
+    </linearGradient>
+
+    <!-- Shadow filter -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="8"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Inner glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="12"/>
+      <feOffset dx="0" dy="0" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.5"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
-  <!-- Background -->
-  <rect width="1024" height="1024" rx="200" fill="url(#bg)"/>
-  <!-- Document shape -->
-  <rect x="280" y="180" width="464" height="664" rx="40" fill="white" opacity="0.95"/>
-  <!-- Lines representing text -->
-  <rect x="340" y="280" width="280" height="24" rx="12" fill="#6366f1" opacity="0.3"/>
-  <rect x="340" y="340" width="344" height="24" rx="12" fill="#6366f1" opacity="0.3"/>
-  <rect x="340" y="400" width="200" height="24" rx="12" fill="#6366f1" opacity="0.3"/>
-  <rect x="340" y="460" width="320" height="24" rx="12" fill="#6366f1" opacity="0.3"/>
-  <rect x="340" y="520" width="260" height="24" rx="12" fill="#6366f1" opacity="0.3"/>
-  <!-- Checkmark circle -->
-  <circle cx="680" cy="700" r="120" fill="url(#check)"/>
-  <path d="M620 700 L660 740 L740 660" stroke="white" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Background rounded square with gradient -->
+  <rect width="1024" height="1024" rx="226" ry="226" fill="url(#bgGradient)"/>
+
+  <!-- Subtle highlight overlay (top) -->
+  <ellipse cx="512" cy="200" rx="400" ry="150" fill="white" opacity="0.1"/>
+
+  <!-- Main sparkle star (center) -->
+  <g transform="translate(512, 512)" filter="url(#glow)">
+    <!-- Large 4-point star -->
+    <path d="M 0,-200 L 40,-40 L 200,0 L 40,40 L 0,200 L -40,40 L -200,0 L -40,-40 Z"
+          fill="url(#sparkleGradient)"
+          opacity="0.95"/>
+
+    <!-- Inner star detail -->
+    <path d="M 0,-140 L 28,-28 L 140,0 L 28,28 L 0,140 L -28,28 L -140,0 L -28,-28 Z"
+          fill="white"
+          opacity="0.5"/>
+  </g>
+
+  <!-- Top-right accent sparkle -->
+  <g transform="translate(720, 304)" filter="url(#shadow)">
+    <path d="M 0,-60 L 12,-12 L 60,0 L 12,12 L 0,60 L -12,12 L -60,0 L -12,-12 Z"
+          fill="url(#accentGradient)"
+          opacity="0.9"/>
+    <!-- Small highlight -->
+    <circle cx="-8" cy="-8" r="6" fill="white" opacity="0.8"/>
+  </g>
+
+  <!-- Top-left accent sparkle -->
+  <g transform="translate(304, 280)" filter="url(#shadow)">
+    <path d="M 0,-50 L 10,-10 L 50,0 L 10,10 L 0,50 L -10,10 L -50,0 L -10,-10 Z"
+          fill="white"
+          opacity="0.7"/>
+    <!-- Small highlight -->
+    <circle cx="-6" cy="-6" r="4" fill="white" opacity="0.9"/>
+  </g>
+
+  <!-- Bottom-left accent sparkle -->
+  <g transform="translate(280, 720)" filter="url(#shadow)">
+    <path d="M 0,-45 L 9,-9 L 45,0 L 9,9 L 0,45 L -9,9 L -45,0 L -9,-9 Z"
+          fill="url(#accentGradient)"
+          opacity="0.8"/>
+  </g>
+
+  <!-- Bottom-right small sparkle -->
+  <g transform="translate(744, 744)">
+    <path d="M 0,-35 L 7,-7 L 35,0 L 7,7 L 0,35 L -7,7 L -35,0 L -7,-7 Z"
+          fill="white"
+          opacity="0.6"/>
+  </g>
+
+  <!-- Tiny accent dots for depth -->
+  <circle cx="380" cy="420" r="8" fill="white" opacity="0.4"/>
+  <circle cx="640" cy="580" r="10" fill="white" opacity="0.3"/>
+  <circle cx="420" cy="640" r="6" fill="white" opacity="0.35"/>
+  <circle cx="600" cy="380" r="7" fill="white" opacity="0.4"/>
+
+  <!-- Subtle bottom shadow for depth -->
+  <ellipse cx="512" cy="900" rx="350" ry="100" fill="black" opacity="0.1"/>
 </svg>
