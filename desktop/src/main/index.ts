@@ -376,7 +376,21 @@ function _createQuickActionWindow(): void {
 }
 
 function createWindow(): void {
-  const { width, height } = store.get('windowBounds') as { width: number; height: number };
+  // Check for screenshot mode environment variables
+  const screenshotMode = process.env.SCREENSHOT_MODE === 'true';
+  const defaultBounds = store.get('windowBounds') as { width: number; height: number };
+
+  // Use environment variables in screenshot mode, otherwise use stored settings
+  const width = screenshotMode
+    ? parseInt(process.env.WINDOW_WIDTH || '1440', 10)
+    : defaultBounds.width;
+  const height = screenshotMode
+    ? parseInt(process.env.WINDOW_HEIGHT || '900', 10)
+    : defaultBounds.height;
+
+  if (screenshotMode) {
+    console.log(`[Main] 📸 Screenshot mode: ${width}×${height} (will capture as ${width * 2}×${height * 2} on Retina)`);
+  }
 
   mainWindow = new BrowserWindow({
     width,

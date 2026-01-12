@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PromptLint - AI 프롬프트 품질 분석 도구</title>
+    <meta name="description" content="AI에게 더 나은 질문하는 법을 배워보세요. 실시간 프롬프트 분석과 개선 제안으로 더 좋은 답변을 받으세요.">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Apple SD Gothic Neo', sans-serif;
+            line-height: 1.6;
+            color: #e4e4e7;
+            background: #09090b;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Language Switcher */
+        .lang-switcher {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+        }
+
+        .lang-switcher a {
+            display: inline-block;
+            padding: 8px 16px;
+            background: #27272a;
+            color: #a1a1aa;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .lang-switcher a:hover {
+            background: #3f3f46;
+            color: #fafafa;
+        }
+
+        /* Header */
+        header {
+            padding: 60px 0 80px;
+            text-align: center;
+            background: linear-gradient(to bottom, #18181b 0%, #09090b 100%);
+        }
+
+        .logo {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .tagline {
+            font-size: 24px;
+            color: #a1a1aa;
+            margin-bottom: 32px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            padding: 16px 48px;
+            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 12px;
+            font-size: 18px;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(139, 92, 246, 0.3);
+        }
+
+        /* Features */
+        .features {
+            padding: 80px 0;
+        }
+
+        .section-title {
+            text-align: center;
+            font-size: 36px;
+            margin-bottom: 60px;
+            color: #fafafa;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 40px;
+            margin-bottom: 60px;
+        }
+
+        .feature-card {
+            padding: 32px;
+            background: #18181b;
+            border: 1px solid #27272a;
+            border-radius: 16px;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            border-color: #8b5cf6;
+        }
+
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .feature-title {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #fafafa;
+        }
+
+        .feature-desc {
+            color: #a1a1aa;
+            line-height: 1.8;
+        }
+
+        /* Screenshot */
+        .screenshot-section {
+            padding: 80px 0;
+            background: #18181b;
+        }
+
+        .screenshot {
+            max-width: 900px;
+            margin: 0 auto;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+        }
+
+        .screenshot img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Download */
+        .download-section {
+            padding: 80px 0;
+            text-align: center;
+        }
+
+        .version-info {
+            color: #71717a;
+            margin-top: 16px;
+            font-size: 14px;
+        }
+
+        /* Footer */
+        footer {
+            padding: 60px 0;
+            text-align: center;
+            border-top: 1px solid #27272a;
+            color: #71717a;
+        }
+
+        .footer-links {
+            margin-top: 24px;
+        }
+
+        .footer-links a {
+            color: #a1a1aa;
+            text-decoration: none;
+            margin: 0 16px;
+            transition: color 0.2s;
+        }
+
+        .footer-links a:hover {
+            color: #8b5cf6;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .logo {
+                font-size: 36px;
+            }
+
+            .tagline {
+                font-size: 18px;
+            }
+
+            .section-title {
+                font-size: 28px;
+            }
+
+            .feature-grid {
+                gap: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="lang-switcher">
+        <a href="../en/">English</a>
+    </div>
+
+    <header>
+        <div class="container">
+            <h1 class="logo">PromptLint</h1>
+            <p class="tagline">AI에게 더 나은 질문하는 법을 배워보세요</p>
+            <a href="#download" class="cta-button">무료 다운로드</a>
+        </div>
+    </header>
+
+    <section class="features">
+        <div class="container">
+            <h2 class="section-title">✨ 이런 걸 할 수 있어요</h2>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3 class="feature-title">실시간 품질 분석</h3>
+                    <p class="feature-desc">GOLDEN 6차원 평가로 프롬프트를 즉시 분석하고 A~F 등급을 확인하세요.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">💡</div>
+                    <h3 class="feature-title">똑똑한 개선 제안</h3>
+                    <p class="feature-desc">3가지 개선안을 자동으로 만들어드립니다. AI 기능을 켜면 더 좋은 제안도 받을 수 있어요.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">⌨️</div>
+                    <h3 class="feature-title">어디서든 사용</h3>
+                    <p class="feature-desc">Cmd+Shift+P 단축키 하나면 어떤 앱에서든 즉시 분석할 수 있습니다.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">📈</div>
+                    <h3 class="feature-title">실력 향상 추적</h3>
+                    <p class="feature-desc">시간이 지나면서 얼마나 나아졌는지 차트로 확인하고, 자주 놓치는 부분을 알려드려요.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3 class="feature-title">안전한 개인정보</h3>
+                    <p class="feature-desc">모든 데이터가 내 컴퓨터에만 저장됩니다. 인터넷 연결 없이도 사용 가능해요.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3 class="feature-title">IDE 자동 감지</h3>
+                    <p class="feature-desc">VS Code, Cursor 같은 코드 에디터를 자동으로 인식하고 프로젝트에 맞는 분석을 제공합니다.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="screenshot-section">
+        <div class="container">
+            <h2 class="section-title">👀 이렇게 생겼어요</h2>
+            <div class="screenshot">
+                <img src="screenshot.png" alt="PromptLint 스크린샷">
+            </div>
+        </div>
+    </section>
+
+    <section class="download-section" id="download">
+        <div class="container">
+            <h2 class="section-title">🚀 지금 바로 시작하세요</h2>
+            <a href="https://github.com/philokalos/prompt-evolution/releases/latest" class="cta-button">macOS 다운로드</a>
+            <p class="version-info">버전 0.1.7 | macOS 11.0 이상 | 무료</p>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2026 PromptLint by MTMD. All rights reserved.</p>
+            <div class="footer-links">
+                <a href="https://github.com/philokalos/prompt-evolution">GitHub</a>
+                <a href="https://github.com/philokalos/prompt-evolution/issues">지원</a>
+                <a href="mailto:macrothinkmicrodesign0@gmail.com">문의</a>
+            </div>
+        </div>
+    </footer>
+</body>
+</html>
