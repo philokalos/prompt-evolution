@@ -109,8 +109,19 @@
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
       "target": [
-        "zip"
+        {
+          "target": "mas",
+          "arch": ["arm64", "x64"]
+        }
       ],
+      "type": "distribution"
+    },
+    "mas": {
+      "entitlements": "certs/entitlements.mas.plist",
+      "entitlementsInherit": "certs/entitlements.mas.inherit.plist",
+      "provisioningProfile": "certs/embedded.provisionprofile",
+      "hardenedRuntime": false,
+      "identity": null,
       "type": "distribution"
     },
     "win": {
