@@ -2,13 +2,23 @@
 
 **PromptLint v0.1.7** → App Store 정식 배포
 
+**최종 업데이트**: 2026-01-12
+**주요 변경사항**:
+- ✅ 기본 언어: Korean (한국어) - 주 타겟 시장 반영
+- ✅ Bundle ID 일관성: `com.mtmd.promptlint` (전체 통일)
+- ✅ 현재 빌드 상태 반영 (111 MB, unsigned)
+- ✅ Production 최적화 완료 (console.log 제거)
+- ✅ 실제 인증서 상태 업데이트
+- ✅ 한국어/영어 이중 언어 메타데이터 가이드
+
 ## 현재 상태
 
 ✅ **배포 준비 완료**
 - 기능 개발: 완료
 - 테스트: 590개 통과 (100%)
 - TypeScript: 에러 없음
-- 빌드: 성공 (unsigned)
+- 빌드: 성공 (111 MB, unsigned)
+- Production 최적화: 완료 (console.log 제거, 75KB gzipped)
 
 ---
 
@@ -21,10 +31,12 @@
 3. **플랫폼**: macOS 선택
 4. **앱 정보**:
    - **앱 이름**: PromptLint
-   - **기본 언어**: English
-   - **번들 ID**: `com.mtmd.promptlint` ← **반드시 일치**
+   - **기본 언어**: Korean (한국어) ← **주 타겟 시장**
+   - **번들 ID**: `com.mtmd.promptlint` ← **반드시 일치 (package.json과 동일)**
    - **SKU**: `promptlint-0171` (고유값, 예시)
    - **사용자 접근 유형**: 전체 사용자 액세스 가능
+
+**참고**: 기본 언어를 한국어로 설정하면 앱 설명, 스크린샷 등을 한국어로 우선 작성할 수 있으며, 이후 영어 등 다른 언어를 추가할 수 있습니다.
 
 ### 1.2 코드 서명 인증서 생성
 
@@ -70,11 +82,11 @@ security find-identity -v -p codesigning | grep "Mac App Distribution"
 2. **App IDs** 선택
 3. **Type**: App
 4. **Description**: PromptLint
-5. **Bundle ID**: `com.philokalos.promptlint`
+5. **Bundle ID**: `com.mtmd.promptlint` ← **package.json과 동일**
 6. **Capabilities**:
    - ✅ App Sandbox (필수)
-   - ✅ Network (API 통신)
-   - ✅ User Selected Files (선택 파일 접근)
+   - ✅ Network (API 통신용 - Claude API)
+   - ✅ User Selected Files (선택 파일 읽기/쓰기)
 
 ### 1.4 프로비저닝 프로필 생성
 
@@ -129,7 +141,7 @@ mkdir -p desktop/certs
 ```json
 {
   "build": {
-    "appId": "com.philokalos.promptlint",
+    "appId": "com.mtmd.promptlint",
     "productName": "PromptLint",
     "directories": {
       "output": "release"
@@ -203,25 +215,37 @@ export APPLE_TEAM_ID="ABC123DEF"
 ```bash
 cd desktop
 
-# 1. 모든 모듈 빌드
-npm run build:all
-
-# 2. electron-builder로 .pkg 생성 (자동 코드 서명)
+# 1. Production 빌드 (console.log 제거)
 npm run dist:mac
 
 # 결과 확인
 ls -lh release/
-# PromptLint-0.1.7-arm64.pkg (또는 .dmg, .zip)
+# PromptLint-0.1.7-arm64-mac.zip (111 MB)
 ```
 
-**코드 서명 확인**:
+**현재 빌드 상태 (2026-01-12)**:
+```bash
+# 이미 생성된 unsigned 빌드
+release/PromptLint-0.1.7-arm64-mac.zip  (111 MB)
+release/mac-arm64/PromptLint.app
+
+# 발견된 인증서 (개발용)
+Apple Development: macrothinkmicrodesign0@gmail.com (LY59QBV5V2)
+상태: CSSMERR_TP_NOT_TRUSTED
+
+# App Store 제출을 위해서는:
+1. "Mac App Distribution" 인증서 필요 (위 1.2 단계 참고)
+2. 인증서 발급 후 npm run dist:mac 재실행
+```
+
+**코드 서명 확인** (서명 후):
 ```bash
 # 생성된 앱 검증
-codesign -v -v release/PromptLint-0.1.7-arm64.pkg
+codesign -v -v release/mac-arm64/PromptLint.app
 
 # 출력 예:
-# /Users/.../release/PromptLint-0.1.7-arm64.pkg: valid on disk
-# /Users/.../release/PromptLint-0.1.7-arm64.pkg: satisfies its Designated Requirement
+# release/mac-arm64/PromptLint.app: valid on disk
+# release/mac-arm64/PromptLint.app: satisfies its Designated Requirement
 ```
 
 ---
@@ -321,11 +345,38 @@ xcrun altool --upload-app \
 
 ### 6.1 앱 정보
 
+**한국어** (기본 언어):
+
 1. **앱 정보** 탭
    - **이름**: PromptLint
-   - **부제목**: AI-powered prompt quality analysis
-   - **키워드**: `prompt, ai, claude, analysis, productivity, writing, developer`
+   - **부제목**: AI 프롬프트 품질 분석 도우미
+   - **키워드**: `프롬프트, AI, 인공지능, 클로드, 분석, 생산성, 글쓰기, 개발자`
    - **설명**:
+     ```
+     AI 기반 실시간 프롬프트 품질 분석 및 개선 도구
+
+     PromptLint는 AI 프롬프트를 위한 Grammarly입니다.
+     어떤 앱에서든 단축키 하나로 프롬프트 품질을 즉시 분석하고 개선안을 받을 수 있습니다.
+
+     주요 기능:
+     • GOLDEN 6차원 평가 (목표, 출력, 제약, 데이터, 평가, 다음 단계)
+     • 전역 단축키로 즉시 분석 (Cmd+Shift+P)
+     • 3가지 규칙 기반 변형 + AI 고급 개선 (선택)
+     • IDE 자동 감지 (VS Code, Cursor, JetBrains)
+     • 개인화 학습 엔진 (히스토리 추적)
+     • 프로젝트별 패턴 인식
+     • A~F 등급 평가 및 구체적 개선 제안
+
+     개발자, 작가, AI 활용자 모두를 위한 필수 도구입니다.
+     ```
+
+**English** (추가 언어):
+
+1. **App Info** tab
+   - **Name**: PromptLint
+   - **Subtitle**: AI-powered prompt quality analysis
+   - **Keywords**: `prompt, ai, claude, analysis, productivity, writing, developer`
+   - **Description**:
      ```
      Real-time prompt correction with AI-powered personalized learning.
 
@@ -413,10 +464,13 @@ xcrun altool --upload-app \
 
 ### 6.7 기술 정보
 
-- **번들 ID**: com.philokalos.promptlint
-- **최소 OS**: macOS 12.0 이상
-- **Apple Silicon**: 필수 (arm64)
-- **인텔 Mac**: 지원하지 않음 (필요 시 추가)
+- **번들 ID**: com.mtmd.promptlint
+- **최소 OS**: macOS 12.0 (Monterey) 이상
+- **Electron**: 37.7.0
+- **Apple Silicon**: 지원 (arm64) ← 현재 빌드
+- **Intel Mac**: 미지원 (필요 시 universal 빌드 추가 가능)
+- **앱 크기**: 111 MB (압축), ~300 MB (설치 후)
+- **카테고리**: 개발자 도구 (Developer Tools)
 
 ---
 
@@ -510,26 +564,32 @@ xcrun stapler staple release/PromptLint-0.1.8-arm64.pkg
 ### 인증서 및 프로비저닝
 - [ ] CSR 파일 생성 (Keychain Access)
 - [ ] Mac App Distribution 인증서 생성 및 설치
-- [ ] App ID 생성 (`com.philokalos.promptlint`)
+- [ ] App ID 생성 (`com.mtmd.promptlint`)
 - [ ] 프로비저닝 프로필 생성 및 다운로드
 
 ### 로컬 설정
-- [ ] `entitlements.mac.plist` 생성
+- [x] `entitlements.mac.plist` 생성 ✅ (완료)
 - [ ] `package.json` 업데이트 (signingIdentity, teamId, provisioningProfile)
+- [x] Bundle ID 일관성 확인 ✅ (`com.mtmd.promptlint`)
 - [ ] `codesign` 확인: `security find-identity -v -p codesigning`
 
 ### 빌드 및 검증
-- [ ] 로컬 빌드: `npm run dist:mac`
-- [ ] 코드 서명 검증: `codesign -v -v release/*.pkg`
+- [x] Unsigned 빌드: `npm run dist:mac` ✅ (111 MB 생성됨)
+- [x] Production 최적화 확인 ✅ (console.log 제거, 75KB gzipped)
+- [ ] "Mac App Distribution" 인증서 발급 (1.2 단계)
+- [ ] 서명된 빌드: `npm run dist:mac` (재실행)
+- [ ] 코드 서명 검증: `codesign -v -v release/mac-arm64/PromptLint.app`
 - [ ] Notarization 성공
 - [ ] Staple 완료
 
 ### App Store Connect 메타데이터
-- [ ] 앱 정보 작성 (이름, 부제목, 설명, 키워드)
-- [ ] 스크린샷 업로드 (4개, 2880×1800)
+- [ ] 기본 언어 설정: Korean (한국어)
+- [ ] 앱 정보 작성 (한국어) - 이름, 부제목, 설명, 키워드
+- [ ] 앱 정보 작성 (영어) - 추가 언어 지원
+- [ ] 스크린샷 업로드 (4개, 2880×1800) - `SCREENSHOT_GUIDE.md` 참고
 - [ ] 개인정보보호정책 URL 등록
-- [ ] 콘텐츠 등급 설정
-- [ ] 버전 정보 입력
+- [ ] 콘텐츠 등급 설정 (4+)
+- [ ] 버전 정보 입력 (0.1.7)
 
 ### 제출
 - [ ] Transporter 또는 altool로 제출
