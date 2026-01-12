@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [react()],
   base: './',
   root: 'src/renderer',
@@ -17,6 +17,11 @@ export default defineConfig({
         main: path.resolve(__dirname, 'src/renderer/index.html'),
       },
     },
+    // Remove console.log in production builds
+    minify: 'esbuild',
+  },
+  esbuild: {
+    drop: mode === 'production' ? ['console', 'debugger'] : [],
   },
   resolve: {
     alias: {
@@ -29,4 +34,4 @@ export default defineConfig({
     port: 5173,
     strictPort: false,
   },
-});
+}));

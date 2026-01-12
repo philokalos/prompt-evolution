@@ -30,6 +30,8 @@ export function getDatabase(): Database.Database {
   db = new Database(DB_PATH);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
+  // Auto-checkpoint WAL file every 1000 pages to prevent unbounded growth
+  db.pragma('wal_autocheckpoint = 1000');
 
   return db;
 }

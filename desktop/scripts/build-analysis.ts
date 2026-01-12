@@ -27,6 +27,10 @@ async function build() {
   }
 
   try {
+    // Check if building for production
+    const isProduction = process.env.NODE_ENV === 'production';
+    const dropOptions = isProduction ? ['console', 'debugger'] : [];
+
     // Bundle all analysis modules into a single CJS file
     await esbuild.build({
       entryPoints: [path.join(analysisDir, 'guidelines-evaluator.ts')],
@@ -39,6 +43,7 @@ async function build() {
       sourcemap: false,
       minify: false,  // Keep readable for debugging
       treeShaking: true,
+      drop: dropOptions,
     });
 
     // Also bundle the classifier separately (in case it's needed)
@@ -53,6 +58,7 @@ async function build() {
       sourcemap: false,
       minify: false,
       treeShaking: true,
+      drop: dropOptions,
     });
 
     console.log('[build-analysis] Build complete!');

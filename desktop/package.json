@@ -17,11 +17,14 @@
     "build:all": "npm run build:analysis && npm run build:main && npm run build:preload && npm run build:renderer",
     "preview": "vite preview",
     "start": "electron .",
-    "pack": "npm run build:all && electron-builder --dir",
-    "dist": "npm run build:all && electron-builder",
-    "dist:mac": "npm run build:all && electron-builder --mac",
-    "dist:win": "npm run build:all && electron-builder --win",
+    "pack": "NODE_ENV=production npm run build:all && electron-builder --dir",
+    "dist": "NODE_ENV=production npm run build:all && electron-builder",
+    "dist:mac": "NODE_ENV=production npm run build:all && electron-builder --mac",
+    "dist:win": "NODE_ENV=production npm run build:all && electron-builder --win",
     "generate-icons": "npx tsx scripts/generate-icons.ts",
+    "screenshots": "node scripts/capture-screenshots.mjs",
+    "screenshots:auto": "npx tsx scripts/generate-screenshots-auto.ts",
+    "screenshots:manual": "npx tsx scripts/screenshot-helper.ts",
     "lint": "eslint src scripts",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
@@ -58,6 +61,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.26",
     "globals": "^17.0.0",
+    "playwright": "^1.57.0",
     "postcss": "^8.4.33",
     "sharp": "^0.34.5",
     "tailwindcss": "^3.4.1",
@@ -67,7 +71,7 @@
     "vitest": "^4.0.16"
   },
   "build": {
-    "appId": "com.philokalos.promptlint",
+    "appId": "com.mtmd.promptlint",
     "productName": "PromptLint",
     "directories": {
       "output": "release"
@@ -100,10 +104,14 @@
     "mac": {
       "category": "public.app-category.developer-tools",
       "icon": "assets/icons/icon.icns",
+      "entitlements": "certs/entitlements.mac.plist",
+      "entitlementsInherit": "certs/entitlements.mac.plist",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
       "target": [
-        "dmg",
         "zip"
-      ]
+      ],
+      "type": "distribution"
     },
     "win": {
       "icon": "assets/icons/icon.ico",

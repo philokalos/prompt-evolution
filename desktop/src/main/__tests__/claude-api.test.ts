@@ -279,7 +279,7 @@ describe('Claude API Client', () => {
         const result = await rewritePromptWithClaude('sk-valid-key', createMockRequest());
 
         expect(result.success).toBe(false);
-        expect(result.error).toBe('네트워크 연결을 확인해주세요.');
+        expect(result.error).toContain('네트워크 연결을 확인해주세요');
       });
 
       it('should handle generic errors', async () => {

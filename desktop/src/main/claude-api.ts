@@ -373,10 +373,21 @@ export async function rewritePromptWithClaude(
 
     // Network or other errors
     if (error instanceof Error) {
-      if (error.message.includes('fetch')) {
+      // Check for network errors
+      const errorMessage = error.message.toLowerCase();
+      const isNetworkError =
+        errorMessage.includes('fetch') ||
+        errorMessage.includes('network') ||
+        errorMessage.includes('enotfound') ||
+        errorMessage.includes('enetunreach') ||
+        errorMessage.includes('etimedout') ||
+        errorMessage.includes('econnrefused') ||
+        errorMessage.includes('offline');
+
+      if (isNetworkError) {
         return {
           success: false,
-          error: '네트워크 연결을 확인해주세요.',
+          error: '네트워크 연결을 확인해주세요. 인터넷 연결 상태를 확인하거나 잠시 후 다시 시도해주세요.',
         };
       }
       return {
@@ -531,6 +542,26 @@ export async function rewritePromptWithMultiVariant(
         return { success: false, error: 'API 요청 한도 초과. 잠시 후 다시 시도해주세요.' };
       }
       return { success: false, error: `API 오류: ${error.message}` };
+    }
+
+    // Network errors
+    if (error instanceof Error) {
+      const errorMessage = error.message.toLowerCase();
+      const isNetworkError =
+        errorMessage.includes('fetch') ||
+        errorMessage.includes('network') ||
+        errorMessage.includes('enotfound') ||
+        errorMessage.includes('enetunreach') ||
+        errorMessage.includes('etimedout') ||
+        errorMessage.includes('econnrefused') ||
+        errorMessage.includes('offline');
+
+      if (isNetworkError) {
+        return {
+          success: false,
+          error: '네트워크 연결을 확인해주세요. 인터넷 연결 상태를 확인하거나 잠시 후 다시 시도해주세요.',
+        };
+      }
     }
 
     return { success: false, error: '알 수 없는 오류가 발생했습니다.' };

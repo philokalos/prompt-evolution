@@ -6,7 +6,7 @@
  */
 
 import { exec } from 'child_process';
-import { clipboard, systemPreferences, dialog, shell } from 'electron';
+import { clipboard, systemPreferences, dialog, shell, app } from 'electron';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
@@ -154,15 +154,37 @@ export function checkAccessibilityPermission(promptIfNeeded = false): boolean {
  * @returns true if user clicked "Open Settings", false otherwise
  */
 export async function showAccessibilityPermissionDialog(): Promise<boolean> {
+  // Detect system language
+  const locale = app.getLocale();
+  const isKorean = locale.startsWith('ko');
+
+  // Localized messages
+  const messages = isKorean
+    ? {
+        title: '접근성 권한 필요',
+        message: '텍스트 선택 캡처 기능을 사용하려면 접근성 권한이 필요합니다.',
+        detail:
+          'PromptLint가 다른 앱에서 선택한 텍스트를 자동으로 복사하려면 ' +
+          '시스템 환경설정 > 개인정보 보호 및 보안 > 접근성에서 PromptLint를 허용해주세요.\n\n' +
+          '권한 없이도 클립보드에 복사된 텍스트는 분석할 수 있습니다.',
+        buttons: ['설정 열기', '나중에'],
+      }
+    : {
+        title: 'Accessibility Permission Required',
+        message: 'Accessibility permission is required to use text selection capture.',
+        detail:
+          'To allow PromptLint to automatically copy selected text from other apps, ' +
+          'please grant permission in System Settings > Privacy & Security > Accessibility.\n\n' +
+          'You can still analyze text copied to the clipboard without this permission.',
+        buttons: ['Open Settings', 'Later'],
+      };
+
   const result = await dialog.showMessageBox({
     type: 'info',
-    title: '접근성 권한 필요',
-    message: '텍스트 선택 캡처 기능을 사용하려면 접근성 권한이 필요합니다.',
-    detail:
-      'PromptLint가 다른 앱에서 선택한 텍스트를 자동으로 복사하려면 ' +
-      '시스템 환경설정 > 개인정보 보호 및 보안 > 접근성에서 PromptLint를 허용해주세요.\n\n' +
-      '권한 없이도 클립보드에 복사된 텍스트는 분석할 수 있습니다.',
-    buttons: ['설정 열기', '나중에'],
+    title: messages.title,
+    message: messages.message,
+    detail: messages.detail,
+    buttons: messages.buttons,
     defaultId: 0,
     cancelId: 1,
   });
@@ -277,6 +299,17 @@ export async function applyTextToApp(
     };
   }
 
+  // Validate appName to prevent AppleScript injection
+  // Allow alphanumeric, spaces, hyphens, underscores, dots, and common app name characters
+  if (!/^[a-zA-Z0-9\s._-]+$/.test(appName)) {
+    console.warn(`[TextSelection] Invalid app name for security: ${appName}`);
+    return {
+      success: false,
+      fallback: 'clipboard',
+      message: '클립보드에 복사됨 - Cmd+V로 붙여넣기 해주세요',
+    };
+  }
+
   // Check if app is blocked (doesn't work well with AppleScript)
   if (isBlockedApp(appName)) {
     console.log(`[TextSelection] Blocked app: ${appName}, using clipboard fallback`);
@@ -288,12 +321,15 @@ export async function applyTextToApp(
   }
 
   try {
+    // Escape double quotes in appName for AppleScript safety (defense in depth)
+    const safeAppName = appName.replace(/"/g, '\\"');
+
     // AppleScript to:
     // 1. Activate the source app
     // 2. Select all (Cmd+A)
     // 3. Paste (Cmd+V)
     const script = `
-      tell application "${appName}" to activate
+      tell application "${safeAppName}" to activate
       delay 0.15
       tell application "System Events"
         keystroke "a" using command down

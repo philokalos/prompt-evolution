@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, clipboard, ipcMain, screen, Notification } from 'electron';
+import { app, BrowserWindow, globalShortcut, clipboard, ipcMain, screen, Notification, dialog } from 'electron';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import Store from 'electron-store';
@@ -40,6 +40,16 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Disable console.log in packaged production builds (keep electron-log for file logging)
+if (app.isPackaged) {
+  // Packaged app = production, suppress console output for performance
+  const noop = () => {};
+  console.log = noop;
+  console.debug = noop;
+  console.info = noop;
+  // Keep console.warn and console.error for critical issues
+}
+
 // Settings schema
 interface AppSettings {
   shortcut: string;
@@ -61,6 +71,8 @@ interface AppSettings {
   autoShowWindow: boolean; // Automatically show window after analysis completes
   // Manual project override
   manualProjectPath: string; // Empty = auto-detect, path = manual override
+  // First launch flag
+  hasSeenWelcome: boolean; // Whether user has seen the welcome/onboarding message
 }
 
 // Initialize settings store with explicit name to ensure consistency across dev/prod
@@ -86,6 +98,8 @@ const store = new Store<AppSettings>({
     autoShowWindow: true, // Auto-show window after analysis (convenient)
     // Manual project override - empty = auto-detect
     manualProjectPath: '',
+    // First launch flag
+    hasSeenWelcome: false, // Show welcome message on first launch
   },
 });
 
@@ -101,6 +115,75 @@ function showNotification(title: string, body: string): void {
 }
 
 /**
+ * Show welcome message on first launch
+ */
+async function showWelcomeMessage(): Promise<void> {
+  // Check if user has already seen welcome message
+  if (store.get('hasSeenWelcome')) {
+    return;
+  }
+
+  // Detect system language
+  const locale = app.getLocale();
+  const isKorean = locale.startsWith('ko');
+
+  // Localized welcome messages
+  const messages = isKorean
+    ? {
+        title: 'PromptLint에 오신 것을 환영합니다!',
+        message: 'AI 프롬프트 품질 향상 도우미',
+        detail:
+          '사용 방법:\n\n' +
+          '1️⃣ 단축키: Cmd+Shift+P를 눌러 프롬프트 분석\n' +
+          '   • 텍스트를 선택하고 단축키를 누르면 자동 캡처\n' +
+          '   • 또는 클립보드에 복사 후 단축키 실행\n\n' +
+          '2️⃣ GOLDEN 평가: 프롬프트의 6가지 핵심 요소 평가\n' +
+          '   • Goal (목표), Output (출력), Limits (제약)\n' +
+          '   • Data (데이터), Evaluation (평가), Next (다음 단계)\n\n' +
+          '3️⃣ 개선 제안: 3가지 수준의 프롬프트 변형 제공\n' +
+          '   • Conservative (보수적)\n' +
+          '   • Balanced (균형적)\n' +
+          '   • Comprehensive (포괄적)\n\n' +
+          '4️⃣ AI 재작성 (선택): Claude API로 고품질 변형 생성\n' +
+          '   • 설정에서 API 키 입력 후 활성화 가능\n\n' +
+          '트레이 아이콘을 클릭하거나 단축키로 언제든지 실행하세요!',
+        button: '시작하기',
+      }
+    : {
+        title: 'Welcome to PromptLint!',
+        message: 'AI Prompt Quality Assistant',
+        detail:
+          'How to use:\n\n' +
+          '1️⃣ Hotkey: Press Cmd+Shift+P to analyze prompts\n' +
+          '   • Select text and press hotkey for auto-capture\n' +
+          '   • Or copy to clipboard first, then press hotkey\n\n' +
+          '2️⃣ GOLDEN Evaluation: Assess 6 core elements\n' +
+          '   • Goal, Output, Limits\n' +
+          '   • Data, Evaluation, Next steps\n\n' +
+          '3️⃣ Suggestions: Get 3 levels of prompt variants\n' +
+          '   • Conservative\n' +
+          '   • Balanced\n' +
+          '   • Comprehensive\n\n' +
+          '4️⃣ AI Rewrite (optional): Generate high-quality variants with Claude API\n' +
+          '   • Enable in settings with your API key\n\n' +
+          'Click the tray icon or use the hotkey anytime!',
+        button: 'Get Started',
+      };
+
+  await dialog.showMessageBox({
+    type: 'info',
+    title: messages.title,
+    message: messages.message,
+    detail: messages.detail,
+    buttons: [messages.button],
+    defaultId: 0,
+  });
+
+  // Mark welcome as seen
+  store.set('hasSeenWelcome', true);
+}
+
+/**
  * Captured window context at hotkey time
  * Used to ensure correct project detection even if user switches windows
  */
@@ -113,6 +196,7 @@ export interface CapturedContext {
 let mainWindow: BrowserWindow | null = null;
 let quickActionWindow: BrowserWindow | null = null;
 let isQuitting = false;
+let showWindowTimeout: NodeJS.Timeout | null = null;
 
 /**
  * Get AI rewrite settings for use by learning engine
@@ -362,7 +446,7 @@ function createWindow(): void {
   });
 
   // Force show after timeout as fallback
-  setTimeout(() => {
+  showWindowTimeout = setTimeout(() => {
     if (mainWindow && !mainWindow.isVisible()) {
       console.log('[Main] Force showing window after timeout');
       mainWindow.show();
@@ -386,6 +470,11 @@ function createWindow(): void {
   });
 
   mainWindow.on('closed', () => {
+    // Clean up timeout to prevent memory leak
+    if (showWindowTimeout) {
+      clearTimeout(showWindowTimeout);
+      showWindowTimeout = null;
+    }
     mainWindow = null;
   });
 }
@@ -888,6 +977,11 @@ app.whenReady().then(async () => {
       await showAccessibilityPermissionDialog();
     }, 2000);
   }
+
+  // Show welcome message on first launch
+  setTimeout(async () => {
+    await showWelcomeMessage();
+  }, hasAccessibility ? 2000 : 4000); // Show after accessibility dialog if needed
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

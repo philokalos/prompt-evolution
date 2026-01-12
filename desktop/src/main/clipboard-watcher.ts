@@ -146,40 +146,45 @@ export class ClipboardWatcher extends EventEmitter {
    * Check clipboard for changes
    */
   private check(): void {
-    const currentText = clipboard.readText();
+    try {
+      const currentText = clipboard.readText();
 
-    // No change
-    if (currentText === this.lastText) {
-      return;
-    }
+      // No change
+      if (currentText === this.lastText) {
+        return;
+      }
 
-    // Update state
-    this.lastText = currentText;
-    this.lastChangeTime = Date.now();
+      // Update state
+      this.lastText = currentText;
+      this.lastChangeTime = Date.now();
 
-    // Validate text
-    if (!this.isValidText(currentText)) {
-      return;
-    }
+      // Validate text
+      if (!this.isValidText(currentText)) {
+        return;
+      }
 
-    // Check for sensitive content
-    if (this.isSensitive(currentText)) {
-      console.log('[ClipboardWatcher] Sensitive content detected, ignoring');
-      return;
-    }
+      // Check for sensitive content
+      if (this.isSensitive(currentText)) {
+        console.log('[ClipboardWatcher] Sensitive content detected, ignoring');
+        return;
+      }
 
-    // Check if it looks like a prompt
-    const confidence = this.calculatePromptConfidence(currentText);
+      // Check if it looks like a prompt
+      const confidence = this.calculatePromptConfidence(currentText);
 
-    if (confidence > 0.3) {
-      const detected: DetectedPrompt = {
-        text: currentText,
-        timestamp: new Date(),
-        confidence,
-      };
+      if (confidence > 0.3) {
+        const detected: DetectedPrompt = {
+          text: currentText,
+          timestamp: new Date(),
+          confidence,
+        };
 
-      console.log(`[ClipboardWatcher] Prompt detected (confidence: ${confidence.toFixed(2)})`);
-      this.emit('prompt-detected', detected);
+        console.log(`[ClipboardWatcher] Prompt detected (confidence: ${confidence.toFixed(2)})`);
+        this.emit('prompt-detected', detected);
+      }
+    } catch (error) {
+      // Log error but don't stop the interval
+      console.warn('[ClipboardWatcher] Error checking clipboard:', error);
     }
   }
 

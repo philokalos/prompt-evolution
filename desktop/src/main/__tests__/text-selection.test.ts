@@ -43,6 +43,9 @@ vi.mock('electron', () => ({
   shell: {
     openExternal: (url: string) => mockState.openExternal(url),
   },
+  app: {
+    getLocale: () => 'en-US',
+  },
 }));
 
 // Store original platform
@@ -304,19 +307,19 @@ describe('text-selection', () => {
   });
 
   describe('showAccessibilityPermissionDialog', () => {
-    it('should show dialog with correct options', async () => {
+    it('should show dialog with correct options (English)', async () => {
       await showAccessibilityPermissionDialog();
 
       expect(mockState.showMessageBox).toHaveBeenCalledWith(
         expect.objectContaining({
           type: 'info',
-          title: '접근성 권한 필요',
-          buttons: ['설정 열기', '나중에'],
+          title: 'Accessibility Permission Required',
+          buttons: ['Open Settings', 'Later'],
         })
       );
     });
 
-    it('should open system preferences if user clicks "설정 열기"', async () => {
+    it('should open system preferences if user clicks first button', async () => {
       mockState.showMessageBox.mockResolvedValue({ response: 0 });
 
       const result = await showAccessibilityPermissionDialog();
@@ -327,7 +330,7 @@ describe('text-selection', () => {
       );
     });
 
-    it('should return false if user clicks "나중에"', async () => {
+    it('should return false if user clicks second button', async () => {
       mockState.showMessageBox.mockResolvedValue({ response: 1 });
 
       const result = await showAccessibilityPermissionDialog();
