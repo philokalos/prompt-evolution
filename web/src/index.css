@@ -5,33 +5,108 @@
 /* Custom base styles */
 @layer base {
   body {
-    @apply bg-dark-bg text-gray-100 antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    @apply bg-app-bg text-app-text-primary antialiased;
+    font-family: 'DM Sans', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
   code,
   pre {
-    font-family: 'JetBrains Mono', Consolas, monospace;
+    font-family: 'JetBrains Mono', Menlo, monospace;
+  }
+
+  * {
+    @apply transition-colors duration-200;
   }
 }
 
 /* Custom component styles */
 @layer components {
   .card {
-    @apply bg-dark-surface border border-dark-border rounded-lg p-4;
+    @apply bg-app-surface border border-app-border rounded-2xl p-6 shadow-app-sm;
+    @apply hover:border-app-hover hover:shadow-app transition-all duration-300;
+    position: relative;
   }
 
-  .card-hover {
-    @apply card transition-colors hover:border-dark-hover;
+  .card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.03) 0%, rgba(139, 92, 246, 0.02) 100%);
+    pointer-events: none;
+  }
+
+  .card-elevated {
+    @apply bg-app-elevated border border-app-border rounded-2xl p-6 shadow-app;
+    @apply hover:border-app-hover hover:shadow-app-lg transition-all duration-300;
   }
 
   .btn-primary {
-    @apply bg-accent-primary text-white px-4 py-2 rounded-lg font-medium
-           hover:bg-opacity-90 transition-colors;
+    @apply bg-accent-primary text-white px-4 py-2.5 rounded-xl font-medium shadow-app-sm;
+    @apply hover:bg-opacity-90 hover:shadow-app transition-all duration-200;
+    @apply active:scale-[0.98];
   }
 
   .btn-secondary {
-    @apply bg-dark-surface border border-dark-border text-gray-100 px-4 py-2 rounded-lg font-medium
-           hover:bg-dark-hover transition-colors;
+    @apply bg-app-surface border border-app-border text-app-text-primary px-4 py-2.5 rounded-xl font-medium;
+    @apply hover:bg-app-hover hover:border-app-hover transition-all duration-200;
+    @apply active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply text-app-text-secondary px-4 py-2.5 rounded-xl font-medium;
+    @apply hover:bg-app-hover hover:text-app-text-primary transition-all duration-200;
+  }
+
+  /* Stat card with gradient accent */
+  .stat-card {
+    @apply card relative overflow-hidden;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent-color) 0%, transparent 100%);
+    opacity: 0.6;
+  }
+
+  /* Smooth scroll */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+  }
+
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-app-surface;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-app-border rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-app-hover;
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  .text-gradient {
+    @apply bg-gradient-to-r from-accent-primary to-accent-secondary bg-clip-text text-transparent;
+  }
+
+  .animate-in {
+    animation: slideUp 0.4s ease-out;
   }
 }

@@ -12,8 +12,8 @@ const GuidebookPage = lazy(() => import('./pages/GuidebookPage'));
 
 function LoadingFallback() {
   return (
-    <div className="flex items-center justify-center h-64">
-      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-accent-primary"></div>
+    <div className="flex items-center justify-center h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-2 border-app-border border-t-accent-primary"></div>
     </div>
   );
 }

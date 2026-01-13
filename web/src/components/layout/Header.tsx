@@ -8,7 +8,15 @@ export default function Header() {
   const formatTime = (isoString: string | null) => {
     if (!isoString) return 'Never';
     const date = new Date(isoString);
-    return date.toLocaleString();
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    return date.toLocaleDateString();
   };
 
   const handleSync = () => {
@@ -16,19 +24,14 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-dark-surface border-b border-dark-border px-6 py-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-gray-100">Prompt Evolution</h1>
-          <p className="text-sm text-gray-400">Analyze and improve your prompting patterns</p>
-        </div>
-
-        <div className="flex items-center gap-4">
-          {/* Last sync time */}
-          <div className="flex items-center gap-2 text-sm text-gray-400">
-            <Clock size={16} />
-            <span>
-              Last sync: {isLoading ? '...' : formatTime(syncStatus?.lastSync || null)}
+    <header className="bg-app-surface/80 backdrop-blur-xl border-b border-app-border sticky top-0 z-10">
+      <div className="px-8 py-4">
+        <div className="flex items-center justify-end gap-3">
+          {/* Last sync indicator */}
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-app-elevated border border-app-border">
+            <Clock size={14} className="text-app-text-tertiary" />
+            <span className="text-xs font-medium text-app-text-secondary">
+              {isLoading ? '...' : formatTime(syncStatus?.lastSync || null)}
             </span>
           </div>
 
@@ -36,13 +39,13 @@ export default function Header() {
           <button
             onClick={handleSync}
             disabled={isSyncing || syncStatus?.isRunning}
-            className="btn-secondary flex items-center gap-2"
+            className="btn-secondary flex items-center gap-2 text-sm"
           >
             <RefreshCw
               size={16}
               className={isSyncing || syncStatus?.isRunning ? 'animate-spin' : ''}
             />
-            {isSyncing || syncStatus?.isRunning ? 'Syncing...' : 'Sync Now'}
+            <span>{isSyncing || syncStatus?.isRunning ? 'Syncing' : 'Sync'}</span>
           </button>
         </div>
       </div>

@@ -9,11 +9,27 @@ interface StatsCardProps {
   color?: 'primary' | 'secondary' | 'success' | 'warning';
 }
 
-const colorClasses = {
-  primary: 'bg-accent-primary/10 text-accent-primary',
-  secondary: 'bg-accent-secondary/10 text-accent-secondary',
-  success: 'bg-accent-success/10 text-accent-success',
-  warning: 'bg-accent-warning/10 text-accent-warning',
+const colorConfig = {
+  primary: {
+    bg: 'bg-accent-primary/10',
+    text: 'text-accent-primary',
+    gradient: 'from-accent-primary/20 to-transparent',
+  },
+  secondary: {
+    bg: 'bg-accent-secondary/10',
+    text: 'text-accent-secondary',
+    gradient: 'from-accent-secondary/20 to-transparent',
+  },
+  success: {
+    bg: 'bg-accent-success/10',
+    text: 'text-accent-success',
+    gradient: 'from-accent-success/20 to-transparent',
+  },
+  warning: {
+    bg: 'bg-accent-warning/10',
+    text: 'text-accent-warning',
+    gradient: 'from-accent-warning/20 to-transparent',
+  },
 };
 
 export default function StatsCard({
@@ -29,21 +45,33 @@ export default function StatsCard({
       ? `${(value * 100).toFixed(1)}%`
       : value.toLocaleString();
 
+  const colors = colorConfig[color];
+
   return (
-    <div className="card-hover">
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-gray-400">{title}</p>
-          {loading ? (
-            <div className="h-8 w-24 bg-dark-border rounded animate-pulse mt-1"></div>
-          ) : (
-            <p className="text-2xl font-bold mt-1">{formattedValue}</p>
-          )}
+    <div className="card group">
+      <div className="flex flex-col gap-4">
+        {/* Icon and Title */}
+        <div className="flex items-start justify-between">
+          <div className={`p-3 rounded-xl ${colors.bg} ${colors.text} shadow-app-sm`}>
+            <Icon size={20} strokeWidth={2} />
+          </div>
         </div>
-        <div className={`p-2 rounded-lg ${colorClasses[color]}`}>
-          <Icon size={24} />
+
+        {/* Value and Label */}
+        <div>
+          {loading ? (
+            <div className="h-9 w-32 bg-app-border rounded-lg animate-pulse"></div>
+          ) : (
+            <p className="text-3xl font-semibold tracking-tight text-app-text-primary">
+              {formattedValue}
+            </p>
+          )}
+          <p className="text-sm text-app-text-secondary mt-1.5 font-medium">{title}</p>
         </div>
       </div>
+
+      {/* Bottom accent line */}
+      <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r ${colors.gradient} opacity-60`}></div>
     </div>
   );
 }
