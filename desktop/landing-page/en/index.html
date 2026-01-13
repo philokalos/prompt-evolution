@@ -6,7 +6,7 @@
     <title>PromptLint - AI Prompt Quality Analyzer</title>
     <meta name="description" content="Learn to ask better questions to AI. Get real-time prompt analysis and improvement suggestions for better responses.">
 
-    <!-- Open Graph (Social Media Sharing) -->
+    <!-- Open Graph -->
     <meta property="og:type" content="website">
     <meta property="og:title" content="PromptLint - AI Prompt Quality Analyzer">
     <meta property="og:description" content="Learn to ask better questions to AI. Analyze and improve your prompts with GOLDEN 6-dimensional evaluation.">
@@ -19,6 +19,11 @@
     <meta name="twitter:description" content="Learn to ask better questions to AI">
     <meta name="twitter:image" content="https://promptlint.mtmd.xyz/en/screenshot.png">
 
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
         * {
             margin: 0;
@@ -26,191 +31,409 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --elevated: #1a1a25;
+            --border: #232330;
+            --hover: #2a2a38;
+            --text-primary: #f5f5f7;
+            --text-secondary: #a0a0ab;
+            --text-tertiary: #6a6a75;
+            --accent-primary: #6366f1;
+            --accent-secondary: #8b5cf6;
+            --accent-success: #10b981;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
             line-height: 1.6;
-            color: #e4e4e7;
-            background: #09090b;
+            color: var(--text-primary);
+            background: var(--bg);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
-            padding: 0 20px;
+            padding: 0 24px;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .animate-in {
+            animation: slideUp 0.6s ease-out forwards;
+            opacity: 0;
         }
 
         /* Language Switcher */
         .lang-switcher {
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 24px;
+            right: 24px;
             z-index: 1000;
         }
 
         .lang-switcher a {
             display: inline-block;
-            padding: 8px 16px;
-            background: #27272a;
-            color: #a1a1aa;
+            padding: 10px 20px;
+            background: var(--surface);
+            color: var(--text-secondary);
             text-decoration: none;
-            border-radius: 8px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
             font-size: 14px;
+            font-weight: 600;
             transition: all 0.2s;
         }
 
         .lang-switcher a:hover {
-            background: #3f3f46;
-            color: #fafafa;
+            background: var(--hover);
+            color: var(--text-primary);
+            border-color: var(--hover);
         }
 
         /* Header */
         header {
-            padding: 60px 0 80px;
+            padding: 120px 0 100px;
             text-align: center;
-            background: linear-gradient(to bottom, #18181b 0%, #09090b 100%);
+            position: relative;
+            overflow: hidden;
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .logo-container {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 32px;
+        }
+
+        .logo-icon {
+            width: 96px;
+            height: 96px;
+            margin: 0 auto 28px;
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.3);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .logo-icon svg {
+            width: 52px;
+            height: 52px;
         }
 
         .logo {
-            font-size: 48px;
+            font-size: 56px;
             font-weight: 700;
             margin-bottom: 16px;
-            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            letter-spacing: -0.02em;
+            animation: slideUp 0.6s ease-out 0.1s backwards;
         }
 
         .tagline {
             font-size: 24px;
-            color: #a1a1aa;
-            margin-bottom: 32px;
+            color: var(--text-secondary);
+            margin-bottom: 48px;
+            font-weight: 500;
+            line-height: 1.5;
+            animation: slideUp 0.6s ease-out 0.2s backwards;
+        }
+
+        .cta-group {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+            animation: slideUp 0.6s ease-out 0.3s backwards;
         }
 
         .cta-button {
-            display: inline-block;
-            padding: 16px 48px;
-            background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 40px;
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
             color: white;
             text-decoration: none;
-            border-radius: 12px;
+            border-radius: 16px;
             font-size: 18px;
             font-weight: 600;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
         }
 
         .cta-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 12px 24px rgba(139, 92, 246, 0.3);
+            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.5);
+        }
+
+        .cta-button:active {
+            transform: translateY(0);
+        }
+
+        .cta-secondary {
+            background: var(--surface);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+            box-shadow: none;
+        }
+
+        .cta-secondary:hover {
+            background: var(--hover);
+            border-color: var(--hover);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
         }
 
         /* Features */
         .features {
-            padding: 80px 0;
+            padding: 100px 0;
+            position: relative;
         }
 
         .section-title {
             text-align: center;
-            font-size: 36px;
-            margin-bottom: 60px;
-            color: #fafafa;
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+        }
+
+        .section-subtitle {
+            text-align: center;
+            font-size: 18px;
+            color: var(--text-secondary);
+            margin-bottom: 64px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .feature-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 40px;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
             margin-bottom: 60px;
         }
 
         .feature-card {
-            padding: 32px;
-            background: #18181b;
-            border: 1px solid #27272a;
-            border-radius: 16px;
-            transition: transform 0.2s, border-color 0.2s;
+            padding: 36px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 20px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.03) 0%, rgba(139, 92, 246, 0.02) 100%);
+            pointer-events: none;
         }
 
         .feature-card:hover {
             transform: translateY(-4px);
-            border-color: #8b5cf6;
+            border-color: var(--accent-primary);
+            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
         }
 
         .feature-icon {
-            font-size: 48px;
-            margin-bottom: 16px;
+            width: 56px;
+            height: 56px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 14px;
+            font-size: 28px;
+            margin-bottom: 20px;
         }
 
         .feature-title {
-            font-size: 22px;
+            font-size: 20px;
             font-weight: 600;
             margin-bottom: 12px;
-            color: #fafafa;
+            color: var(--text-primary);
         }
 
         .feature-desc {
-            color: #a1a1aa;
-            line-height: 1.8;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            font-size: 15px;
         }
 
         /* Screenshot */
         .screenshot-section {
-            padding: 80px 0;
-            background: #18181b;
+            padding: 100px 0;
+            background: var(--surface);
         }
 
-        .screenshot {
-            max-width: 900px;
+        .screenshot-wrapper {
+            max-width: 1000px;
             margin: 0 auto;
-            border-radius: 16px;
+            border-radius: 20px;
             overflow: hidden;
-            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border);
         }
 
-        .screenshot img {
+        .screenshot-wrapper img {
             width: 100%;
             height: auto;
             display: block;
         }
 
+        /* Stats */
+        .stats-section {
+            padding: 100px 0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 32px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 32px;
+            background: var(--surface);
+            border-radius: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .stat-number {
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 16px;
+            font-weight: 500;
+        }
+
         /* Download */
         .download-section {
-            padding: 80px 0;
+            padding: 100px 0;
             text-align: center;
         }
 
         .version-info {
-            color: #71717a;
-            margin-top: 16px;
-            font-size: 14px;
+            color: var(--text-tertiary);
+            margin-top: 20px;
+            font-size: 15px;
+            font-weight: 500;
         }
 
         /* Footer */
         footer {
-            padding: 60px 0;
-            text-align: center;
-            border-top: 1px solid #27272a;
-            color: #71717a;
+            padding: 80px 0 40px;
+            border-top: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .footer-logo {
+            font-size: 24px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 16px;
+        }
+
+        .footer-desc {
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            max-width: 400px;
         }
 
         .footer-links {
-            margin-top: 24px;
+            display: flex;
+            gap: 32px;
+            flex-wrap: wrap;
+            margin-bottom: 32px;
         }
 
         .footer-links a {
-            color: #a1a1aa;
+            color: var(--text-secondary);
             text-decoration: none;
-            margin: 0 16px;
             transition: color 0.2s;
+            font-weight: 500;
         }
 
         .footer-links a:hover {
-            color: #8b5cf6;
+            color: var(--accent-primary);
+        }
+
+        .footer-bottom {
+            padding-top: 32px;
+            border-top: 1px solid var(--border);
+            color: var(--text-tertiary);
+            font-size: 14px;
+            text-align: center;
         }
 
         /* Responsive */
         @media (max-width: 768px) {
+            header {
+                padding: 80px 0 60px;
+            }
+
             .logo {
-                font-size: 36px;
+                font-size: 42px;
             }
 
             .tagline {
@@ -218,11 +441,25 @@
             }
 
             .section-title {
-                font-size: 28px;
+                font-size: 32px;
             }
 
             .feature-grid {
-                gap: 24px;
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .cta-group {
+                flex-direction: column;
+            }
+
+            .cta-button {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -234,51 +471,75 @@
 
     <header>
         <div class="container">
-            <h1 class="logo">PromptLint</h1>
+            <div class="logo-container">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L4 7V17L12 22L20 17V7L12 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M12 8V16M8 10L12 8L16 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </div>
+                <h1 class="logo">PromptLint</h1>
+            </div>
             <p class="tagline">Learn to ask better questions to AI</p>
-            <a href="#download" class="cta-button">Free Download</a>
+            <div class="cta-group">
+                <a href="#download" class="cta-button">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    Free Download
+                </a>
+                <a href="https://github.com/philokalos/prompt-evolution" class="cta-button cta-secondary" target="_blank">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+                    </svg>
+                    View on GitHub
+                </a>
+            </div>
         </div>
     </header>
 
     <section class="features">
         <div class="container">
-            <h2 class="section-title">✨ What You Can Do</h2>
+            <h2 class="section-title">What You Can Do</h2>
+            <p class="section-subtitle">Analyze and improve your prompts instantly with GOLDEN evaluation system</p>
 
             <div class="feature-grid">
-                <div class="feature-card">
+                <div class="feature-card animate-in" style="animation-delay: 0.1s">
                     <div class="feature-icon">📊</div>
                     <h3 class="feature-title">Real-time Quality Analysis</h3>
-                    <p class="feature-desc">Analyze prompts instantly with GOLDEN 6-dimensional evaluation and get A~F grades.</p>
+                    <p class="feature-desc">Instantly analyze your prompts with GOLDEN 6-dimensional evaluation and get A~F grades.</p>
                 </div>
 
-                <div class="feature-card">
+                <div class="feature-card animate-in" style="animation-delay: 0.2s">
                     <div class="feature-icon">💡</div>
                     <h3 class="feature-title">Smart Improvement Suggestions</h3>
-                    <p class="feature-desc">Get 3 automatic improvement variants. Enable AI features for even better suggestions.</p>
+                    <p class="feature-desc">Get 3 automatic improvement variants. Enable AI for even better suggestions.</p>
                 </div>
 
-                <div class="feature-card">
+                <div class="feature-card animate-in" style="animation-delay: 0.3s">
                     <div class="feature-icon">⌨️</div>
                     <h3 class="feature-title">Works Everywhere</h3>
-                    <p class="feature-desc">Use Cmd+Shift+P to analyze from any app instantly.</p>
+                    <p class="feature-desc">Use Cmd+Shift+P shortcut to analyze prompts instantly from any app.</p>
                 </div>
 
-                <div class="feature-card">
+                <div class="feature-card animate-in" style="animation-delay: 0.4s">
                     <div class="feature-icon">📈</div>
-                    <h3 class="feature-title">Track Your Progress</h3>
-                    <p class="feature-desc">See how you improve over time with charts and identify areas you frequently miss.</p>
+                    <h3 class="feature-title">Progress Tracking</h3>
+                    <p class="feature-desc">Track your improvement over time with charts and identify common weaknesses.</p>
                 </div>
 
-                <div class="feature-card">
+                <div class="feature-card animate-in" style="animation-delay: 0.5s">
                     <div class="feature-icon">🔒</div>
                     <h3 class="feature-title">Privacy First</h3>
-                    <p class="feature-desc">All data stays on your computer. Works offline for core features.</p>
+                    <p class="feature-desc">All data stays on your computer. Works offline without internet connection.</p>
                 </div>
 
-                <div class="feature-card">
+                <div class="feature-card animate-in" style="animation-delay: 0.6s">
                     <div class="feature-icon">🎯</div>
                     <h3 class="feature-title">IDE Auto-detection</h3>
-                    <p class="feature-desc">Automatically recognizes VS Code, Cursor and provides project-aware analysis.</p>
+                    <p class="feature-desc">Automatically detects VS Code, Cursor, and provides project-specific analysis.</p>
                 </div>
             </div>
         </div>
@@ -286,29 +547,62 @@
 
     <section class="screenshot-section">
         <div class="container">
-            <h2 class="section-title">👀 Here's What It Looks Like</h2>
-            <div class="screenshot">
-                <img src="screenshot.png" alt="PromptLint Screenshot">
+            <h2 class="section-title">See It In Action</h2>
+            <p class="section-subtitle">Intuitive interface to understand prompt quality at a glance</p>
+            <div class="screenshot-wrapper">
+                <img src="screenshot.png" alt="PromptLint Screenshot" loading="lazy">
+            </div>
+        </div>
+    </section>
+
+    <section class="stats-section">
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-card animate-in">
+                    <div class="stat-number">11% → 83%</div>
+                    <div class="stat-label">Quality improvement with AI</div>
+                </div>
+                <div class="stat-card animate-in" style="animation-delay: 0.1s">
+                    <div class="stat-number">6</div>
+                    <div class="stat-label">GOLDEN evaluation dimensions</div>
+                </div>
+                <div class="stat-card animate-in" style="animation-delay: 0.2s">
+                    <div class="stat-number">100%</div>
+                    <div class="stat-label">Local data storage</div>
+                </div>
             </div>
         </div>
     </section>
 
     <section class="download-section" id="download">
         <div class="container">
-            <h2 class="section-title">🚀 Get Started Now</h2>
-            <a href="https://github.com/philokalos/prompt-evolution/releases/latest" class="cta-button">Download for macOS</a>
-            <p class="version-info">Version 0.1.8 | macOS 12.0 (Monterey)+ | Free</p>
+            <h2 class="section-title">Get Started Now</h2>
+            <p class="section-subtitle">Download free macOS app and start writing better prompts today</p>
+            <a href="https://github.com/philokalos/prompt-evolution/releases/latest" class="cta-button">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                Download for macOS
+            </a>
+            <p class="version-info">Version 0.1.8 • macOS 12.0 (Monterey) or later • Free • Apple Silicon Support</p>
         </div>
     </section>
 
     <footer>
-        <div class="container">
-            <p>&copy; 2026 PromptLint by MTMD. All rights reserved.</p>
+        <div class="footer-content">
+            <div class="footer-logo">PromptLint</div>
+            <p class="footer-desc">The easiest way to learn asking better questions to AI</p>
             <div class="footer-links">
-                <a href="https://github.com/philokalos/prompt-evolution">GitHub</a>
-                <a href="https://github.com/philokalos/prompt-evolution/issues">Support</a>
+                <a href="https://github.com/philokalos/prompt-evolution" target="_blank">GitHub</a>
+                <a href="https://github.com/philokalos/prompt-evolution/releases" target="_blank">Releases</a>
+                <a href="https://github.com/philokalos/prompt-evolution/issues" target="_blank">Support</a>
                 <a href="/privacy.html">Privacy Policy</a>
                 <a href="mailto:macrothinkmicrodesign0@gmail.com">Contact</a>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 PromptLint by MTMD. All rights reserved.</p>
             </div>
         </div>
     </footer>
