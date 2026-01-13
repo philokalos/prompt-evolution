@@ -443,32 +443,90 @@
             position: relative;
         }
 
-        .screenshot-wrapper {
-            max-width: 1100px;
+        .screenshot-grid {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            gap: 24px;
+            max-width: 1300px;
             margin: 0 auto;
-            border-radius: 32px;
+        }
+
+        .screenshot-item {
+            border-radius: 24px;
             overflow: hidden;
             box-shadow:
                 0 0 0 1px rgba(255, 255, 255, 0.08),
-                0 40px 100px rgba(0, 0, 0, 0.6),
-                0 0 120px rgba(99, 102, 241, 0.2);
+                0 20px 60px rgba(0, 0, 0, 0.5),
+                0 0 80px rgba(99, 102, 241, 0.15);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            transform: perspective(1000px) rotateX(2deg);
-            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: perspective(1000px) rotateX(1deg);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            background: rgba(18, 18, 26, 0.4);
         }
 
-        .screenshot-wrapper:hover {
-            transform: perspective(1000px) rotateX(0deg) translateY(-10px);
+        .screenshot-item:hover {
+            transform: perspective(1000px) rotateX(0deg) translateY(-8px) scale(1.02);
             box-shadow:
                 0 0 0 1px rgba(255, 255, 255, 0.12),
-                0 50px 120px rgba(0, 0, 0, 0.7),
-                0 0 150px rgba(99, 102, 241, 0.3);
+                0 30px 80px rgba(0, 0, 0, 0.6),
+                0 0 120px rgba(99, 102, 241, 0.25);
+            z-index: 10;
         }
 
-        .screenshot-wrapper img {
+        .screenshot-item.featured {
+            grid-column: span 12;
+        }
+
+        .screenshot-item:not(.featured) {
+            grid-column: span 3;
+        }
+
+        .screenshot-item img {
             width: 100%;
             height: auto;
             display: block;
+        }
+
+        .screenshot-caption {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 32px;
+            background: linear-gradient(to top, rgba(10, 10, 15, 0.95), transparent);
+            color: var(--text-primary);
+            font-size: 24px;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .screenshot-item.featured:hover .screenshot-caption {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .screenshot-label {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background: rgba(99, 102, 241, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            color: white;
+            font-size: 14px;
+            font-weight: 600;
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .screenshot-item:hover .screenshot-label {
+            opacity: 1;
+            transform: translateY(0);
         }
 
         /* Stats with Glassmorphism */
@@ -633,12 +691,21 @@
                 grid-template-columns: 1fr;
             }
 
-            .screenshot-wrapper {
+            .screenshot-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .screenshot-item.featured,
+            .screenshot-item:not(.featured) {
+                grid-column: span 1;
+            }
+
+            .screenshot-item {
                 transform: none;
             }
 
-            .screenshot-wrapper:hover {
-                transform: translateY(-10px);
+            .screenshot-item:hover {
+                transform: translateY(-8px) scale(1.01);
             }
         }
     </style>
@@ -741,11 +808,29 @@
         <div class="container">
             <h2 class="section-title">이렇게 생겼어요</h2>
             <p class="section-subtitle">직관적인 인터페이스로 프롬프트 품질을 한눈에 파악하세요</p>
-            <div class="screenshot-wrapper">
-                <img src="screenshot.png" alt="PromptLint 스크린샷" loading="lazy">
+
+            <div class="screenshot-grid">
+                <div class="screenshot-item featured">
+                    <img src="1-direct-input.png" alt="직접 입력으로 즉시 분석" loading="lazy">
+                    <div class="screenshot-caption">실시간 프롬프트 분석</div>
+                </div>
+                <div class="screenshot-item">
+                    <img src="2-ai-improvement.png" alt="AI 개선 제안" loading="lazy">
+                    <p class="screenshot-label">AI 개선 제안</p>
+                </div>
+                <div class="screenshot-item">
+                    <img src="3-progress-stats.png" alt="진행 상황 통계" loading="lazy">
+                </div>
+                <div class="screenshot-item">
+                    <img src="4-onboarding-guide.png" alt="온보딩 가이드" loading="lazy">
+                </div>
+                <div class="screenshot-item">
+                    <img src="5-settings.png" alt="설정" loading="lazy">
+                </div>
             </div>
         </div>
     </section>
+
 
     <section class="stats-section">
         <div class="container">
