@@ -1,6 +1,6 @@
 {
   "name": "promptlint",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Real-time prompt correction with AI-powered personalized learning",
   "type": "module",
   "main": "dist/main/index.js",
@@ -25,6 +25,7 @@
     "screenshots": "node scripts/capture-screenshots.mjs",
     "screenshots:auto": "npx tsx scripts/generate-screenshots-auto.ts",
     "screenshots:manual": "npx tsx scripts/screenshot-helper.ts",
+    "screenshots:mode": "SCREENSHOT_MODE=true npm run dev:electron",
     "lint": "eslint src scripts",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
@@ -108,6 +109,8 @@
       "entitlementsInherit": "certs/entitlements.mac.plist",
       "hardenedRuntime": true,
       "gatekeeperAssess": false,
+      "identity": null,
+      "minimumSystemVersion": "12.0",
       "target": [
         {
           "target": "mas",
@@ -122,10 +125,10 @@
     "mas": {
       "entitlements": "certs/entitlements.mas.plist",
       "entitlementsInherit": "certs/entitlements.mas.inherit.plist",
-      "provisioningProfile": "certs/embedded.provisionprofile",
       "hardenedRuntime": false,
       "identity": null,
-      "type": "distribution"
+      "type": "distribution",
+      "minimumSystemVersion": "12.0"
     },
     "win": {
       "icon": "assets/icons/icon.ico",

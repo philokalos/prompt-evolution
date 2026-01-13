@@ -1,57 +1,102 @@
 # App Store 스크린샷 생성 가이드
 
-**PromptLint 스크린샷** 자동 생성 가이드
+**PromptLint 스크린샷** - 찌그러지지 않는 완벽한 스크린샷 촬영
 
 ## 📋 요구사항
 
-- 해상도: **2880×1800** (15" MacBook Pro)
+- 해상도: **2880×1800** (15" MacBook Pro Retina)
 - 수량: **5개**
 - 언어: **한국어** (App Store Connect에서 설정)
+- **중요**: 리사이징 시 폰트/UI가 찌그러질 수 있으므로 정확한 크기로 촬영 필수
 
 ---
 
-## 🎯 방법 1: 정확한 비율로 앱 실행 (최신, 가장 권장)
+## ✨ 권장 방법: 스크린샷 모드로 앱 실행
 
-**문제**: 임의 크기로 캡처 후 리사이즈하면 폰트가 늘어나는 현상 발생
-**해결**: 앱을 정확한 16:10 비율 (1440×900)로 실행하여 레티나 디스플레이에서 자동으로 2880×1800 캡처
+**핵심**: 앱을 정확히 1440×900 크기로 실행하면 Retina 디스플레이에서 자동으로 2880×1800로 렌더링됩니다.
 
-### 1단계: 스크린샷용 앱 실행
+### 1단계: 스크린샷 모드로 앱 실행
 
 ```bash
 cd desktop
-./scripts/open-for-screenshot.sh
+
+# 방법 A: npm 스크립트 사용 (가장 간단)
+npm run screenshots:mode
+
+# 방법 B: 환경변수 직접 설정
+SCREENSHOT_MODE=true npm run dev:electron
 ```
 
-**실행되는 내용**:
+**실행 결과**:
 - 창 크기: 1440×900 (16:10 비율)
-- 레티나 디스플레이 자동 2배 캡처 → 2880×1800
+- Retina 디스플레이에서 자동 2x 렌더링 → 2880×1800 픽셀
+- 폰트/UI 찌그러짐 없음 ✅
 
-### 2단계: 각 화면 캡처
+### 2단계: 테스트 데이터 준비
 
-macOS 스크린샷 도구 사용:
+앱에 실제 프롬프트를 입력하여 화면을 채웁니다:
 
+1. **단축키 실행**: Cmd+Shift+P
+2. **테스트 프롬프트 입력**:
+   ```
+   Create a React component that displays user profile information.
+   Include avatar, name, email, and a bio section.
+   Use TypeScript and Tailwind CSS for styling.
+   ```
+3. 분석 완료 대기 (GOLDEN 차트 표시됨)
+
+### 3단계: 각 화면 캡처
+
+macOS 네이티브 스크린샷 도구 사용:
+
+**방법 A: 창 캡처 (권장, 그림자 포함)**
 1. **Cmd+Shift+4** 누르기
-2. **스페이스바** 누르기 (윈도우 캡처 모드)
-3. 앱 윈도우 클릭
+2. **스페이스바** 누르기 (창 캡처 모드로 전환)
+3. 마우스 커서가 카메라 모양으로 변경됨
+4. PromptLint 앱 창 클릭
+
+**방법 B: 영역 선택 (그림자 제거)**
+1. **Cmd+Shift+4** 누르기
+2. 마우스로 앱 창 전체 영역을 드래그 선택
+3. 정확히 창 경계선에 맞춰 선택
 
 **결과**: `~/Desktop`에 자동으로 2880×1800 PNG 생성 (리사이즈 불필요!)
 
-### 3단계: 파일 정리
+### 4단계: 파일 정리 및 검증
 
 ```bash
+# screenshots 폴더가 없으면 생성
+mkdir -p screenshots
+
 # 데스크톱의 스크린샷을 screenshots/ 폴더로 이동
-mv ~/Desktop/스크린샷*.png screenshots/
+mv ~/Desktop/Screenshot\ 20*.png screenshots/
+
+# 파일명 순서대로 변경
 cd screenshots
-# 파일명 변경
-mv 스크린샷*.png 1-analysis-result.png
-# ... 나머지 파일들도 순서대로 변경
+mv Screenshot\ 2026-01-13\ at\ 11.30.00.png 1-golden-analysis.png
+mv Screenshot\ 2026-01-13\ at\ 11.31.00.png 2-prompt-variants.png
+mv Screenshot\ 2026-01-13\ at\ 11.32.00.png 3-progress-tracker.png
+mv Screenshot\ 2026-01-13\ at\ 11.33.00.png 4-personal-tips.png
+mv Screenshot\ 2026-01-13\ at\ 11.34.00.png 5-settings.png
+
+# 해상도 확인
+sips -g pixelWidth -g pixelHeight *.png
 ```
 
-**장점**:
+**기대 결과**:
+```
+1-golden-analysis.png
+  pixelWidth: 2880
+  pixelHeight: 1800
+...
+```
+
+**이 방법의 장점**:
 - ✅ 완벽한 16:10 비율 유지
-- ✅ 폰트 왜곡 없음
-- ✅ 레티나 자동 처리
+- ✅ 폰트/UI 찌그러짐 없음
+- ✅ Retina 자동 처리
 - ✅ 리사이즈 불필요
+- ✅ 고품질 결과물
 
 ---
 

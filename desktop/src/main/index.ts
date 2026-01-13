@@ -920,6 +920,49 @@ ipcMain.handle('renderer-ready', () => {
     pendingText = null;
   }
 
+  // Screenshot mode: Auto-inject test data
+  const screenshotMode = process.env.SCREENSHOT_MODE === 'true';
+  if (screenshotMode && mainWindow && !pendingText) {
+    console.log('[Main] 📸 Screenshot mode: Injecting test prompt');
+    const testPrompt = `Create a React component that displays user profile information with the following features:
+
+1. Display user avatar image
+2. Show user's full name and email address
+3. Include a bio/description section with markdown support
+4. Add social media links (Twitter, GitHub, LinkedIn)
+5. Make the layout responsive for mobile and desktop
+6. Use TypeScript for type safety
+7. Style with Tailwind CSS
+8. Ensure accessibility with proper ARIA labels
+9. Add loading and error states
+10. Include unit tests with React Testing Library
+
+The component should follow React best practices and be reusable across the application.`;
+
+    setTimeout(() => {
+      if (mainWindow && isRendererReady) {
+        const mockContext: CapturedContext = {
+          windowInfo: {
+            appName: 'Code',
+            windowTitle: 'UserProfile.tsx — my-app — Visual Studio Code',
+            isIDE: true,
+            ideName: 'Code',
+          },
+          project: {
+            projectPath: '/Users/developer/projects/my-app',
+            projectName: 'my-app',
+            ideName: 'Code',
+            currentFile: 'src/components/UserProfile.tsx',
+            confidence: 'high',
+          },
+          timestamp: new Date(),
+        };
+        sendTextToRenderer(testPrompt, mockContext);
+        console.log('[Main] 📸 Test prompt injected successfully');
+      }
+    }, 1000); // 1초 대기 후 전송 (UI 렌더링 완료 대기)
+  }
+
   return true;
 });
 
