@@ -42,6 +42,7 @@
             --text-tertiary: #6a6a75;
             --accent-primary: #6366f1;
             --accent-secondary: #8b5cf6;
+            --accent-tertiary: #a78bfa;
             --accent-success: #10b981;
         }
 
@@ -52,267 +53,442 @@
             background: var(--bg);
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Animated Mesh Gradient Background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background:
+                radial-gradient(ellipse 80% 80% at 50% -20%, rgba(99, 102, 241, 0.15), transparent),
+                radial-gradient(ellipse 60% 80% at 0% 50%, rgba(139, 92, 246, 0.08), transparent),
+                radial-gradient(ellipse 60% 80% at 100% 50%, rgba(167, 139, 250, 0.08), transparent);
+            pointer-events: none;
+            z-index: 0;
+            animation: meshMove 20s ease-in-out infinite;
+        }
+
+        @keyframes meshMove {
+            0%, 100% { opacity: 1; transform: translate(0, 0) scale(1); }
+            33% { opacity: 0.9; transform: translate(-5%, 5%) scale(1.05); }
+            66% { opacity: 0.95; transform: translate(5%, -5%) scale(0.98); }
+        }
+
+        /* Grain Texture Overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="noiseFilter"><feTurbulence type="fractalNoise" baseFrequency="4" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noiseFilter)" opacity="0.03"/></svg>');
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.6;
+        }
+
+        .page-content {
+            position: relative;
+            z-index: 2;
         }
 
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 0 24px;
+            padding: 0 40px;
         }
 
-        /* Animations */
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
+        /* Sophisticated Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(40px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-12px) rotate(2deg); }
         }
 
-        .animate-in {
-            animation: slideUp 0.6s ease-out forwards;
-            opacity: 0;
+        @keyframes shimmer {
+            0% { background-position: -200% center; }
+            100% { background-position: 200% center; }
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.3), 0 0 40px rgba(139, 92, 246, 0.2); }
+            50% { box-shadow: 0 0 30px rgba(99, 102, 241, 0.5), 0 0 60px rgba(139, 92, 246, 0.3); }
         }
 
         /* Language Switcher */
         .lang-switcher {
             position: fixed;
-            top: 24px;
-            right: 24px;
+            top: 32px;
+            right: 40px;
             z-index: 1000;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
         }
 
         .lang-switcher a {
             display: inline-block;
-            padding: 10px 20px;
-            background: var(--surface);
+            padding: 12px 28px;
+            background: rgba(18, 18, 26, 0.6);
+            backdrop-filter: blur(20px) saturate(180%);
             color: var(--text-secondary);
             text-decoration: none;
-            border-radius: 12px;
-            border: 1px solid var(--border);
-            font-size: 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            font-size: 15px;
             font-weight: 600;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .lang-switcher a:hover {
-            background: var(--hover);
+            background: rgba(99, 102, 241, 0.15);
+            backdrop-filter: blur(20px) saturate(200%);
             color: var(--text-primary);
-            border-color: var(--hover);
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-2px);
         }
 
-        /* Header */
+        /* Hero Section */
         header {
-            padding: 120px 0 100px;
+            padding: 160px 0 120px;
             text-align: center;
             position: relative;
-            overflow: hidden;
-        }
-
-        header::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 800px;
-            height: 800px;
-            background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, transparent 70%);
-            pointer-events: none;
+            overflow: visible;
         }
 
         .logo-container {
             position: relative;
             z-index: 1;
-            margin-bottom: 32px;
+            margin-bottom: 40px;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s backwards;
         }
 
         .logo-icon {
-            width: 96px;
-            height: 96px;
-            margin: 0 auto 28px;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 36px;
             background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
-            border-radius: 24px;
+            border-radius: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.3);
-            animation: float 3s ease-in-out infinite;
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                0 20px 60px rgba(99, 102, 241, 0.4),
+                0 0 80px rgba(139, 92, 246, 0.3);
+            animation: float 4s ease-in-out infinite, glow 3s ease-in-out infinite;
+            position: relative;
+        }
+
+        .logo-icon::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 34px;
+            padding: 2px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.5), rgba(139, 92, 246, 0.5));
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            opacity: 0.6;
         }
 
         .logo-icon svg {
-            width: 52px;
-            height: 52px;
+            width: 64px;
+            height: 64px;
+            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
         }
 
         .logo {
-            font-size: 56px;
+            font-size: 72px;
             font-weight: 700;
-            margin-bottom: 16px;
-            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            margin-bottom: 24px;
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 50%, var(--accent-tertiary) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            letter-spacing: -0.02em;
-            animation: slideUp 0.6s ease-out 0.1s backwards;
+            letter-spacing: -0.03em;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
         }
 
         .tagline {
-            font-size: 24px;
+            font-size: 28px;
             color: var(--text-secondary);
-            margin-bottom: 48px;
+            margin-bottom: 56px;
             font-weight: 500;
             line-height: 1.5;
-            animation: slideUp 0.6s ease-out 0.2s backwards;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s backwards;
         }
 
         .cta-group {
             display: flex;
-            gap: 16px;
+            gap: 20px;
             justify-content: center;
             flex-wrap: wrap;
-            animation: slideUp 0.6s ease-out 0.3s backwards;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.4s backwards;
         }
 
         .cta-button {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
-            padding: 16px 40px;
+            gap: 10px;
+            padding: 20px 48px;
             background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            background-size: 200% auto;
             color: white;
             text-decoration: none;
-            border-radius: 16px;
+            border-radius: 20px;
             font-size: 18px;
             font-weight: 600;
-            transition: all 0.2s;
-            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.1),
+                0 8px 24px rgba(99, 102, 241, 0.4),
+                0 16px 48px rgba(99, 102, 241, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transform: translateX(-100%);
+            transition: transform 0.6s;
+        }
+
+        .cta-button:hover::before {
+            transform: translateX(100%);
         }
 
         .cta-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 24px rgba(99, 102, 241, 0.5);
+            transform: translateY(-3px);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.2),
+                0 12px 32px rgba(99, 102, 241, 0.5),
+                0 24px 64px rgba(99, 102, 241, 0.3);
+            background-position: right center;
         }
 
         .cta-button:active {
-            transform: translateY(0);
+            transform: translateY(-1px);
         }
 
         .cta-secondary {
-            background: var(--surface);
+            background: rgba(18, 18, 26, 0.6);
+            backdrop-filter: blur(20px) saturate(180%);
             color: var(--text-primary);
-            border: 1px solid var(--border);
-            box-shadow: none;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow:
+                0 4px 16px rgba(0, 0, 0, 0.3);
         }
 
         .cta-secondary:hover {
-            background: var(--hover);
-            border-color: var(--hover);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            background: rgba(99, 102, 241, 0.15);
+            backdrop-filter: blur(20px) saturate(200%);
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow:
+                0 8px 24px rgba(99, 102, 241, 0.3),
+                0 16px 48px rgba(0, 0, 0, 0.3);
         }
 
-        /* Features */
+        /* Features - Bento Grid */
         .features {
-            padding: 100px 0;
+            padding: 120px 0;
             position: relative;
         }
 
         .section-title {
             text-align: center;
-            font-size: 42px;
+            font-size: 56px;
             font-weight: 700;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
             color: var(--text-primary);
-            letter-spacing: -0.02em;
+            letter-spacing: -0.03em;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards;
         }
 
         .section-subtitle {
             text-align: center;
-            font-size: 18px;
+            font-size: 20px;
             color: var(--text-secondary);
-            margin-bottom: 64px;
-            max-width: 600px;
+            margin-bottom: 80px;
+            max-width: 700px;
             margin-left: auto;
             margin-right: auto;
+            line-height: 1.6;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s backwards;
         }
 
         .feature-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            grid-template-columns: repeat(12, 1fr);
             gap: 24px;
-            margin-bottom: 60px;
+            margin-bottom: 80px;
         }
 
         .feature-card {
-            padding: 36px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            transition: all 0.3s;
+            padding: 48px;
+            background: rgba(18, 18, 26, 0.5);
+            backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 28px;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             position: relative;
             overflow: hidden;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards;
         }
 
         .feature-card::before {
             content: '';
             position: absolute;
             inset: 0;
-            border-radius: 20px;
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.03) 0%, rgba(139, 92, 246, 0.02) 100%);
+            border-radius: 28px;
+            background: radial-gradient(circle at top left, rgba(99, 102, 241, 0.05), transparent 60%);
             pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
         }
 
         .feature-card:hover {
-            transform: translateY(-4px);
-            border-color: var(--accent-primary);
-            box-shadow: 0 12px 28px rgba(0, 0, 0, 0.4);
+            transform: translateY(-6px);
+            border-color: rgba(99, 102, 241, 0.3);
+            background: rgba(18, 18, 26, 0.7);
+            backdrop-filter: blur(30px) saturate(200%);
+            box-shadow:
+                0 0 0 1px rgba(99, 102, 241, 0.2),
+                0 20px 40px rgba(0, 0, 0, 0.4),
+                0 0 60px rgba(99, 102, 241, 0.2);
+        }
+
+        /* Bento Layout Pattern */
+        .feature-card:nth-child(1) {
+            grid-column: span 6;
+            animation-delay: 0.1s;
+        }
+        .feature-card:nth-child(2) {
+            grid-column: span 6;
+            animation-delay: 0.2s;
+        }
+        .feature-card:nth-child(3) {
+            grid-column: span 4;
+            animation-delay: 0.3s;
+        }
+        .feature-card:nth-child(4) {
+            grid-column: span 4;
+            animation-delay: 0.4s;
+        }
+        .feature-card:nth-child(5) {
+            grid-column: span 4;
+            animation-delay: 0.5s;
+        }
+        .feature-card:nth-child(6) {
+            grid-column: span 12;
+            animation-delay: 0.6s;
         }
 
         .feature-icon {
-            width: 56px;
-            height: 56px;
+            width: 72px;
+            height: 72px;
             display: flex;
             align-items: center;
             justify-content: center;
             background: rgba(99, 102, 241, 0.1);
-            border-radius: 14px;
-            font-size: 28px;
-            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            font-size: 36px;
+            margin-bottom: 28px;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .feature-card:hover .feature-icon {
+            transform: scale(1.1) rotate(5deg);
+            background: rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.4);
         }
 
         .feature-title {
-            font-size: 20px;
+            font-size: 24px;
             font-weight: 600;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
             color: var(--text-primary);
+            letter-spacing: -0.01em;
         }
 
         .feature-desc {
             color: var(--text-secondary);
             line-height: 1.7;
-            font-size: 15px;
+            font-size: 16px;
         }
 
-        /* Screenshot */
+        /* Screenshot with 3D Effect */
         .screenshot-section {
-            padding: 100px 0;
-            background: var(--surface);
+            padding: 120px 0;
+            background: rgba(18, 18, 26, 0.3);
+            backdrop-filter: blur(40px);
+            position: relative;
         }
 
         .screenshot-wrapper {
-            max-width: 1000px;
+            max-width: 1200px;
             margin: 0 auto;
-            border-radius: 20px;
+            border-radius: 32px;
             overflow: hidden;
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
-            border: 1px solid var(--border);
+            transform: perspective(1000px) rotateX(2deg);
+            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.08),
+                0 40px 100px rgba(0, 0, 0, 0.6),
+                0 0 120px rgba(99, 102, 241, 0.2);
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s backwards;
+            position: relative;
+        }
+
+        .screenshot-wrapper::before {
+            content: '';
+            position: absolute;
+            inset: -2px;
+            border-radius: 34px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.3));
+            z-index: -1;
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .screenshot-wrapper:hover::before {
+            opacity: 1;
+        }
+
+        .screenshot-wrapper:hover {
+            transform: perspective(1000px) rotateX(0deg) translateY(-8px);
+            box-shadow:
+                0 0 0 1px rgba(255, 255, 255, 0.12),
+                0 60px 140px rgba(0, 0, 0, 0.7),
+                0 0 160px rgba(99, 102, 241, 0.3);
         }
 
         .screenshot-wrapper img {
@@ -323,134 +499,176 @@
 
         /* Stats */
         .stats-section {
-            padding: 100px 0;
+            padding: 120px 0;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             gap: 32px;
-            max-width: 900px;
+            max-width: 1100px;
             margin: 0 auto;
         }
 
         .stat-card {
             text-align: center;
-            padding: 32px;
-            background: var(--surface);
-            border-radius: 20px;
-            border: 1px solid var(--border);
+            padding: 48px 40px;
+            background: rgba(18, 18, 26, 0.5);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-radius: 28px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+        }
+
+        .stat-card:nth-child(1) { animation-delay: 0.1s; }
+        .stat-card:nth-child(2) { animation-delay: 0.2s; }
+        .stat-card:nth-child(3) { animation-delay: 0.3s; }
+
+        .stat-card:hover {
+            transform: translateY(-6px);
+            border-color: rgba(99, 102, 241, 0.3);
+            background: rgba(18, 18, 26, 0.7);
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.4),
+                0 0 60px rgba(99, 102, 241, 0.15);
         }
 
         .stat-number {
-            font-size: 48px;
+            font-size: 64px;
             font-weight: 700;
-            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+            background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 50%, var(--accent-tertiary) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
         }
 
         .stat-label {
             color: var(--text-secondary);
-            font-size: 16px;
+            font-size: 17px;
             font-weight: 500;
         }
 
         /* Download */
         .download-section {
-            padding: 100px 0;
+            padding: 120px 0;
             text-align: center;
         }
 
         .version-info {
             color: var(--text-tertiary);
-            margin-top: 20px;
+            margin-top: 28px;
             font-size: 15px;
             font-weight: 500;
+            animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.3s backwards;
         }
 
         /* Footer */
         footer {
-            padding: 80px 0 40px;
-            border-top: 1px solid var(--border);
-            background: var(--surface);
+            padding: 100px 0 48px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            background: rgba(18, 18, 26, 0.5);
+            backdrop-filter: blur(20px);
         }
 
         .footer-content {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            padding: 0 24px;
+            padding: 0 40px;
         }
 
         .footer-logo {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: 700;
             background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 16px;
+            margin-bottom: 20px;
         }
 
         .footer-desc {
             color: var(--text-secondary);
-            margin-bottom: 32px;
-            max-width: 400px;
+            margin-bottom: 40px;
+            max-width: 480px;
+            line-height: 1.7;
+            font-size: 16px;
         }
 
         .footer-links {
             display: flex;
-            gap: 32px;
+            gap: 40px;
             flex-wrap: wrap;
-            margin-bottom: 32px;
+            margin-bottom: 40px;
         }
 
         .footer-links a {
             color: var(--text-secondary);
             text-decoration: none;
-            transition: color 0.2s;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             font-weight: 500;
+            font-size: 15px;
         }
 
         .footer-links a:hover {
             color: var(--accent-primary);
+            transform: translateY(-2px);
         }
 
         .footer-bottom {
-            padding-top: 32px;
-            border-top: 1px solid var(--border);
+            padding-top: 40px;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
             color: var(--text-tertiary);
             font-size: 14px;
             text-align: center;
         }
 
         /* Responsive */
+        @media (max-width: 1200px) {
+            .container {
+                padding: 0 32px;
+            }
+        }
+
         @media (max-width: 768px) {
+            .container {
+                padding: 0 24px;
+            }
+
             header {
-                padding: 80px 0 60px;
+                padding: 120px 0 80px;
             }
 
             .logo {
-                font-size: 42px;
+                font-size: 48px;
             }
 
             .tagline {
-                font-size: 18px;
+                font-size: 20px;
             }
 
             .section-title {
-                font-size: 32px;
+                font-size: 36px;
+            }
+
+            .section-subtitle {
+                font-size: 17px;
             }
 
             .feature-grid {
                 grid-template-columns: 1fr;
-                gap: 16px;
+            }
+
+            .feature-card {
+                grid-column: span 1 !important;
+                padding: 32px;
             }
 
             .cta-group {
                 flex-direction: column;
+                width: 100%;
             }
 
             .cta-button {
@@ -461,150 +679,173 @@
             .stats-grid {
                 grid-template-columns: 1fr;
             }
+
+            .lang-switcher {
+                top: 24px;
+                right: 24px;
+            }
+
+            .screenshot-wrapper {
+                transform: perspective(1000px) rotateX(1deg);
+            }
+
+            .screenshot-wrapper:hover {
+                transform: perspective(1000px) rotateX(0deg) translateY(-4px);
+            }
+
+            .footer-content {
+                padding: 0 24px;
+            }
+
+            .footer-links {
+                gap: 24px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="lang-switcher">
-        <a href="../ko/">한국어</a>
-    </div>
+    <div class="page-content">
+        <div class="lang-switcher">
+            <a href="../ko/">한국어</a>
+        </div>
 
-    <header>
-        <div class="container">
-            <div class="logo-container">
-                <div class="logo-icon">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2L4 7V17L12 22L20 17V7L12 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        <path d="M12 8V16M8 10L12 8L16 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
+        <header>
+            <div class="container">
+                <div class="logo-container">
+                    <div class="logo-icon">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 2L4 7V17L12 22L20 17V7L12 2Z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M12 8V16M8 10L12 8L16 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </div>
+                    <h1 class="logo">PromptLint</h1>
                 </div>
-                <h1 class="logo">PromptLint</h1>
+                <p class="tagline">Learn to ask better questions to AI</p>
+                <div class="cta-group">
+                    <a href="#download" class="cta-button">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="7 10 12 15 17 10"/>
+                            <line x1="12" y1="15" x2="12" y2="3"/>
+                        </svg>
+                        Free Download
+                    </a>
+                    <a href="https://github.com/philokalos/prompt-evolution" class="cta-button cta-secondary" target="_blank">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
+                        </svg>
+                        View on GitHub
+                    </a>
+                </div>
             </div>
-            <p class="tagline">Learn to ask better questions to AI</p>
-            <div class="cta-group">
-                <a href="#download" class="cta-button">
+        </header>
+
+        <section class="features">
+            <div class="container">
+                <h2 class="section-title">What You Can Do</h2>
+                <p class="section-subtitle">Analyze and improve your prompts instantly with GOLDEN evaluation system</p>
+
+                <div class="feature-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">📊</div>
+                        <h3 class="feature-title">Real-time Quality Analysis</h3>
+                        <p class="feature-desc">Instantly analyze your prompts with GOLDEN 6-dimensional evaluation and get A~F grades.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">💡</div>
+                        <h3 class="feature-title">Smart Improvement Suggestions</h3>
+                        <p class="feature-desc">Get 3 automatic improvement variants. Enable AI for even better suggestions.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">⌨️</div>
+                        <h3 class="feature-title">Works Everywhere</h3>
+                        <p class="feature-desc">Use Cmd+Shift+P shortcut to analyze prompts instantly from any app.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">📈</div>
+                        <h3 class="feature-title">Progress Tracking</h3>
+                        <p class="feature-desc">Track your improvement over time with charts and identify common weaknesses.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🔒</div>
+                        <h3 class="feature-title">Privacy First</h3>
+                        <p class="feature-desc">All data stays on your computer. Works offline without internet connection.</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <div class="feature-icon">🎯</div>
+                        <h3 class="feature-title">IDE Auto-detection</h3>
+                        <p class="feature-desc">Automatically detects VS Code, Cursor, and provides project-specific analysis.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="screenshot-section">
+            <div class="container">
+                <h2 class="section-title">See It In Action</h2>
+                <p class="section-subtitle">Intuitive interface to understand prompt quality at a glance</p>
+                <div class="screenshot-wrapper">
+                    <img src="screenshot.png" alt="PromptLint Screenshot" loading="lazy">
+                </div>
+            </div>
+        </section>
+
+        <section class="stats-section">
+            <div class="container">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-number">11% → 83%</div>
+                        <div class="stat-label">Quality improvement with AI</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">6</div>
+                        <div class="stat-label">GOLDEN evaluation dimensions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">100%</div>
+                        <div class="stat-label">Local data storage</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="download-section" id="download">
+            <div class="container">
+                <h2 class="section-title">Get Started Now</h2>
+                <p class="section-subtitle">Download free macOS app and start writing better prompts today</p>
+                <a href="https://github.com/philokalos/prompt-evolution/releases/latest" class="cta-button">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                         <polyline points="7 10 12 15 17 10"/>
                         <line x1="12" y1="15" x2="12" y2="3"/>
                     </svg>
-                    Free Download
+                    Download for macOS
                 </a>
-                <a href="https://github.com/philokalos/prompt-evolution" class="cta-button cta-secondary" target="_blank">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"/>
-                    </svg>
-                    View on GitHub
-                </a>
+                <p class="version-info">Version 0.1.8 • macOS 12.0 (Monterey) or later • Free • Apple Silicon Support</p>
             </div>
-        </div>
-    </header>
+        </section>
 
-    <section class="features">
-        <div class="container">
-            <h2 class="section-title">What You Can Do</h2>
-            <p class="section-subtitle">Analyze and improve your prompts instantly with GOLDEN evaluation system</p>
-
-            <div class="feature-grid">
-                <div class="feature-card animate-in" style="animation-delay: 0.1s">
-                    <div class="feature-icon">📊</div>
-                    <h3 class="feature-title">Real-time Quality Analysis</h3>
-                    <p class="feature-desc">Instantly analyze your prompts with GOLDEN 6-dimensional evaluation and get A~F grades.</p>
+        <footer>
+            <div class="footer-content">
+                <div class="footer-logo">PromptLint</div>
+                <p class="footer-desc">The easiest way to learn asking better questions to AI</p>
+                <div class="footer-links">
+                    <a href="https://github.com/philokalos/prompt-evolution" target="_blank">GitHub</a>
+                    <a href="https://github.com/philokalos/prompt-evolution/releases" target="_blank">Releases</a>
+                    <a href="https://github.com/philokalos/prompt-evolution/issues" target="_blank">Support</a>
+                    <a href="/privacy.html">Privacy Policy</a>
+                    <a href="mailto:macrothinkmicrodesign0@gmail.com">Contact</a>
                 </div>
-
-                <div class="feature-card animate-in" style="animation-delay: 0.2s">
-                    <div class="feature-icon">💡</div>
-                    <h3 class="feature-title">Smart Improvement Suggestions</h3>
-                    <p class="feature-desc">Get 3 automatic improvement variants. Enable AI for even better suggestions.</p>
+                <div class="footer-bottom">
+                    <p>&copy; 2026 PromptLint by MTMD. All rights reserved.</p>
                 </div>
-
-                <div class="feature-card animate-in" style="animation-delay: 0.3s">
-                    <div class="feature-icon">⌨️</div>
-                    <h3 class="feature-title">Works Everywhere</h3>
-                    <p class="feature-desc">Use Cmd+Shift+P shortcut to analyze prompts instantly from any app.</p>
-                </div>
-
-                <div class="feature-card animate-in" style="animation-delay: 0.4s">
-                    <div class="feature-icon">📈</div>
-                    <h3 class="feature-title">Progress Tracking</h3>
-                    <p class="feature-desc">Track your improvement over time with charts and identify common weaknesses.</p>
-                </div>
-
-                <div class="feature-card animate-in" style="animation-delay: 0.5s">
-                    <div class="feature-icon">🔒</div>
-                    <h3 class="feature-title">Privacy First</h3>
-                    <p class="feature-desc">All data stays on your computer. Works offline without internet connection.</p>
-                </div>
-
-                <div class="feature-card animate-in" style="animation-delay: 0.6s">
-                    <div class="feature-icon">🎯</div>
-                    <h3 class="feature-title">IDE Auto-detection</h3>
-                    <p class="feature-desc">Automatically detects VS Code, Cursor, and provides project-specific analysis.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="screenshot-section">
-        <div class="container">
-            <h2 class="section-title">See It In Action</h2>
-            <p class="section-subtitle">Intuitive interface to understand prompt quality at a glance</p>
-            <div class="screenshot-wrapper">
-                <img src="screenshot.png" alt="PromptLint Screenshot" loading="lazy">
-            </div>
-        </div>
-    </section>
-
-    <section class="stats-section">
-        <div class="container">
-            <div class="stats-grid">
-                <div class="stat-card animate-in">
-                    <div class="stat-number">11% → 83%</div>
-                    <div class="stat-label">Quality improvement with AI</div>
-                </div>
-                <div class="stat-card animate-in" style="animation-delay: 0.1s">
-                    <div class="stat-number">6</div>
-                    <div class="stat-label">GOLDEN evaluation dimensions</div>
-                </div>
-                <div class="stat-card animate-in" style="animation-delay: 0.2s">
-                    <div class="stat-number">100%</div>
-                    <div class="stat-label">Local data storage</div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="download-section" id="download">
-        <div class="container">
-            <h2 class="section-title">Get Started Now</h2>
-            <p class="section-subtitle">Download free macOS app and start writing better prompts today</p>
-            <a href="https://github.com/philokalos/prompt-evolution/releases/latest" class="cta-button">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/>
-                    <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                Download for macOS
-            </a>
-            <p class="version-info">Version 0.1.8 • macOS 12.0 (Monterey) or later • Free • Apple Silicon Support</p>
-        </div>
-    </section>
-
-    <footer>
-        <div class="footer-content">
-            <div class="footer-logo">PromptLint</div>
-            <p class="footer-desc">The easiest way to learn asking better questions to AI</p>
-            <div class="footer-links">
-                <a href="https://github.com/philokalos/prompt-evolution" target="_blank">GitHub</a>
-                <a href="https://github.com/philokalos/prompt-evolution/releases" target="_blank">Releases</a>
-                <a href="https://github.com/philokalos/prompt-evolution/issues" target="_blank">Support</a>
-                <a href="/privacy.html">Privacy Policy</a>
-                <a href="mailto:macrothinkmicrodesign0@gmail.com">Contact</a>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2026 PromptLint by MTMD. All rights reserved.</p>
-            </div>
-        </div>
-    </footer>
+            </footer-content>
+        </footer>
+    </div>
 </body>
 </html>
