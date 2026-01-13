@@ -26,14 +26,16 @@ AI Prompt Quality Analyzer
 
 ## 📝 프로모션 텍스트 (Promotional Text)
 
-**한국어** (170자 제한):
+**⚠️ 중요**: 한국어와 영어를 **별도 현지화**로 입력해야 합니다. 함께 입력하면 글자수 초과!
+
+**한국어 기본 언어** (170자 제한, 현재 89자):
 ```
-AI와 대화할 때 더 나은 결과를 얻고 싶으신가요? PromptLint는 프롬프트를 실시간으로 분석하고 개선 방안을 제시합니다. 단축키 하나로 어디서든 사용 가능합니다.
+AI 프롬프트를 실시간으로 분석하고 개선합니다. GOLDEN 6차원 평가로 더 나은 AI 대화를 만들어보세요. 단축키 하나로 어디서든 사용 가능합니다.
 ```
 
-**영어** (170자 제한):
+**영어 현지화 추가** (170자 제한, 현재 154자):
 ```
-Want better AI results? PromptLint analyzes your prompts in real-time and suggests improvements. Access it anywhere with a simple keyboard shortcut.
+Real-time AI prompt analysis with GOLDEN evaluation. Get instant feedback and improvements for better AI conversations. Quick access anywhere.
 ```
 
 ---
@@ -214,14 +216,16 @@ Better AI conversations start with PromptLint.
 
 ## 🏷️ 키워드 (Keywords)
 
-**한국어** (100자, 쉼표로 구분):
+**⚠️ 중요**: 한국어와 영어를 **별도 현지화**로 입력해야 합니다. 함께 입력하면 글자수 초과!
+
+**한국어 기본 언어** (100자 제한, 현재 70자):
 ```
-프롬프트,AI,인공지능,품질분석,개발자도구,생산성,프롬프트엔지니어링,Claude,ChatGPT,코딩도우미
+프롬프트,AI,품질분석,개발자도구,생산성,Claude,ChatGPT,코딩,프롬프트엔지니어링
 ```
 
-**영어** (100자, 쉼표로 구분):
+**영어 현지화 추가** (100자 제한, 현재 96자):
 ```
-prompt,AI,quality,analysis,developer,productivity,engineering,Claude,ChatGPT,coding,assistant
+prompt,AI,quality,analysis,developer,productivity,engineering,Claude,ChatGPT,coding
 ```
 
 ---
@@ -246,14 +250,19 @@ prompt,AI,quality,analysis,developer,productivity,engineering,Claude,ChatGPT,cod
 
 ## 🌐 지원 URL
 
-**앱 지원 URL**:
+**앱 지원 URL** (필수):
+```
+https://github.com/philokalos/prompt-evolution/issues
+```
+
+**마케팅 URL** (선택사항):
 ```
 https://github.com/philokalos/prompt-evolution
 ```
 
-**마케팅 URL**:
+**개인정보보호정책 URL** (필수):
 ```
-https://github.com/philokalos/prompt-evolution#readme
+https://github.com/philokalos/prompt-evolution/blob/main/PRIVACY.md
 ```
 
 ---
@@ -416,4 +425,69 @@ https://github.com/philokalos/prompt-evolution/issues
 
 ---
 
-**다음 단계**: 이 메타데이터를 App Store Connect에 입력하고, PRIVACY.md를 GitHub에 커밋하세요.
+## 📋 App Store Connect 입력 가이드
+
+### 1단계: 기본 언어 설정 (한국어)
+
+1. **Promotional Text** (89자):
+   ```
+   AI 프롬프트를 실시간으로 분석하고 개선합니다. GOLDEN 6차원 평가로 더 나은 AI 대화를 만들어보세요. 단축키 하나로 어디서든 사용 가능합니다.
+   ```
+
+2. **Description** (위 한국어 버전 전체 복사)
+
+3. **Keywords** (70자):
+   ```
+   프롬프트,AI,품질분석,개발자도구,생산성,Claude,ChatGPT,코딩,프롬프트엔지니어링
+   ```
+
+4. **Support URL**:
+   ```
+   https://github.com/philokalos/prompt-evolution/issues
+   ```
+
+5. **Marketing URL** (선택):
+   ```
+   https://github.com/philokalos/prompt-evolution
+   ```
+
+### 2단계: 영어 현지화 추가
+
+좌측 메뉴 "App Store" → "1.0 Prepare for Submission" → 상단 "Korean" 옆 "+" 버튼 → "English (U.S.)" 선택
+
+1. **Promotional Text** (154자):
+   ```
+   Real-time AI prompt analysis with GOLDEN evaluation. Get instant feedback and improvements for better AI conversations. Quick access anywhere.
+   ```
+
+2. **Description** (위 영어 버전 전체 복사)
+
+3. **Keywords** (96자):
+   ```
+   prompt,AI,quality,analysis,developer,productivity,engineering,Claude,ChatGPT,coding
+   ```
+
+4. **Support URL**: (한국어와 동일)
+
+5. **Marketing URL**: (한국어와 동일)
+
+### 3단계: 일반 정보 입력
+
+- **Privacy Policy URL**: `https://github.com/philokalos/prompt-evolution/blob/main/PRIVACY.md`
+- **Category**: Developer Tools (Primary), Productivity (Secondary)
+- **Copyright**: `2026 Kyeol Kim`
+- **Age Rating**: 4+
+
+### 4단계: 빌드 업로드 준비
+
+현재 상태:
+- ✅ 서명되지 않은 앱 빌드 완료
+- ⏳ Installer 인증서 발급 필요
+- ⏳ 서명 및 PKG 생성 필요
+
+---
+
+**다음 단계**:
+1. App Store Connect에서 위 메타데이터 입력
+2. Installer 인증서 발급 (병렬 진행)
+3. 서명 스크립트 실행 및 PKG 업로드
