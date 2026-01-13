@@ -30,23 +30,28 @@ landing-page/
 
 ### 방법 1: Vercel (추천 ⭐)
 
+**자동 설정 완료**: `vercel.json` 파일이 이미 준비되어 있습니다.
+
 ```bash
-# 1. Vercel CLI 설치
+# 1. Vercel CLI 설치 (처음 한 번만)
 npm i -g vercel
 
-# 2. 배포
+# 2. 로그인
 cd landing-page
-vercel
+vercel login
 
-# 3. 도메인 연결
+# 3. 배포
+vercel --prod
+
+# 4. 도메인 연결
 vercel domains add promptlint.mtmd.xyz
 ```
 
-**설정:**
-- Root Directory: `desktop/landing-page`
-- Framework Preset: Other
-- Build Command: (비워두기)
-- Output Directory: (비워두기)
+**vercel.json 설정 포함:**
+- ✅ 정적 파일 빌드 설정
+- ✅ 보안 헤더 (X-Frame-Options, XSS Protection)
+- ✅ 캐싱 최적화 (이미지 1년, HTML 1시간)
+- ✅ 클린 URL 리라이트 (/ko, /en)
 
 ### 방법 2: Netlify
 
