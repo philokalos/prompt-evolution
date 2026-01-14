@@ -73,3 +73,83 @@ export ANTHROPIC_API_KEY=sk-ant-...  # Optional: AI-powered improvements
 | All "unknown" classification | Lower confidence threshold (0.7 → 0.6) |
 | Empty insights | Minimum 2 turns required |
 | LLM improvement fails | Check for placeholder filtering |
+
+---
+
+## Verified Vibe Coding Protocol
+
+이 프로젝트는 VVCS(Verified Vibe Coding System)를 따릅니다.
+
+### 필수 워크플로우
+
+**1. 새 기능 개발**
+```
+/speckit.specify "기능 설명"
+  ↓
+/speckit.plan
+  ↓
+/speckit.implement
+  ↓
+npm test
+  ↓
+/commit-push-pr
+```
+
+**2. 버그 수정**
+```
+"think hard" 포함하여 문제 분석
+  ↓
+수정 계획 확인
+  ↓
+수정 구현
+  ↓
+npm test
+```
+
+**3. 리팩토링**
+```
+"think harder" 포함하여 계획 요청
+  ↓
+계획 검토 및 승인
+  ↓
+단계별 구현
+  ↓
+각 단계마다 테스트
+```
+
+### Think Mode 가이드
+
+| 작업 복잡도 | Think Mode | 예시 |
+|-------------|-----------|------|
+| 단순 수정 | (기본) | 오타 수정, 간단한 버그 |
+| 다중 파일 변경 | `think hard` | 여러 파일에 걸친 리팩토링 |
+| 아키텍처 결정 | `think harder` | 새로운 기능의 설계 |
+| 보안/성능 크리티컬 | `ultrathink` | 보안 취약점, 성능 최적화 |
+
+### 자동 검증
+
+VVCS Hooks가 자동으로:
+- Plan-First 워크플로우 권장
+- Think 모드 사용 권장
+- 코드 품질 실시간 검증 (실패 시에만)
+- 보안 패턴 감지
+
+### Definition of Done
+
+**필수 체크리스트**:
+- [ ] TypeScript 컴파일 에러 없음
+- [ ] ESLint 경고 0개
+- [ ] 관련 테스트 통과
+- [ ] 보안 패턴 없음 (innerHTML, eval 등)
+
+### 일간 모니터링
+
+```bash
+python3 ~/.claude/scripts/analyze-conversations.py
+python3 ~/.claude/scripts/analyze-conversations.py trend
+```
+
+**목표 지표**:
+- Fix 커밋 비율: < 15%
+- Think 사용률: > 5%
+- Plan-First 비율: > 80%
