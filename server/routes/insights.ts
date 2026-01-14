@@ -6,26 +6,24 @@ import {
   getConversationsInRange,
   type TimePeriod,
   type TaskCategory,
-  type PromptData,
 } from '../../src/index.js';
+import { getPromptDataFromConversations } from '../repositories/index.js';
+import {
+  validateQuery,
+  insightsQuerySchema,
+  type InsightsQuery,
+} from '../validation/index.js';
 
 export const insightsRouter = Router();
 
 // GET /api/insights - Insights report with filters
-insightsRouter.get('/', async (req, res, next) => {
-  try {
-    const db = getDatabase();
-    const {
-      period = '7d',
-      project,
-      category,
-      focus,
-    } = req.query as {
-      period?: TimePeriod;
-      project?: string;
-      category?: TaskCategory;
-      focus?: 'problems' | 'improvements' | 'strengths';
-    };
+insightsRouter.get(
+  '/',
+  validateQuery(insightsQuerySchema),
+  async (req, res, next) => {
+    try {
+      const db = getDatabase();
+      const { period, project, category, focus } = req.query as InsightsQuery;
 
     // Get conversations based on period
     const conversations = getConversationsForPeriod(period);
@@ -42,7 +40,7 @@ insightsRouter.get('/', async (req, res, next) => {
       return res.json(createEmptyResponse(period));
     }
 
-    // Build prompts data from user turns
+    // Build prompts data from user turns using repository
     const promptData = getPromptDataFromConversations(db, conversationIds);
 
     if (promptData.length === 0) {
@@ -67,7 +65,8 @@ insightsRouter.get('/', async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-});
+  }
+);
 
 function getConversationsForPeriod(period: TimePeriod) {
   if (period === 'all') {
@@ -79,41 +78,6 @@ function getConversationsForPeriod(period: TimePeriod) {
   const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
   return getConversationsInRange(startDate, now);
-}
-
-function getPromptDataFromConversations(
-  db: ReturnType<typeof getDatabase>,
-  conversationIds: string[]
-): PromptData[] {
-  if (conversationIds.length === 0) return [];
-
-  // Create placeholders for IN clause
-  const placeholders = conversationIds.map(() => '?').join(',');
-
-  const turns = db
-    .prepare(
-      `
-      SELECT t.content, t.conversation_id, t.timestamp
-      FROM turns t
-      WHERE t.role = 'user'
-        AND t.conversation_id IN (${placeholders})
-        AND t.content IS NOT NULL
-        AND t.content != ''
-      ORDER BY t.timestamp DESC
-    `
-    )
-    .all(...conversationIds) as Array<{
-    content: string;
-    conversation_id: string;
-    timestamp: string;
-  }>;
-
-  return turns.map((t) => ({
-    content: t.content,
-    conversationId: t.conversation_id,
-    timestamp: t.timestamp ? new Date(t.timestamp) : undefined,
-    effectiveness: undefined, // Could be enhanced with quality_signals data
-  }));
 }
 
 function createEmptyResponse(period: TimePeriod) {

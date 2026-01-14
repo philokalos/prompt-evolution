@@ -4,177 +4,27 @@
  */
 
 import {
-  containsPattern,
-  countPatternMatches,
-  findMatchingKeywords,
-} from './patterns.js';
+  INTENT_PATTERNS,
+  CATEGORY_PATTERNS,
+  getIntentKeywords,
+  getCategoryKeywords,
+} from './patterns/index.js';
 
-/**
- * Prompt intent types
- */
-export type PromptIntent =
-  | 'command' // Direct instructions: "만들어줘", "create"
-  | 'question' // Questions: "왜", "how"
-  | 'instruction' // Detailed instructions with context
-  | 'feedback' // Response to AI output: "좋아", "아니"
-  | 'context' // Providing background information
-  | 'clarification' // Asking for clarification
-  | 'unknown';
+// Import and re-export shared types
+import type {
+  PromptIntent,
+  TaskCategory,
+  ClassificationResult,
+  PromptClassification,
+  PromptFeatures,
+} from '../shared/types/index.js';
 
-/**
- * Task category types
- */
-export type TaskCategory =
-  | 'code-generation' // Creating new code
-  | 'code-review' // Reviewing existing code
-  | 'bug-fix' // Fixing bugs
-  | 'refactoring' // Improving code structure
-  | 'explanation' // Explaining concepts
-  | 'documentation' // Writing docs
-  | 'testing' // Writing tests
-  | 'architecture' // System design
-  | 'deployment' // DevOps tasks
-  | 'data-analysis' // Data work
-  | 'general' // General tasks
-  | 'unknown';
-
-/**
- * Classification result
- */
-export interface ClassificationResult {
-  intent: PromptIntent;
-  intentConfidence: number;
-  taskCategory: TaskCategory;
-  categoryConfidence: number;
-  matchedKeywords: string[];
-  features: PromptFeatures;
-}
-
-/**
- * Type alias for backward compatibility
- */
-export type PromptClassification = ClassificationResult;
-
-/**
- * Extracted prompt features
- */
-export interface PromptFeatures {
-  length: number;
-  wordCount: number;
-  hasCodeBlock: boolean;
-  hasUrl: boolean;
-  hasFilePath: boolean;
-  hasQuestionMark: boolean;
-  hasExclamationMark: boolean;
-  languageHint: 'ko' | 'en' | 'mixed';
-  complexity: 'simple' | 'moderate' | 'complex';
-}
-
-/**
- * Intent classification patterns
- */
-const INTENT_PATTERNS = {
-  command: {
-    ko: [
-      '해줘', '만들어', '작성해', '생성해', '추가해', '삭제해', '수정해',
-      '변경해', '실행해', '설치해', '빌드해', '배포해', '테스트해',
-      '구현해', '적용해', '설정해', '확인해', '보여줘', '알려줘',
-    ],
-    en: [
-      'create', 'make', 'build', 'write', 'add', 'remove', 'delete',
-      'update', 'modify', 'change', 'run', 'execute', 'install',
-      'deploy', 'test', 'implement', 'show', 'tell', 'fix', 'refactor',
-    ],
-  },
-  question: {
-    ko: [
-      '뭐야', '뭔가', '무엇', '왜', '어떻게', '언제', '어디', '누가',
-      '얼마나', '몇', '인가요', '일까', '는지', '나요', '을까',
-    ],
-    en: [
-      'what', 'why', 'how', 'when', 'where', 'who', 'which', 'whose',
-      'is it', 'are there', 'can you', 'could you', 'would you',
-      'do you', 'does it', 'should i', 'is there',
-    ],
-  },
-  feedback: {
-    ko: [
-      '좋아', '좋네', '훌륭', '완벽', '고마워', '감사', '아니', '틀렸',
-      '잘못', '다시', '수정', '바꿔', 'ㅇㅋ', 'ㄱㅅ', '굿',
-    ],
-    en: [
-      'good', 'great', 'perfect', 'thanks', 'thank you', 'no', 'wrong',
-      'incorrect', 'again', 'change', 'modify', 'ok', 'okay', 'nice',
-      'awesome', 'not what', "that's not",
-    ],
-  },
-  context: {
-    ko: [
-      '현재', '지금', '상황', '배경', '목표', '원하는', '필요한',
-      '프로젝트', '환경', '버전', '사용하고', '있는데', '있어서',
-    ],
-    en: [
-      'currently', 'right now', 'situation', 'background', 'goal',
-      'want to', 'need to', 'project', 'environment', 'version',
-      'using', 'working on', 'trying to', 'context',
-    ],
-  },
-  clarification: {
-    ko: [
-      '무슨 뜻', '이해가 안', '다시 설명', '예를 들어', '예시',
-      '구체적으로', '자세히', '명확하게',
-    ],
-    en: [
-      'what do you mean', "don't understand", 'explain again', 'for example',
-      'example', 'specifically', 'more detail', 'clarify', 'elaborate',
-    ],
-  },
-};
-
-/**
- * Task category patterns
- */
-const CATEGORY_PATTERNS = {
-  'code-generation': {
-    ko: ['만들어', '생성', '구현', '작성', '새로운', '추가'],
-    en: ['create', 'generate', 'implement', 'write', 'new', 'add', 'build'],
-  },
-  'code-review': {
-    ko: ['리뷰', '검토', '확인', '봐줘', '어떤가', '괜찮'],
-    en: ['review', 'check', 'look at', 'examine', 'assess', 'evaluate'],
-  },
-  'bug-fix': {
-    ko: ['버그', '오류', '에러', '문제', '안돼', '안됨', '수정', '고쳐'],
-    en: ['bug', 'error', 'issue', 'problem', 'not working', 'fix', 'debug'],
-  },
-  refactoring: {
-    ko: ['리팩토링', '리팩터', '개선', '정리', '최적화', '구조'],
-    en: ['refactor', 'improve', 'clean', 'optimize', 'restructure', 'simplify'],
-  },
-  explanation: {
-    ko: ['설명', '알려줘', '뭐야', '이해', '의미', '작동', '원리'],
-    en: ['explain', 'tell me', 'what is', 'understand', 'meaning', 'how does', 'work'],
-  },
-  documentation: {
-    ko: ['문서', '주석', '설명', 'README', '가이드', '매뉴얼'],
-    en: ['document', 'comment', 'readme', 'guide', 'manual', 'docs', 'jsdoc'],
-  },
-  testing: {
-    ko: ['테스트', '검증', '단위', '통합', '커버리지', 'jest', 'vitest'],
-    en: ['test', 'spec', 'unit', 'integration', 'coverage', 'jest', 'vitest', 'e2e'],
-  },
-  architecture: {
-    ko: ['설계', '아키텍처', '구조', '패턴', '디자인', '시스템'],
-    en: ['architecture', 'design', 'structure', 'pattern', 'system', 'schema'],
-  },
-  deployment: {
-    ko: ['배포', '빌드', '도커', 'CI', 'CD', '서버', '호스팅'],
-    en: ['deploy', 'build', 'docker', 'ci', 'cd', 'server', 'hosting', 'kubernetes'],
-  },
-  'data-analysis': {
-    ko: ['데이터', '분석', '쿼리', 'SQL', '통계', '그래프'],
-    en: ['data', 'analysis', 'query', 'sql', 'statistics', 'chart', 'graph'],
-  },
+export type {
+  PromptIntent,
+  TaskCategory,
+  ClassificationResult,
+  PromptClassification,
+  PromptFeatures,
 };
 
 /**
@@ -246,8 +96,8 @@ export function classifyIntent(text: string): {
   };
 
   // Check patterns
-  for (const [intent, patterns] of Object.entries(INTENT_PATTERNS)) {
-    const allKeywords = [...patterns.ko, ...patterns.en];
+  for (const intent of Object.keys(INTENT_PATTERNS)) {
+    const allKeywords = getIntentKeywords(intent);
     for (const keyword of allKeywords) {
       if (lowerText.includes(keyword.toLowerCase())) {
         scores[intent]++;
@@ -311,9 +161,9 @@ export function classifyTaskCategory(text: string): {
 
   const scores: Record<string, number> = {};
 
-  for (const [category, patterns] of Object.entries(CATEGORY_PATTERNS)) {
+  for (const category of Object.keys(CATEGORY_PATTERNS)) {
     scores[category] = 0;
-    const allKeywords = [...patterns.ko, ...patterns.en];
+    const allKeywords = getCategoryKeywords(category);
     for (const keyword of allKeywords) {
       if (lowerText.includes(keyword.toLowerCase())) {
         scores[category]++;
