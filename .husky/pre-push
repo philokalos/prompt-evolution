@@ -1,0 +1,33 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "🔍 Pre-push 검증 시작..."
+
+# TypeScript 컴파일 체크
+if [ -f "tsconfig.json" ]; then
+    echo "  TypeScript 검증..."
+    if ! npx tsc --noEmit --skipLibCheck; then
+        echo "❌ TypeScript 컴파일 에러"
+        exit 1
+    fi
+fi
+
+# ESLint 체크
+if [ -f ".eslintrc.js" ] || [ -f ".eslintrc.json" ] || [ -f "eslint.config.js" ]; then
+    echo "  ESLint 검증..."
+    if ! npm run lint 2>/dev/null; then
+        echo "❌ ESLint 에러"
+        exit 1
+    fi
+fi
+
+# 테스트 실행 (passWithNoTests 옵션)
+if grep -q '"test"' package.json 2>/dev/null; then
+    echo "  테스트 실행..."
+    if ! npm test -- --passWithNoTests --run 2>/dev/null; then
+        echo "❌ 테스트 실패"
+        exit 1
+    fi
+fi
+
+echo "✅ Pre-push 검증 통과"

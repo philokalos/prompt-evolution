@@ -1,0 +1,27 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+COMMIT_MSG_FILE=$1
+COMMIT_MSG=$(cat "$COMMIT_MSG_FILE")
+
+# Conventional Commits 패턴
+# feat, fix, docs, style, refactor, test, chore
+PATTERN="^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\(.+\))?: .+"
+
+if ! echo "$COMMIT_MSG" | grep -qE "$PATTERN"; then
+    echo ""
+    echo "❌ 커밋 메시지 형식 오류"
+    echo ""
+    echo "올바른 형식: <type>(<scope>): <description>"
+    echo ""
+    echo "예시:"
+    echo "  feat(auth): add user authentication"
+    echo "  fix(api): resolve timeout issue"
+    echo "  docs(readme): update installation guide"
+    echo ""
+    echo "Types: feat, fix, docs, style, refactor, test, chore"
+    echo ""
+    exit 1
+fi
+
+echo "✅ 커밋 메시지 검증 통과"
