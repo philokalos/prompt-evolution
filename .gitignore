@@ -11,3 +11,6 @@ reports/
 # Build artifacts
 *.tsbuildinfo
 coverage/
+
+# Speckit
+.specify/
