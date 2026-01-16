@@ -59,7 +59,7 @@ CREATE INDEX IF NOT EXISTS idx_history_project ON prompt_history(project_path);
 CREATE INDEX IF NOT EXISTS idx_history_category ON prompt_history(category);
 `;
 
-// Full schema for new installs (includes all columns)
+// Full schema for new installs (includes all columns + Phase 4 tables)
 export const DESKTOP_SCHEMA = `
 -- Prompt Analysis History (프롬프트 분석 기록)
 CREATE TABLE IF NOT EXISTS prompt_history (
@@ -104,6 +104,34 @@ CREATE TABLE IF NOT EXISTS personal_tips (
   tip_text TEXT
 );
 
+-- Phase 4: Project Settings (프로젝트별 설정)
+CREATE TABLE IF NOT EXISTS project_settings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_path TEXT NOT NULL UNIQUE,
+  project_name TEXT,
+  ide_type TEXT,
+  preferred_variant TEXT CHECK(preferred_variant IN ('conservative', 'balanced', 'comprehensive', 'ai')),
+  custom_constraints TEXT,
+  custom_templates_json TEXT,
+  auto_inject_context INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Phase 4: Prompt Templates (IDE별/카테고리별 템플릿)
+CREATE TABLE IF NOT EXISTS prompt_templates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  ide_type TEXT,
+  category TEXT,
+  template_text TEXT NOT NULL,
+  description TEXT,
+  is_active INTEGER DEFAULT 1,
+  usage_count INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(name, ide_type, category)
+);
+
 -- All indexes
 CREATE INDEX IF NOT EXISTS idx_history_score ON prompt_history(overall_score);
 CREATE INDEX IF NOT EXISTS idx_history_grade ON prompt_history(grade);
@@ -112,6 +140,10 @@ CREATE INDEX IF NOT EXISTS idx_history_project ON prompt_history(project_path);
 CREATE INDEX IF NOT EXISTS idx_history_category ON prompt_history(category);
 CREATE INDEX IF NOT EXISTS idx_progress_period ON progress_snapshots(period, snapshot_date);
 CREATE INDEX IF NOT EXISTS idx_tips_frequency ON personal_tips(frequency DESC);
+CREATE INDEX IF NOT EXISTS idx_project_settings_path ON project_settings(project_path);
+CREATE INDEX IF NOT EXISTS idx_templates_ide ON prompt_templates(ide_type);
+CREATE INDEX IF NOT EXISTS idx_templates_category ON prompt_templates(category);
+CREATE INDEX IF NOT EXISTS idx_templates_active ON prompt_templates(is_active);
 `;
 
 /**
@@ -125,4 +157,43 @@ ALTER TABLE prompt_history ADD COLUMN intent TEXT;
 ALTER TABLE prompt_history ADD COLUMN category TEXT;
 `;
 
-export const DESKTOP_SCHEMA_VERSION = 2;
+/**
+ * Phase 4: Project settings and templates migrations
+ */
+export const SCHEMA_V3_MIGRATIONS = `
+-- Phase 4: Create project_settings table if not exists
+CREATE TABLE IF NOT EXISTS project_settings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  project_path TEXT NOT NULL UNIQUE,
+  project_name TEXT,
+  ide_type TEXT,
+  preferred_variant TEXT CHECK(preferred_variant IN ('conservative', 'balanced', 'comprehensive', 'ai')),
+  custom_constraints TEXT,
+  custom_templates_json TEXT,
+  auto_inject_context INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Phase 4: Create prompt_templates table if not exists
+CREATE TABLE IF NOT EXISTS prompt_templates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  ide_type TEXT,
+  category TEXT,
+  template_text TEXT NOT NULL,
+  description TEXT,
+  is_active INTEGER DEFAULT 1,
+  usage_count INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(name, ide_type, category)
+);
+
+-- Create Phase 4 indexes
+CREATE INDEX IF NOT EXISTS idx_project_settings_path ON project_settings(project_path);
+CREATE INDEX IF NOT EXISTS idx_templates_ide ON prompt_templates(ide_type);
+CREATE INDEX IF NOT EXISTS idx_templates_category ON prompt_templates(category);
+CREATE INDEX IF NOT EXISTS idx_templates_active ON prompt_templates(is_active);
+`;
+
+export const DESKTOP_SCHEMA_VERSION = 3;

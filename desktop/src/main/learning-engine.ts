@@ -640,6 +640,57 @@ export function registerLearningEngineHandlers(): void {
     return getPredictedScore(windowDays || 7);
   });
 
+  // Phase 4: Project settings and templates handlers
+  ipcMain.handle('get-project-settings', async (_event, projectPath: string) => {
+    const { getProjectSettings } = await import('./db/index.js');
+    return getProjectSettings(projectPath);
+  });
+
+  ipcMain.handle('save-project-settings', async (_event, settings: unknown) => {
+    const { saveProjectSettings } = await import('./db/index.js');
+    saveProjectSettings(settings as any);
+    return { success: true };
+  });
+
+  ipcMain.handle('delete-project-settings', async (_event, projectPath: string) => {
+    const { deleteProjectSettings } = await import('./db/index.js');
+    deleteProjectSettings(projectPath);
+    return { success: true };
+  });
+
+  ipcMain.handle('get-templates', async (_event, options?: unknown) => {
+    const { getTemplates } = await import('./db/index.js');
+    return getTemplates(options as any);
+  });
+
+  ipcMain.handle('get-template', async (_event, idOrName: number | string) => {
+    const { getTemplate } = await import('./db/index.js');
+    return getTemplate(idOrName);
+  });
+
+  ipcMain.handle('save-template', async (_event, template: unknown) => {
+    const { saveTemplate } = await import('./db/index.js');
+    const id = saveTemplate(template as any);
+    return { success: true, id };
+  });
+
+  ipcMain.handle('delete-template', async (_event, id: number) => {
+    const { deleteTemplate } = await import('./db/index.js');
+    deleteTemplate(id);
+    return { success: true };
+  });
+
+  ipcMain.handle('get-recommended-template', async (_event, context: unknown) => {
+    const { getRecommendedTemplate } = await import('./db/index.js');
+    return getRecommendedTemplate(context as any);
+  });
+
+  ipcMain.handle('increment-template-usage', async (_event, templateId: number) => {
+    const { incrementTemplateUsage } = await import('./db/index.js');
+    incrementTemplateUsage(templateId);
+    return { success: true };
+  });
+
   // Initialize by loading modules
   loadAnalysisModules().then((loaded) => {
     if (loaded) {
@@ -648,6 +699,14 @@ export function registerLearningEngineHandlers(): void {
       console.warn('[LearningEngine] Running in fallback mode');
     }
   });
+
+  // Initialize default templates on first run
+  try {
+    const { initializeDefaultTemplates } = await import('./db/index.js');
+    initializeDefaultTemplates();
+  } catch (error) {
+    console.warn('[LearningEngine] Failed to initialize default templates:', error);
+  }
 }
 
 export { analyzePrompt };

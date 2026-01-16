@@ -7,7 +7,12 @@ import Database from 'better-sqlite3';
 import { join } from 'path';
 import { homedir } from 'os';
 import { mkdirSync, existsSync } from 'fs';
-import { DESKTOP_SCHEMA_BASE, DESKTOP_SCHEMA_V2_INDEXES, DESKTOP_SCHEMA_VERSION } from './schema.js';
+import {
+  DESKTOP_SCHEMA_BASE,
+  DESKTOP_SCHEMA_V2_INDEXES,
+  SCHEMA_V3_MIGRATIONS,
+  DESKTOP_SCHEMA_VERSION,
+} from './schema.js';
 
 // Database location
 const DB_DIR = join(homedir(), '.promptlint');
@@ -107,6 +112,20 @@ function runMigrations(database: Database.Database): void {
       console.log('[DB] Migration to version 2 complete');
     } catch (error) {
       console.warn('[DB] Migration error (may be already migrated):', error);
+    }
+  }
+
+  // Phase 4: Version 3 migration
+  if (currentVersion < 3) {
+    console.log('[DB] Running migration to version 3...');
+    try {
+      database.exec(SCHEMA_V3_MIGRATIONS);
+
+      // Update version
+      database.prepare(`UPDATE schema_version SET version = 3`).run();
+      console.log('[DB] Migration to version 3 complete');
+    } catch (error) {
+      console.warn('[DB] V3 migration error (may be already migrated):', error);
     }
   }
 
