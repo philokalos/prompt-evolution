@@ -4,14 +4,57 @@
  * 창 전환 시 자동으로 프로젝트 컨텍스트 업데이트
  *
  * v2.0: Enhanced project path finding with deeper search and custom paths
+ *
+ * Note: AppleScript-based features are disabled in Mac App Store builds
+ * due to sandbox restrictions. In MAS mode, this module returns null
+ * for active window detection (project detection unavailable).
  */
 
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
+import { app } from 'electron';
 
 const execAsync = promisify(exec);
+
+/**
+ * Check if the app is running in MAS (Mac App Store) sandbox mode.
+ * MAS apps cannot use AppleScript to control other applications.
+ */
+function isMASBuild(): boolean {
+  if (!app.isPackaged) {
+    return false;
+  }
+
+  try {
+    const receiptPath = path.join(app.getAppPath(), '..', '_MASReceipt', 'receipt');
+    if (fs.existsSync(receiptPath)) {
+      return true;
+    }
+
+    const homePath = app.getPath('home');
+    if (homePath.includes('/Library/Containers/')) {
+      return true;
+    }
+  } catch {
+    // If detection fails, assume not MAS
+  }
+
+  return false;
+}
+
+// Cache the MAS detection result
+let _isMASBuild: boolean | null = null;
+function checkMASBuild(): boolean {
+  if (_isMASBuild === null) {
+    _isMASBuild = isMASBuild();
+    if (_isMASBuild) {
+      console.log('[ActiveWindow] MAS build detected - AppleScript features disabled');
+    }
+  }
+  return _isMASBuild;
+}
 
 // 지연 로딩: 순환 의존성 방지
 let findProjectPathByNameEnhanced: ((name: string, options?: Record<string, unknown>) => string | null) | null = null;
@@ -63,10 +106,18 @@ const _projectPathCache = new Map<string, boolean>();
 
 /**
  * AppleScript로 현재 활성 창 정보 가져오기
+ *
+ * Note: In MAS builds, this returns null as AppleScript is not available.
  */
 export async function getActiveWindowInfo(): Promise<ActiveWindowInfo | null> {
   if (process.platform !== 'darwin') {
     console.log('[ActiveWindow] Not macOS, skipping');
+    return null;
+  }
+
+  // MAS sandbox doesn't allow AppleScript to query System Events
+  if (checkMASBuild()) {
+    console.log('[ActiveWindow] MAS build - cannot detect active window');
     return null;
   }
 

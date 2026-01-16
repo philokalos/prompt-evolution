@@ -3,6 +3,9 @@
  *
  * Uses AppleScript to capture selected text from the frontmost application
  * by simulating Cmd+C and detecting clipboard changes.
+ *
+ * Note: AppleScript-based features are disabled in Mac App Store builds
+ * due to sandbox restrictions.
  */
 
 import { exec } from 'child_process';
@@ -13,6 +16,53 @@ const execAsync = promisify(exec);
 
 // Delay helper
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Check if the app is running in MAS (Mac App Store) sandbox mode.
+ * MAS apps cannot use AppleScript to control other applications.
+ *
+ * Detection method:
+ * 1. Check if app is packaged AND running from /Applications with sandbox container
+ * 2. Check for MAS receipt file (only present in MAS-distributed apps)
+ */
+function isMASBuild(): boolean {
+  if (!app.isPackaged) {
+    return false; // Development mode - not sandboxed
+  }
+
+  try {
+    // MAS apps have a receipt file at Contents/_MASReceipt/receipt
+    const fs = require('fs');
+    const path = require('path');
+    const appPath = app.getAppPath();
+    const receiptPath = path.join(appPath, '..', '_MASReceipt', 'receipt');
+
+    if (fs.existsSync(receiptPath)) {
+      console.log('[TextSelection] MAS build detected - AppleScript features disabled');
+      return true;
+    }
+
+    // Alternative: Check if running from sandbox container
+    const homePath = app.getPath('home');
+    if (homePath.includes('/Library/Containers/')) {
+      console.log('[TextSelection] Sandbox container detected - AppleScript features disabled');
+      return true;
+    }
+  } catch {
+    // If detection fails, assume not MAS to preserve functionality
+  }
+
+  return false;
+}
+
+// Cache the MAS detection result (won't change during runtime)
+let _isMASBuild: boolean | null = null;
+function checkMASBuild(): boolean {
+  if (_isMASBuild === null) {
+    _isMASBuild = isMASBuild();
+  }
+  return _isMASBuild;
+}
 
 /**
  * Apps that don't work well with keystroke simulation.
@@ -37,6 +87,12 @@ const BLOCKED_APPS = [
  */
 export async function getFrontmostApp(): Promise<string | null> {
   if (process.platform !== 'darwin') {
+    return null;
+  }
+
+  // MAS sandbox doesn't allow AppleScript to query System Events
+  if (checkMASBuild()) {
+    console.log('[TextSelection] MAS build - cannot detect frontmost app');
     return null;
   }
 
@@ -77,12 +133,22 @@ export function isBlockedApp(appName: string | null): boolean {
  * 4. Check if clipboard changed
  * 5. Return new text if changed, null if not
  *
+ * Note: In MAS builds, this always returns null (clipboard fallback used instead)
+ *
  * @returns Selected text if any, or null if no selection
  */
 export async function tryGetSelectedText(): Promise<string | null> {
   // Only works on macOS
   if (process.platform !== 'darwin') {
     return null;
+  }
+
+  // MAS sandbox doesn't allow AppleScript keystroke simulation
+  if (checkMASBuild()) {
+    console.log('[TextSelection] MAS build - using clipboard only mode');
+    // Return current clipboard content as fallback
+    const clipboardText = clipboard.readText();
+    return clipboardText || null;
   }
 
   // Check if frontmost app is in blocklist
@@ -134,12 +200,21 @@ export async function tryGetSelectedText(): Promise<string | null> {
  * Check if Accessibility permissions are granted.
  * Required for AppleScript keyboard simulation.
  *
+ * Note: In MAS builds, accessibility features are not used (sandbox restriction),
+ * so this always returns true to skip the permission dialog.
+ *
  * @param promptIfNeeded - If true, triggers system permission prompt
- * @returns true if permission granted, false otherwise
+ * @returns true if permission granted (or MAS build), false otherwise
  */
 export function checkAccessibilityPermission(promptIfNeeded = false): boolean {
   if (process.platform !== 'darwin') {
     return true; // Not applicable on non-macOS
+  }
+
+  // MAS builds don't use AppleScript, so accessibility is not needed
+  if (checkMASBuild()) {
+    console.log('[TextSelection] MAS build - accessibility permission not needed');
+    return true;
   }
 
   const isTrusted = systemPreferences.isTrustedAccessibilityClient(promptIfNeeded);
@@ -276,7 +351,7 @@ export async function captureTextForAnalysis(
  *
  * Flow:
  * 1. Write text to clipboard
- * 2. If app is blocked, return clipboard fallback
+ * 2. If MAS build or app is blocked, return clipboard fallback
  * 3. Otherwise, activate app and simulate Cmd+A + Cmd+V
  *
  * @param text - The improved text to apply
@@ -292,6 +367,16 @@ export async function applyTextToApp(
 
   // Only works on macOS
   if (process.platform !== 'darwin') {
+    return {
+      success: false,
+      fallback: 'clipboard',
+      message: '클립보드에 복사됨 - Cmd+V로 붙여넣기 해주세요',
+    };
+  }
+
+  // MAS sandbox doesn't allow AppleScript to control other apps
+  if (checkMASBuild()) {
+    console.log('[TextSelection] MAS build - using clipboard fallback');
     return {
       success: false,
       fallback: 'clipboard',
