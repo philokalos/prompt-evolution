@@ -52,6 +52,12 @@ export interface ElectronAPI {
   // Renderer ready signal
   signalReady: () => Promise<boolean>;
 
+  // Onboarding wizard
+  getOnboardingState: () => Promise<OnboardingState>;
+  setOnboardingStage: (stage: OnboardingStage) => Promise<boolean>;
+  checkAccessibility: () => Promise<boolean>;
+  openAccessibilitySettings: () => Promise<boolean>;
+
   // Event listeners
   onClipboardText: (callback: (payload: ClipboardPayload) => void) => void;
   removeClipboardListener: () => void;
@@ -81,6 +87,15 @@ export interface ElectronAPI {
 
   // App version
   getAppVersion: () => Promise<string>;
+}
+
+// Onboarding wizard types
+export type OnboardingStage = 'welcome' | 'permission' | 'hotkey' | 'complete' | 'done';
+
+export interface OnboardingState {
+  completed: boolean;
+  stage: OnboardingStage;
+  hasAccessibility: boolean;
 }
 
 export interface DetectedProject {

@@ -50,6 +50,9 @@ if (app.isPackaged) {
   // Keep console.warn and console.error for critical issues
 }
 
+// Onboarding stage type
+type OnboardingStage = 'welcome' | 'permission' | 'hotkey' | 'complete' | 'done';
+
 // Settings schema
 interface AppSettings {
   shortcut: string;
@@ -71,8 +74,11 @@ interface AppSettings {
   autoShowWindow: boolean; // Automatically show window after analysis completes
   // Manual project override
   manualProjectPath: string; // Empty = auto-detect, path = manual override
-  // First launch flag
+  // First launch flag (legacy)
   hasSeenWelcome: boolean; // Whether user has seen the welcome/onboarding message
+  // New onboarding system
+  onboardingCompleted: boolean; // Whether user has completed onboarding wizard
+  onboardingStage: OnboardingStage; // Current stage in onboarding wizard
 }
 
 // Initialize settings store with explicit name to ensure consistency across dev/prod
@@ -98,8 +104,11 @@ const store = new Store<AppSettings>({
     autoShowWindow: true, // Auto-show window after analysis (convenient)
     // Manual project override - empty = auto-detect
     manualProjectPath: '',
-    // First launch flag
+    // First launch flag (legacy)
     hasSeenWelcome: false, // Show welcome message on first launch
+    // New onboarding system
+    onboardingCompleted: false, // Show onboarding wizard on first launch
+    onboardingStage: 'welcome', // Start at welcome stage
   },
 });
 
@@ -902,6 +911,48 @@ ipcMain.handle('minimize-window', () => {
   return true;
 });
 
+// IPC Handlers: Onboarding wizard
+ipcMain.handle('get-onboarding-state', () => {
+  return {
+    completed: store.get('onboardingCompleted') as boolean,
+    stage: store.get('onboardingStage') as OnboardingStage,
+    hasAccessibility: checkAccessibilityPermission(false),
+  };
+});
+
+ipcMain.handle('set-onboarding-stage', (_event, stage: OnboardingStage) => {
+  store.set('onboardingStage', stage);
+  if (stage === 'done') {
+    store.set('onboardingCompleted', true);
+    store.set('hasSeenWelcome', true); // Also set legacy flag
+  }
+  console.log(`[Main] Onboarding stage updated: ${stage}`);
+  return true;
+});
+
+ipcMain.handle('check-accessibility', () => {
+  return checkAccessibilityPermission(false);
+});
+
+ipcMain.handle('open-accessibility-settings', async () => {
+  const { shell } = await import('electron');
+  // macOS Privacy & Security > Accessibility
+  await shell.openExternal('x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility');
+  return true;
+});
+
+ipcMain.handle('run-demo-analysis', async (_event, text: string) => {
+  // Import the learning engine's analyze function
+  // This runs the same analysis as the normal flow
+  try {
+    const result = await ipcMain.emit('analyze-prompt', { sender: { id: 0 } }, text);
+    return result;
+  } catch (error) {
+    console.error('[Main] Demo analysis failed:', error);
+    return null;
+  }
+});
+
 // IPC Handler: Open external URL
 ipcMain.handle('open-external', async (_event, url: string) => {
   const { shell } = await import('electron');
@@ -1035,10 +1086,8 @@ app.whenReady().then(async () => {
     }, 2000);
   }
 
-  // Show welcome message on first launch
-  setTimeout(async () => {
-    await showWelcomeMessage();
-  }, hasAccessibility ? 2000 : 4000); // Show after accessibility dialog if needed
+  // Welcome message is now handled by in-app onboarding wizard
+  // Legacy showWelcomeMessage() removed - see Onboarding component in renderer
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

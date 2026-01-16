@@ -101,6 +101,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Renderer ready signal (fixes IPC race condition)
   signalReady: (): Promise<boolean> => ipcRenderer.invoke('renderer-ready'),
 
+  // Onboarding wizard
+  getOnboardingState: (): Promise<{ completed: boolean; stage: string; hasAccessibility: boolean }> =>
+    ipcRenderer.invoke('get-onboarding-state'),
+  setOnboardingStage: (stage: string): Promise<boolean> =>
+    ipcRenderer.invoke('set-onboarding-stage', stage),
+  checkAccessibility: (): Promise<boolean> =>
+    ipcRenderer.invoke('check-accessibility'),
+  openAccessibilitySettings: (): Promise<boolean> =>
+    ipcRenderer.invoke('open-accessibility-settings'),
+
   // Event listeners
   // NOTE: Remove existing listeners BEFORE adding new one to prevent duplicates
   // (React StrictMode calls useEffect twice, causing duplicate registrations)
@@ -259,6 +269,11 @@ declare global {
       getProjectPatterns: (projectPath: string) => Promise<unknown>;
       getContextRecommendations: (category: string | undefined, projectPath: string | undefined) => Promise<unknown>;
       signalReady: () => Promise<boolean>;
+      // Onboarding wizard
+      getOnboardingState: () => Promise<{ completed: boolean; stage: string; hasAccessibility: boolean }>;
+      setOnboardingStage: (stage: string) => Promise<boolean>;
+      checkAccessibility: () => Promise<boolean>;
+      openAccessibilitySettings: () => Promise<boolean>;
       onClipboardText: (callback: (payload: ClipboardPayload) => void) => void;
       removeClipboardListener: () => void;
       onProjectChanged: (callback: (project: unknown) => void) => void;

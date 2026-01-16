@@ -9,7 +9,8 @@ import PromptComparison, { RewriteResult } from './components/PromptComparison';
 import ContextIndicator, { SessionContextInfo } from './components/ContextIndicator';
 import HistoryRecommendations from './components/HistoryRecommendations';
 import Settings from './components/Settings';
-import type { DetectedProject, HistoryRecommendation, EmptyStatePayload, AIVariantResult } from './electron.d';
+import { Onboarding } from './components/onboarding';
+import type { DetectedProject, HistoryRecommendation, EmptyStatePayload, AIVariantResult, OnboardingStage } from './electron.d';
 
 // Analysis result types
 interface Issue {
@@ -81,6 +82,11 @@ function App() {
   const [emptyState, setEmptyState] = useState<EmptyStatePayload | null>(null); // Empty state when no text captured
   const [quickActionMode, setQuickActionMode] = useState(false);
 
+  // Onboarding state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStage, setOnboardingStage] = useState<OnboardingStage>('welcome');
+  const [onboardingLoaded, setOnboardingLoaded] = useState(false);
+
   // Project selection handlers
   const handleProjectSelect = useCallback(async (projectPath: string | null) => {
     try {
@@ -101,6 +107,25 @@ function App() {
       console.error('Failed to load projects:', error);
       return [];
     }
+  }, []);
+
+  // Check onboarding state on mount
+  useEffect(() => {
+    const checkOnboarding = async (): Promise<void> => {
+      try {
+        const state = await window.electronAPI.getOnboardingState();
+        console.log('[Renderer] Onboarding state:', state);
+        if (!state.completed) {
+          setShowOnboarding(true);
+          setOnboardingStage(state.stage as OnboardingStage);
+        }
+        setOnboardingLoaded(true);
+      } catch (error) {
+        console.error('[Renderer] Failed to check onboarding state:', error);
+        setOnboardingLoaded(true); // Continue anyway
+      }
+    };
+    checkOnboarding();
   }, []);
 
   // Listen for clipboard text from main process
@@ -325,6 +350,36 @@ function App() {
     }
   };
 
+  // Onboarding handlers
+  const handleOnboardingComplete = useCallback((): void => {
+    console.log('[Renderer] Onboarding completed');
+    setShowOnboarding(false);
+  }, []);
+
+  const handleOnboardingSkip = useCallback((): void => {
+    console.log('[Renderer] Onboarding skipped');
+    setShowOnboarding(false);
+  }, []);
+
+  // Show loading state until onboarding check is complete
+  if (!onboardingLoaded) {
+    return (
+      <div className="h-full flex items-center justify-center bg-[#0d1117]">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // Show onboarding if not completed
+  if (showOnboarding) {
+    return (
+      <Onboarding
+        initialStage={onboardingStage}
+        onComplete={handleOnboardingComplete}
+        onSkip={handleOnboardingSkip}
+      />
+    );
+  }
 
   return (
     <div className="window-container h-full flex flex-col text-gray-200">
