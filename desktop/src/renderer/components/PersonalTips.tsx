@@ -1,5 +1,13 @@
+/**
+ * Personal Tips & Learning Insights Component
+ * Tabbed interface combining basic tips with Phase 3 advanced analytics
+ */
+
 import { useState, useEffect } from 'react';
-import { Lightbulb, AlertCircle, TrendingUp, BookOpen } from 'lucide-react';
+import { Lightbulb, AlertCircle, TrendingUp, BookOpen, Brain, Target } from 'lucide-react';
+import IssuePatternInsights from './IssuePatternInsights';
+import ImprovementImpact from './ImprovementImpact';
+import LearningInsights from './LearningInsights';
 
 interface Weakness {
   type: string;
@@ -11,6 +19,8 @@ interface PersonalTipsProps {
   currentTips?: string[];
   className?: string;
 }
+
+type TabType = 'tips' | 'issues' | 'improvements' | 'insights';
 
 // GOLDEN dimension improvement suggestions
 const GOLDEN_TIPS: Record<string, { icon: string; tips: string[] }> = {
@@ -67,6 +77,7 @@ const GOLDEN_TIPS: Record<string, { icon: string; tips: string[] }> = {
 export default function PersonalTips({ currentTips, className = '' }: PersonalTipsProps) {
   const [weaknesses, setWeaknesses] = useState<Weakness[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<TabType>('tips');
 
   useEffect(() => {
     loadWeaknesses();
@@ -83,99 +94,142 @@ export default function PersonalTips({ currentTips, className = '' }: PersonalTi
     }
   };
 
-  if (loading) {
-    return (
-      <div className={`bg-dark-surface rounded-lg p-4 ${className}`}>
-        <div className="animate-pulse space-y-2">
-          <div className="h-4 bg-dark-hover rounded w-1/3"></div>
-          <div className="h-3 bg-dark-hover rounded w-full"></div>
-          <div className="h-3 bg-dark-hover rounded w-2/3"></div>
+  // Tab configuration
+  const tabs = [
+    { id: 'tips' as TabType, label: '기본 팁', icon: Lightbulb },
+    { id: 'issues' as TabType, label: '이슈 패턴', icon: AlertCircle },
+    { id: 'improvements' as TabType, label: '개선 효과', icon: TrendingUp },
+    { id: 'insights' as TabType, label: '학습 분석', icon: Brain },
+  ];
+
+  const renderBasicTips = () => {
+    if (loading) {
+      return (
+        <div className="bg-dark-surface rounded-lg p-4">
+          <div className="animate-pulse space-y-2">
+            <div className="h-4 bg-dark-hover rounded w-1/3"></div>
+            <div className="h-3 bg-dark-hover rounded w-full"></div>
+            <div className="h-3 bg-dark-hover rounded w-2/3"></div>
+          </div>
         </div>
+      );
+    }
+
+    // Combine current tips with weakness-based tips
+    const allTips = [...(currentTips || [])];
+
+    // Add tips based on weaknesses
+    weaknesses.forEach((weakness) => {
+      const goldenTip = GOLDEN_TIPS[weakness.type];
+      if (goldenTip && goldenTip.tips[0]) {
+        allTips.push(`${goldenTip.icon} ${goldenTip.tips[0]}`);
+      }
+    });
+
+    return (
+      <div className="space-y-3">
+        {/* Current Tips Section */}
+        {allTips.length > 0 && (
+          <div className="bg-dark-surface rounded-lg p-4">
+            <div className="flex items-center gap-2 text-sm font-medium mb-3">
+              <Lightbulb size={16} className="text-accent-primary" />
+              <span>맞춤 팁</span>
+            </div>
+            <div className="space-y-2">
+              {allTips.slice(0, 4).map((tip, index) => (
+                <div key={index} className="flex items-start gap-2 text-sm">
+                  <span className="text-accent-secondary">•</span>
+                  <span className="text-gray-300">{tip}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Weakness Patterns Section */}
+        {weaknesses.length > 0 && (
+          <div className="bg-dark-surface rounded-lg p-4">
+            <div className="flex items-center gap-2 text-sm font-medium mb-3">
+              <Target size={16} className="text-accent-warning" />
+              <span>자주 놓치는 부분</span>
+            </div>
+            <div className="space-y-3">
+              {weaknesses.map((weakness, index) => {
+                const goldenTip = GOLDEN_TIPS[weakness.type];
+                return (
+                  <div key={index} className="border-l-2 border-accent-warning/50 pl-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">
+                        {goldenTip?.icon || '📝'} {weakness.type}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {weakness.frequency}회 발견
+                      </span>
+                    </div>
+                    {goldenTip && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        {goldenTip.tips[Math.floor(Math.random() * goldenTip.tips.length)]}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Improvement Tips */}
+        <div className="bg-gradient-to-br from-accent-primary/10 to-accent-secondary/10 rounded-lg p-4 border border-accent-primary/20">
+          <div className="flex items-center gap-2 text-sm font-medium mb-2">
+            <TrendingUp size={16} className="text-accent-success" />
+            <span>실력 향상 팁</span>
+          </div>
+          <div className="text-xs text-gray-400 space-y-1">
+            <p>• 프롬프트를 작성하기 전에 목표를 명확히 정리하세요</p>
+            <p>• 예시를 포함하면 원하는 결과를 더 정확히 얻을 수 있어요</p>
+            <p>• 복잡한 작업은 단계별로 나누어 요청해보세요</p>
+          </div>
+        </div>
+
+        {/* Learning Resources */}
+        <button className="w-full flex items-center justify-center gap-2 p-3 bg-dark-hover hover:bg-dark-border rounded-lg text-sm transition-colors">
+          <BookOpen size={16} />
+          <span>프롬프트 작성 가이드 보기</span>
+        </button>
       </div>
     );
-  }
-
-  // Combine current tips with weakness-based tips
-  const allTips = [...(currentTips || [])];
-
-  // Add tips based on weaknesses
-  weaknesses.forEach((weakness) => {
-    const goldenTip = GOLDEN_TIPS[weakness.type];
-    if (goldenTip && goldenTip.tips[0]) {
-      allTips.push(`${goldenTip.icon} ${goldenTip.tips[0]}`);
-    }
-  });
+  };
 
   return (
-    <div className={`space-y-3 ${className}`}>
-      {/* Current Tips Section */}
-      {allTips.length > 0 && (
-        <div className="bg-dark-surface rounded-lg p-4">
-          <div className="flex items-center gap-2 text-sm font-medium mb-3">
-            <Lightbulb size={16} className="text-accent-primary" />
-            <span>맞춤 팁</span>
-          </div>
-          <div className="space-y-2">
-            {allTips.slice(0, 4).map((tip, index) => (
-              <div key={index} className="flex items-start gap-2 text-sm">
-                <span className="text-accent-secondary">•</span>
-                <span className="text-gray-300">{tip}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Weakness Patterns Section */}
-      {weaknesses.length > 0 && (
-        <div className="bg-dark-surface rounded-lg p-4">
-          <div className="flex items-center gap-2 text-sm font-medium mb-3">
-            <AlertCircle size={16} className="text-accent-warning" />
-            <span>자주 놓치는 부분</span>
-          </div>
-          <div className="space-y-3">
-            {weaknesses.map((weakness, index) => {
-              const goldenTip = GOLDEN_TIPS[weakness.type];
-              return (
-                <div key={index} className="border-l-2 border-accent-warning/50 pl-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">
-                      {goldenTip?.icon || '📝'} {weakness.type}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {weakness.frequency}회 발견
-                    </span>
-                  </div>
-                  {goldenTip && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      {goldenTip.tips[Math.floor(Math.random() * goldenTip.tips.length)]}
-                    </p>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Improvement Tips */}
-      <div className="bg-gradient-to-br from-accent-primary/10 to-accent-secondary/10 rounded-lg p-4 border border-accent-primary/20">
-        <div className="flex items-center gap-2 text-sm font-medium mb-2">
-          <TrendingUp size={16} className="text-accent-success" />
-          <span>실력 향상 팁</span>
-        </div>
-        <div className="text-xs text-gray-400 space-y-1">
-          <p>• 프롬프트를 작성하기 전에 목표를 명확히 정리하세요</p>
-          <p>• 예시를 포함하면 원하는 결과를 더 정확히 얻을 수 있어요</p>
-          <p>• 복잡한 작업은 단계별로 나누어 요청해보세요</p>
-        </div>
+    <div className={`space-y-4 ${className}`}>
+      {/* Tab Navigation */}
+      <div className="flex gap-1 p-1 bg-dark-surface rounded-lg overflow-x-auto">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-medium transition-colors whitespace-nowrap ${
+                activeTab === tab.id
+                  ? 'bg-accent-primary text-white'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-dark-hover'
+              }`}
+            >
+              <Icon size={14} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
 
-      {/* Learning Resources */}
-      <button className="w-full flex items-center justify-center gap-2 p-3 bg-dark-hover hover:bg-dark-border rounded-lg text-sm transition-colors">
-        <BookOpen size={16} />
-        <span>프롬프트 작성 가이드 보기</span>
-      </button>
+      {/* Tab Content */}
+      <div className="min-h-[400px]">
+        {activeTab === 'tips' && renderBasicTips()}
+        {activeTab === 'issues' && <IssuePatternInsights />}
+        {activeTab === 'improvements' && <ImprovementImpact />}
+        {activeTab === 'insights' && <LearningInsights />}
+      </div>
     </div>
   );
 }

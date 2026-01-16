@@ -614,6 +614,32 @@ export function registerLearningEngineHandlers(): void {
     }
   });
 
+  // Phase 3: Advanced analytics handlers
+  ipcMain.handle('get-issue-patterns', async (_event, days?: number) => {
+    const { getIssuePatterns } = await import('./db/index.js');
+    return getIssuePatterns(days || 30);
+  });
+
+  ipcMain.handle('get-golden-trend-by-dimension', async (_event, weeks?: number) => {
+    const { getGoldenTrendByDimension } = await import('./db/index.js');
+    return getGoldenTrendByDimension(weeks || 8);
+  });
+
+  ipcMain.handle('get-consecutive-improvements', async (_event, limit?: number) => {
+    const { getConsecutiveImprovements } = await import('./db/index.js');
+    return getConsecutiveImprovements(limit || 10);
+  });
+
+  ipcMain.handle('get-category-performance', async () => {
+    const { getCategoryPerformance } = await import('./db/index.js');
+    return getCategoryPerformance();
+  });
+
+  ipcMain.handle('get-predicted-score', async (_event, windowDays?: number) => {
+    const { getPredictedScore } = await import('./db/index.js');
+    return getPredictedScore(windowDays || 7);
+  });
+
   // Initialize by loading modules
   loadAnalysisModules().then((loaded) => {
     if (loaded) {

@@ -792,3 +792,392 @@ export function getStats(): {
     recentTrend,
   };
 }
+
+/**
+ * Phase 3: Get issue patterns (frequency and trend analysis)
+ */
+export interface IssuePattern {
+  category: string;
+  severity: 'high' | 'medium' | 'low';
+  count: number;
+  recentCount: number; // last 7 days
+  trend: 'improving' | 'stable' | 'worsening';
+  lastSeen: Date;
+}
+
+export function getIssuePatterns(days = 30): IssuePattern[] {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    SELECT
+      issues_json,
+      analyzed_at,
+      CASE WHEN analyzed_at >= DATE('now', '-7 days') THEN 1 ELSE 0 END as is_recent
+    FROM prompt_history
+    WHERE analyzed_at >= DATE('now', '-' || ? || ' days')
+      AND issues_json IS NOT NULL
+      AND issues_json != '[]'
+  `);
+
+  const rows = stmt.all(days) as Array<{
+    issues_json: string;
+    analyzed_at: string;
+    is_recent: number;
+  }>;
+
+  // Aggregate issue patterns
+  const patternMap = new Map<string, {
+    severity: 'high' | 'medium' | 'low';
+    count: number;
+    recentCount: number;
+    lastSeen: Date;
+    olderCount: number;
+  }>();
+
+  for (const row of rows) {
+    const issues = JSON.parse(row.issues_json) as Array<{
+      severity: 'high' | 'medium' | 'low';
+      category: string;
+    }>;
+
+    for (const issue of issues) {
+      const key = issue.category;
+      const existing = patternMap.get(key);
+
+      if (existing) {
+        existing.count++;
+        if (row.is_recent) {
+          existing.recentCount++;
+        } else {
+          existing.olderCount++;
+        }
+        const issueDate = new Date(row.analyzed_at);
+        if (issueDate > existing.lastSeen) {
+          existing.lastSeen = issueDate;
+          existing.severity = issue.severity; // Use most recent severity
+        }
+      } else {
+        patternMap.set(key, {
+          severity: issue.severity,
+          count: 1,
+          recentCount: row.is_recent ? 1 : 0,
+          olderCount: row.is_recent ? 0 : 1,
+          lastSeen: new Date(row.analyzed_at),
+        });
+      }
+    }
+  }
+
+  // Calculate trends and convert to array
+  const patterns: IssuePattern[] = [];
+  for (const [category, data] of patternMap.entries()) {
+    let trend: 'improving' | 'stable' | 'worsening' = 'stable';
+
+    // Compare recent week vs older data
+    const recentRate = data.recentCount / 7; // per day in recent week
+    const olderRate = data.olderCount / Math.max(days - 7, 1); // per day in older period
+
+    if (recentRate < olderRate * 0.5) {
+      trend = 'improving';
+    } else if (recentRate > olderRate * 1.5) {
+      trend = 'worsening';
+    }
+
+    patterns.push({
+      category,
+      severity: data.severity,
+      count: data.count,
+      recentCount: data.recentCount,
+      trend,
+      lastSeen: data.lastSeen,
+    });
+  }
+
+  // Sort by frequency (descending)
+  return patterns.sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Phase 3: Get GOLDEN dimension trends over time
+ */
+export interface GoldenDimensionTrend {
+  dimension: string;
+  weeklyData: Array<{
+    weekStart: string;
+    avgScore: number;
+    improvement: number;
+  }>;
+}
+
+export function getGoldenTrendByDimension(weeks = 8): GoldenDimensionTrend[] {
+  const db = getDatabase();
+
+  const dimensions = ['goal', 'output', 'limits', 'data', 'evaluation', 'next'];
+  const results: GoldenDimensionTrend[] = [];
+
+  for (const dimension of dimensions) {
+    const stmt = db.prepare(`
+      WITH weekly_data AS (
+        SELECT
+          DATE(analyzed_at, 'weekday 0', '-6 days') as week_start,
+          AVG(golden_${dimension}) as avg_score
+        FROM prompt_history
+        WHERE analyzed_at >= DATE('now', '-' || ? || ' weeks')
+        GROUP BY week_start
+        ORDER BY week_start ASC
+      )
+      SELECT
+        week_start,
+        avg_score,
+        avg_score - LAG(avg_score) OVER (ORDER BY week_start) as improvement
+      FROM weekly_data
+    `);
+
+    const rows = stmt.all(weeks * 7) as Array<{
+      week_start: string;
+      avg_score: number;
+      improvement: number | null;
+    }>;
+
+    results.push({
+      dimension,
+      weeklyData: rows.map(row => ({
+        weekStart: row.week_start,
+        avgScore: Math.round(row.avg_score),
+        improvement: Math.round(row.improvement || 0),
+      })),
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Phase 3: Get consecutive improvements analysis
+ */
+export interface ConsecutiveImprovement {
+  startDate: string;
+  endDate: string;
+  improvementCount: number;
+  scoreIncrease: number;
+  averageGain: number;
+}
+
+export function getConsecutiveImprovements(limit = 10): ConsecutiveImprovement[] {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    WITH daily_scores AS (
+      SELECT
+        DATE(analyzed_at) as date,
+        AVG(overall_score) as avg_score
+      FROM prompt_history
+      GROUP BY DATE(analyzed_at)
+      ORDER BY date ASC
+    ),
+    improvements AS (
+      SELECT
+        date,
+        avg_score,
+        avg_score - LAG(avg_score) OVER (ORDER BY date) as improvement
+      FROM daily_scores
+    )
+    SELECT * FROM improvements
+    WHERE improvement > 0
+    ORDER BY date DESC
+    LIMIT ?
+  `);
+
+  const rows = stmt.all(limit) as Array<{
+    date: string;
+    avg_score: number;
+    improvement: number;
+  }>;
+
+  // Group consecutive improvements
+  const improvements: ConsecutiveImprovement[] = [];
+  let currentStreak: { startDate: string; endDate: string; count: number; totalGain: number } | null = null;
+
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    const prevRow = i > 0 ? rows[i - 1] : null;
+
+    const isConsecutive = prevRow &&
+      new Date(prevRow.date).getTime() - new Date(row.date).getTime() === 86400000; // 1 day
+
+    if (isConsecutive && currentStreak) {
+      currentStreak.count++;
+      currentStreak.totalGain += row.improvement;
+      currentStreak.startDate = row.date; // Update start (going backwards)
+    } else {
+      if (currentStreak && currentStreak.count > 1) {
+        improvements.push({
+          startDate: currentStreak.startDate,
+          endDate: currentStreak.endDate,
+          improvementCount: currentStreak.count,
+          scoreIncrease: Math.round(currentStreak.totalGain),
+          averageGain: Math.round(currentStreak.totalGain / currentStreak.count),
+        });
+      }
+      currentStreak = {
+        startDate: row.date,
+        endDate: row.date,
+        count: 1,
+        totalGain: row.improvement,
+      };
+    }
+  }
+
+  // Add final streak
+  if (currentStreak && currentStreak.count > 1) {
+    improvements.push({
+      startDate: currentStreak.startDate,
+      endDate: currentStreak.endDate,
+      improvementCount: currentStreak.count,
+      scoreIncrease: Math.round(currentStreak.totalGain),
+      averageGain: Math.round(currentStreak.totalGain / currentStreak.count),
+    });
+  }
+
+  return improvements;
+}
+
+/**
+ * Phase 3: Get category performance analysis
+ */
+export interface CategoryPerformance {
+  category: string;
+  count: number;
+  averageScore: number;
+  bestScore: number;
+  trend: 'improving' | 'stable' | 'declining';
+  commonWeakness?: string;
+}
+
+export function getCategoryPerformance(): CategoryPerformance[] {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    SELECT
+      category,
+      COUNT(*) as count,
+      AVG(overall_score) as avg_score,
+      MAX(overall_score) as best_score,
+      AVG(CASE WHEN analyzed_at >= DATE('now', '-7 days') THEN overall_score ELSE NULL END) as recent_avg,
+      AVG(CASE WHEN analyzed_at < DATE('now', '-7 days') AND analyzed_at >= DATE('now', '-14 days') THEN overall_score ELSE NULL END) as previous_avg,
+      AVG(golden_goal) as goal,
+      AVG(golden_output) as output,
+      AVG(golden_limits) as limits,
+      AVG(golden_data) as data,
+      AVG(golden_evaluation) as evaluation,
+      AVG(golden_next) as next
+    FROM prompt_history
+    WHERE category IS NOT NULL AND category != 'unknown'
+    GROUP BY category
+    HAVING count >= 3
+    ORDER BY count DESC
+  `);
+
+  const rows = stmt.all() as Array<{
+    category: string;
+    count: number;
+    avg_score: number;
+    best_score: number;
+    recent_avg: number | null;
+    previous_avg: number | null;
+    goal: number;
+    output: number;
+    limits: number;
+    data: number;
+    evaluation: number;
+    next: number;
+  }>;
+
+  return rows.map(row => {
+    let trend: 'improving' | 'stable' | 'declining' = 'stable';
+    if (row.recent_avg && row.previous_avg) {
+      const diff = row.recent_avg - row.previous_avg;
+      if (diff > 5) trend = 'improving';
+      else if (diff < -5) trend = 'declining';
+    }
+
+    // Find weakest dimension
+    const dimensions = {
+      goal: row.goal,
+      output: row.output,
+      limits: row.limits,
+      data: row.data,
+      evaluation: row.evaluation,
+      next: row.next,
+    };
+    const weakest = Object.entries(dimensions).sort((a, b) => a[1] - b[1])[0];
+    const dimensionLabels: Record<string, string> = {
+      goal: '목표 명확성',
+      output: '출력 형식',
+      limits: '제약 조건',
+      data: '데이터/컨텍스트',
+      evaluation: '평가 기준',
+      next: '다음 단계',
+    };
+
+    return {
+      category: row.category,
+      count: row.count,
+      averageScore: Math.round(row.avg_score),
+      bestScore: Math.round(row.best_score),
+      trend,
+      commonWeakness: weakest[1] < 60 ? dimensionLabels[weakest[0]] : undefined,
+    };
+  });
+}
+
+/**
+ * Phase 3: Get predicted score based on moving average
+ */
+export function getPredictedScore(windowDays = 7): {
+  predictedScore: number;
+  confidence: 'high' | 'medium' | 'low';
+  trend: number;
+} {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    SELECT
+      AVG(overall_score) as avg_score,
+      COUNT(*) as count
+    FROM prompt_history
+    WHERE analyzed_at >= DATE('now', '-' || ? || ' days')
+  `);
+
+  const recent = stmt.get(windowDays) as { avg_score: number; count: number };
+
+  // Calculate trend
+  const trendStmt = db.prepare(`
+    WITH daily_scores AS (
+      SELECT
+        DATE(analyzed_at) as date,
+        AVG(overall_score) as avg_score,
+        ROW_NUMBER() OVER (ORDER BY DATE(analyzed_at) DESC) as rn
+      FROM prompt_history
+      WHERE analyzed_at >= DATE('now', '-14 days')
+      GROUP BY DATE(analyzed_at)
+    )
+    SELECT
+      (SELECT avg_score FROM daily_scores WHERE rn <= 3) as recent,
+      (SELECT avg_score FROM daily_scores WHERE rn > 3 AND rn <= 6) as previous
+  `);
+
+  const trendData = trendStmt.get() as { recent: number | null; previous: number | null };
+  const trend = trendData.recent && trendData.previous ? trendData.recent - trendData.previous : 0;
+
+  // Confidence based on data availability
+  let confidence: 'high' | 'medium' | 'low' = 'low';
+  if (recent.count >= windowDays) confidence = 'high';
+  else if (recent.count >= windowDays / 2) confidence = 'medium';
+
+  return {
+    predictedScore: Math.round(recent.avg_score || 0),
+    confidence,
+    trend: Math.round(trend),
+  };
+}

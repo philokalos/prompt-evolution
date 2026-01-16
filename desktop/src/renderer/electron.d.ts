@@ -49,6 +49,13 @@ export interface ElectronAPI {
   getProjectPatterns: (projectPath: string) => Promise<ProjectPatternAnalysis>;
   getContextRecommendations: (category: string | undefined, projectPath: string | undefined) => Promise<PromptContextRecommendations>;
 
+  // Phase 3: Advanced analytics
+  getIssuePatterns: (days?: number) => Promise<IssuePattern[]>;
+  getGoldenTrendByDimension: (weeks?: number) => Promise<GoldenDimensionTrend[]>;
+  getConsecutiveImprovements: (limit?: number) => Promise<ConsecutiveImprovement[]>;
+  getCategoryPerformance: () => Promise<CategoryPerformance[]>;
+  getPredictedScore: (windowDays?: number) => Promise<PredictedScore>;
+
   // Renderer ready signal
   signalReady: () => Promise<boolean>;
 
@@ -174,6 +181,48 @@ export interface PromptContextRecommendations {
   basedOnProject: HistoryRecommendation[];
   basedOnCategory: HistoryRecommendation[];
   referencePrompts: unknown[];
+}
+
+// Phase 3: Advanced analytics types
+export interface IssuePattern {
+  category: string;
+  severity: 'high' | 'medium' | 'low';
+  count: number;
+  recentCount: number;
+  trend: 'improving' | 'stable' | 'worsening';
+  lastSeen: Date;
+}
+
+export interface GoldenDimensionTrend {
+  dimension: string;
+  weeklyData: Array<{
+    weekStart: string;
+    avgScore: number;
+    improvement: number;
+  }>;
+}
+
+export interface ConsecutiveImprovement {
+  startDate: string;
+  endDate: string;
+  improvementCount: number;
+  scoreIncrease: number;
+  averageGain: number;
+}
+
+export interface CategoryPerformance {
+  category: string;
+  count: number;
+  averageScore: number;
+  bestScore: number;
+  trend: 'improving' | 'stable' | 'declining';
+  commonWeakness?: string;
+}
+
+export interface PredictedScore {
+  predictedScore: number;
+  confidence: 'high' | 'medium' | 'low';
+  trend: number;
 }
 
 declare global {
