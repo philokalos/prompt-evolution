@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, Minus, BarChart3, Lightbulb, ArrowLeft, Settings as SettingsIcon, Edit3, Send, Plus, HelpCircle } from 'lucide-react';
 import GoldenRadar from './components/GoldenRadar';
+import GoldenActionTips from './components/GoldenActionTips';
 import ProgressTracker from './components/ProgressTracker';
 import PersonalTips from './components/PersonalTips';
 import HelpView from './components/HelpView';
@@ -517,6 +518,15 @@ function App() {
                     <GoldenRadar scores={analysis.goldenScores} size={200} />
                   </div>
                 </div>
+
+                {/* GOLDEN Action Tips - Phase 2-1 */}
+                <GoldenActionTips
+                  scores={analysis.goldenScores}
+                  onInsertTemplate={(template) => {
+                    // Copy template to clipboard
+                    navigator.clipboard.writeText(template);
+                  }}
+                />
 
                 {/* Issues */}
                 <IssueList issues={analysis.issues} />

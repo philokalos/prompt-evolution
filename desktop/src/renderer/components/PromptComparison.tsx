@@ -7,22 +7,50 @@ interface DiffViewProps {
   original: string;
   improved: string;
   className?: string;
+  showAddedOnly?: boolean; // Phase 2-2: 추가된 부분만 강조 (제거된 부분 숨김)
 }
 
-function DiffView({ original, improved, className = '' }: DiffViewProps) {
+function DiffView({ original, improved, className = '', showAddedOnly = false }: DiffViewProps) {
   const parts = useMemo(() => diffWords(original, improved), [original, improved]);
+
+  // Phase 2-2: Calculate change statistics
+  const stats = useMemo(() => {
+    let added = 0;
+    let removed = 0;
+    parts.forEach(part => {
+      if (part.added) added += part.value.length;
+      if (part.removed) removed += part.value.length;
+    });
+    return { added, removed, total: added + removed };
+  }, [parts]);
 
   return (
     <div className={className}>
+      {/* Phase 2-2: Change summary badge */}
+      {stats.total > 0 && (
+        <div className="flex items-center gap-2 mb-2 text-[10px]">
+          {stats.added > 0 && (
+            <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 rounded">
+              +{stats.added}자 추가
+            </span>
+          )}
+          {stats.removed > 0 && !showAddedOnly && (
+            <span className="px-1.5 py-0.5 bg-red-500/20 text-red-400 rounded">
+              -{stats.removed}자 제거
+            </span>
+          )}
+        </div>
+      )}
       {parts.map((part, i) => {
         if (part.added) {
           return (
-            <span key={i} className="bg-green-500/30 text-green-300 rounded px-0.5">
+            <span key={i} className="bg-green-500/30 text-green-300 rounded px-0.5 border-b border-green-500/50">
               {part.value}
             </span>
           );
         }
         if (part.removed) {
+          if (showAddedOnly) return null; // Hide removed parts in addedOnly mode
           return (
             <span key={i} className="bg-red-500/30 text-red-400 line-through opacity-60 rounded px-0.5">
               {part.value}
@@ -152,10 +180,11 @@ function PromptComparisonInner({
   }, [variants, hasAiVariant]);
 
   // Initialize state with useReducer
+  // Phase 2-2: Default to diff view to show changes prominently
   const [state, dispatch] = useReducer(comparisonReducer, {
     selectedIndex: bestVariantIndex,
     showOriginal: false,
-    viewMode: 'single',
+    viewMode: 'diff', // Default to diff view for better visibility of changes
     copied: false,
     copiedIndex: null,
     applying: false,
@@ -453,21 +482,34 @@ function PromptComparisonInner({
         </div>
       )}
 
-      {/* Apply Result Message */}
+      {/* Phase 2-3: Enhanced Apply Result Feedback */}
       {applyResult && (
         <div
-          className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm transition-all duration-300 animate-slideIn ${
             applyResult.success
-              ? 'bg-accent-success/20 text-accent-success'
-              : 'bg-amber-500/20 text-amber-400'
+              ? 'bg-gradient-to-r from-accent-success/20 to-accent-success/10 border border-accent-success/30'
+              : 'bg-gradient-to-r from-amber-500/20 to-amber-500/10 border border-amber-500/30'
           }`}
         >
           {applyResult.success ? (
-            <Check size={16} />
+            <div className="flex-shrink-0 w-8 h-8 bg-accent-success/30 rounded-full flex items-center justify-center">
+              <Check size={18} className="text-accent-success animate-checkmark" />
+            </div>
           ) : (
-            <AlertCircle size={16} />
+            <div className="flex-shrink-0 w-8 h-8 bg-amber-500/30 rounded-full flex items-center justify-center">
+              <AlertCircle size={18} className="text-amber-400" />
+            </div>
           )}
-          <span>{applyResult.message || (applyResult.success ? '적용됨!' : '적용 실패')}</span>
+          <div className="flex-1">
+            <p className={`font-medium ${applyResult.success ? 'text-accent-success' : 'text-amber-400'}`}>
+              {applyResult.success ? '✓ 프롬프트가 적용되었습니다' : '적용할 수 없습니다'}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {applyResult.message || (applyResult.success
+                ? '원본 텍스트가 개선된 프롬프트로 교체되었습니다'
+                : '대상 앱에서 텍스트 입력을 지원하지 않습니다')}
+            </p>
+          </div>
         </div>
       )}
 
