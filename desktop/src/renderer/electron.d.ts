@@ -56,6 +56,17 @@ export interface ElectronAPI {
   getCategoryPerformance: () => Promise<CategoryPerformance[]>;
   getPredictedScore: (windowDays?: number) => Promise<PredictedScore>;
 
+  // Phase 4: Project settings and templates
+  getProjectSettings: (projectPath: string) => Promise<ProjectSettings | null>;
+  saveProjectSettings: (settings: ProjectSettings) => Promise<{ success: boolean }>;
+  deleteProjectSettings: (projectPath: string) => Promise<{ success: boolean }>;
+  getTemplates: (options?: TemplateFilterOptions) => Promise<PromptTemplate[]>;
+  getTemplate: (idOrName: number | string) => Promise<PromptTemplate | null>;
+  saveTemplate: (template: PromptTemplate) => Promise<{ success: boolean; id: number }>;
+  deleteTemplate: (id: number) => Promise<{ success: boolean }>;
+  getRecommendedTemplate: (context: TemplateContext) => Promise<PromptTemplate | null>;
+  incrementTemplateUsage: (templateId: number) => Promise<{ success: boolean }>;
+
   // Renderer ready signal
   signalReady: () => Promise<boolean>;
 
@@ -223,6 +234,50 @@ export interface PredictedScore {
   predictedScore: number;
   confidence: 'high' | 'medium' | 'low';
   trend: number;
+}
+
+// Phase 4: Project settings and templates types
+export interface ProjectSettings {
+  id?: number;
+  projectPath: string;
+  projectName?: string;
+  ideType?: string;
+  preferredVariant?: 'conservative' | 'balanced' | 'comprehensive' | 'ai';
+  customConstraints?: string;
+  customTemplates?: CustomTemplate[];
+  autoInjectContext?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface CustomTemplate {
+  name: string;
+  trigger: string;
+  template: string;
+}
+
+export interface PromptTemplate {
+  id?: number;
+  name: string;
+  ideType?: string;
+  category?: string;
+  templateText: string;
+  description?: string;
+  isActive?: boolean;
+  usageCount?: number;
+  createdAt?: Date;
+}
+
+export interface TemplateFilterOptions {
+  ideType?: string;
+  category?: string;
+  activeOnly?: boolean;
+}
+
+export interface TemplateContext {
+  ideType?: string;
+  category?: string;
+  projectPath?: string;
 }
 
 declare global {

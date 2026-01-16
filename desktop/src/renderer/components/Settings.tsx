@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, MousePointer2, Key, EyeOff, Zap, Clipboard, Sparkles, ChevronDown } from 'lucide-react';
+import ProjectSettings from './ProjectSettings';
+import TemplateManager from './TemplateManager';
 
 interface AppSettings {
   shortcut: string;
@@ -47,7 +49,11 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
   const [showGettingStarted, setShowGettingStarted] = useState(true);
   const [showBehavior, setShowBehavior] = useState(true);
   const [showSmartFeatures, setShowSmartFeatures] = useState(true);
+  const [showProjectTemplates, setShowProjectTemplates] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Phase 4: Project & Templates tab state
+  const [projectTemplatesTab, setProjectTemplatesTab] = useState<'project' | 'templates'>('project');
 
   // Load settings and version on mount
   useEffect(() => {
@@ -396,6 +402,45 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                     </p>
                   </div>
                 </div>
+              </Section>
+
+              {/* 📁 프로젝트 & 템플릿 Section (Phase 4) */}
+              <Section
+                title="프로젝트 & 템플릿"
+                icon="📁"
+                isOpen={showProjectTemplates}
+                onToggle={() => setShowProjectTemplates(!showProjectTemplates)}
+              >
+                {/* Tab Selector */}
+                <div className="flex gap-2 mb-4">
+                  <button
+                    onClick={() => setProjectTemplatesTab('project')}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      projectTemplatesTab === 'project'
+                        ? 'bg-accent-primary text-white'
+                        : 'bg-dark-hover text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    프로젝트 설정
+                  </button>
+                  <button
+                    onClick={() => setProjectTemplatesTab('templates')}
+                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      projectTemplatesTab === 'templates'
+                        ? 'bg-accent-primary text-white'
+                        : 'bg-dark-hover text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    템플릿 관리
+                  </button>
+                </div>
+
+                {/* Tab Content */}
+                {projectTemplatesTab === 'project' ? (
+                  <ProjectSettings projectPath={undefined} />
+                ) : (
+                  <TemplateManager />
+                )}
               </Section>
 
               {/* 🔧 고급 설정 Section */}
