@@ -49,6 +49,24 @@ export interface ElectronAPI {
   getProjectPatterns: (projectPath: string) => Promise<ProjectPatternAnalysis>;
   getContextRecommendations: (category: string | undefined, projectPath: string | undefined) => Promise<PromptContextRecommendations>;
 
+  // Phase 3: Advanced analytics
+  getIssuePatterns: (days?: number) => Promise<IssuePattern[]>;
+  getGoldenTrendByDimension: (weeks?: number) => Promise<GoldenDimensionTrend[]>;
+  getConsecutiveImprovements: (limit?: number) => Promise<ConsecutiveImprovement[]>;
+  getCategoryPerformance: () => Promise<CategoryPerformance[]>;
+  getPredictedScore: (windowDays?: number) => Promise<PredictedScore>;
+
+  // Phase 4: Project settings and templates
+  getProjectSettings: (projectPath: string) => Promise<ProjectSettings | null>;
+  saveProjectSettings: (settings: ProjectSettings) => Promise<{ success: boolean }>;
+  deleteProjectSettings: (projectPath: string) => Promise<{ success: boolean }>;
+  getTemplates: (options?: TemplateFilterOptions) => Promise<PromptTemplate[]>;
+  getTemplate: (idOrName: number | string) => Promise<PromptTemplate | null>;
+  saveTemplate: (template: PromptTemplate) => Promise<{ success: boolean; id: number }>;
+  deleteTemplate: (id: number) => Promise<{ success: boolean }>;
+  getRecommendedTemplate: (context: TemplateContext) => Promise<PromptTemplate | null>;
+  incrementTemplateUsage: (templateId: number) => Promise<{ success: boolean }>;
+
   // Renderer ready signal
   signalReady: () => Promise<boolean>;
 
@@ -174,6 +192,92 @@ export interface PromptContextRecommendations {
   basedOnProject: HistoryRecommendation[];
   basedOnCategory: HistoryRecommendation[];
   referencePrompts: unknown[];
+}
+
+// Phase 3: Advanced analytics types
+export interface IssuePattern {
+  category: string;
+  severity: 'high' | 'medium' | 'low';
+  count: number;
+  recentCount: number;
+  trend: 'improving' | 'stable' | 'worsening';
+  lastSeen: Date;
+}
+
+export interface GoldenDimensionTrend {
+  dimension: string;
+  weeklyData: Array<{
+    weekStart: string;
+    avgScore: number;
+    improvement: number;
+  }>;
+}
+
+export interface ConsecutiveImprovement {
+  startDate: string;
+  endDate: string;
+  improvementCount: number;
+  scoreIncrease: number;
+  averageGain: number;
+}
+
+export interface CategoryPerformance {
+  category: string;
+  count: number;
+  averageScore: number;
+  bestScore: number;
+  trend: 'improving' | 'stable' | 'declining';
+  commonWeakness?: string;
+}
+
+export interface PredictedScore {
+  predictedScore: number;
+  confidence: 'high' | 'medium' | 'low';
+  trend: number;
+}
+
+// Phase 4: Project settings and templates types
+export interface ProjectSettings {
+  id?: number;
+  projectPath: string;
+  projectName?: string;
+  ideType?: string;
+  preferredVariant?: 'conservative' | 'balanced' | 'comprehensive' | 'ai';
+  customConstraints?: string;
+  customTemplates?: CustomTemplate[];
+  autoInjectContext?: boolean;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface CustomTemplate {
+  name: string;
+  trigger: string;
+  template: string;
+}
+
+export interface PromptTemplate {
+  id?: number;
+  name: string;
+  ideType?: string;
+  category?: string;
+  templateText: string;
+  description?: string;
+  isActive?: boolean;
+  usageCount?: number;
+  createdAt?: Date;
+}
+
+export interface TemplateFilterOptions {
+  ideType?: string;
+  category?: string;
+  activeOnly?: boolean;
+}
+
+export interface TemplateContext {
+  ideType?: string;
+  category?: string;
+  projectPath?: string;
 }
 
 declare global {
