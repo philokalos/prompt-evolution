@@ -64,21 +64,39 @@ export function getCategoryKeywords(category: string): string[] {
 }
 
 /**
- * Check if text matches category pattern
+ * Check if text matches category pattern (language-aware matching)
+ * Korean: substring matching | English: word boundary matching
  */
 export function matchesCategory(text: string, category: string): boolean {
-  const keywords = getCategoryKeywords(category);
+  const patterns = CATEGORY_PATTERNS[category];
+  if (!patterns) return false;
   const lowerText = text.toLowerCase();
-  return keywords.some((keyword) => lowerText.includes(keyword.toLowerCase()));
+  // Korean: substring matching
+  const koMatch = patterns.ko.some((kw) => lowerText.includes(kw.toLowerCase()));
+  // English: word boundary matching
+  const enMatch = patterns.en.some((kw) => {
+    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+  });
+  return koMatch || enMatch;
 }
 
 /**
- * Find matching category keywords in text
+ * Find matching category keywords in text (language-aware matching)
  */
 export function findCategoryKeywords(text: string, category: string): string[] {
-  const keywords = getCategoryKeywords(category);
+  const patterns = CATEGORY_PATTERNS[category];
+  if (!patterns) return [];
   const lowerText = text.toLowerCase();
-  return keywords.filter((keyword) =>
-    lowerText.includes(keyword.toLowerCase())
-  );
+  const matched: string[] = [];
+  // Korean: substring matching
+  patterns.ko.forEach((kw) => {
+    if (lowerText.includes(kw.toLowerCase())) matched.push(kw);
+  });
+  // English: word boundary matching
+  patterns.en.forEach((kw) => {
+    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp(`\\b${escaped}\\b`, 'i').test(text)) matched.push(kw);
+  });
+  return matched;
 }

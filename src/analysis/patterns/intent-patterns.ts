@@ -84,21 +84,39 @@ export function getIntentKeywords(intent: string): string[] {
 }
 
 /**
- * Check if text matches intent pattern
+ * Check if text matches intent pattern (language-aware matching)
+ * Korean: substring matching | English: word boundary matching
  */
 export function matchesIntent(text: string, intent: string): boolean {
-  const keywords = getIntentKeywords(intent);
+  const patterns = INTENT_PATTERNS[intent];
+  if (!patterns) return false;
   const lowerText = text.toLowerCase();
-  return keywords.some((keyword) => lowerText.includes(keyword.toLowerCase()));
+  // Korean: substring matching
+  const koMatch = patterns.ko.some((kw) => lowerText.includes(kw.toLowerCase()));
+  // English: word boundary matching
+  const enMatch = patterns.en.some((kw) => {
+    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`\\b${escaped}\\b`, 'i').test(text);
+  });
+  return koMatch || enMatch;
 }
 
 /**
- * Find matching intent keywords in text
+ * Find matching intent keywords in text (language-aware matching)
  */
 export function findIntentKeywords(text: string, intent: string): string[] {
-  const keywords = getIntentKeywords(intent);
+  const patterns = INTENT_PATTERNS[intent];
+  if (!patterns) return [];
   const lowerText = text.toLowerCase();
-  return keywords.filter((keyword) =>
-    lowerText.includes(keyword.toLowerCase())
-  );
+  const matched: string[] = [];
+  // Korean: substring matching
+  patterns.ko.forEach((kw) => {
+    if (lowerText.includes(kw.toLowerCase())) matched.push(kw);
+  });
+  // English: word boundary matching
+  patterns.en.forEach((kw) => {
+    const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if (new RegExp(`\\b${escaped}\\b`, 'i').test(text)) matched.push(kw);
+  });
+  return matched;
 }

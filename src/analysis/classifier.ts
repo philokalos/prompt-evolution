@@ -86,20 +86,33 @@ export function classifyIntent(text: string): {
   const features = extractFeatures(text);
   const allMatched: string[] = [];
 
-  // Score each intent
+  // Score each intent (must match all keys in INTENT_PATTERNS)
   const scores: Record<string, number> = {
     command: 0,
     question: 0,
+    instruction: 0,
     feedback: 0,
     context: 0,
     clarification: 0,
   };
 
-  // Check patterns
+  // Check patterns with language-aware matching
+  // Korean: substring matching (agglutinative language, no word boundaries)
+  // English: word boundary matching (avoid partial matches like "then" in "authentication")
   for (const intent of Object.keys(INTENT_PATTERNS)) {
-    const allKeywords = getIntentKeywords(intent);
-    for (const keyword of allKeywords) {
+    const patterns = INTENT_PATTERNS[intent];
+    // Korean keywords: substring matching
+    for (const keyword of patterns.ko) {
       if (lowerText.includes(keyword.toLowerCase())) {
+        scores[intent]++;
+        allMatched.push(keyword);
+      }
+    }
+    // English keywords: word boundary matching
+    for (const keyword of patterns.en) {
+      const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'i');
+      if (regex.test(text)) {
         scores[intent]++;
         allMatched.push(keyword);
       }
@@ -122,8 +135,13 @@ export function classifyIntent(text: string): {
     }
   }
 
-  // If command and question tie, prefer command if no question mark
-  if (scores.command === scores.question && !features.hasQuestionMark) {
+  // If command and question tie at max score, prefer command if no question mark
+  if (
+    scores.command === scores.question &&
+    scores.command === maxScore &&
+    maxScore > 0 &&
+    !features.hasQuestionMark
+  ) {
     maxIntent = 'command';
   }
 
@@ -163,9 +181,18 @@ export function classifyTaskCategory(text: string): {
 
   for (const category of Object.keys(CATEGORY_PATTERNS)) {
     scores[category] = 0;
-    const allKeywords = getCategoryKeywords(category);
-    for (const keyword of allKeywords) {
+    const patterns = CATEGORY_PATTERNS[category];
+    // Korean keywords: substring matching
+    for (const keyword of patterns.ko) {
       if (lowerText.includes(keyword.toLowerCase())) {
+        scores[category]++;
+      }
+    }
+    // English keywords: word boundary matching
+    for (const keyword of patterns.en) {
+      const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'i');
+      if (regex.test(text)) {
         scores[category]++;
       }
     }
