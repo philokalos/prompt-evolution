@@ -11,6 +11,8 @@
 import { exec } from 'child_process';
 import { clipboard, systemPreferences, dialog, shell, app } from 'electron';
 import { promisify } from 'util';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const execAsync = promisify(exec);
 
@@ -32,8 +34,6 @@ function isMASBuild(): boolean {
 
   try {
     // MAS apps have a receipt file at Contents/_MASReceipt/receipt
-    const fs = require('fs');
-    const path = require('path');
     const appPath = app.getAppPath();
     const receiptPath = path.join(appPath, '..', '_MASReceipt', 'receipt');
 

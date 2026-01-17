@@ -43,6 +43,19 @@ vi.mock('fs', () => ({
   existsSync: (...args: unknown[]) => mockState.existsSync(...args),
   statSync: (...args: unknown[]) => mockState.statSync(...args),
   readdirSync: (...args: unknown[]) => mockState.readdirSync(...args),
+  appendFileSync: vi.fn(), // For debug logging
+}));
+
+// Mock electron
+vi.mock('electron', () => ({
+  app: {
+    isPackaged: false,
+    getAppPath: () => '/Applications/PromptLint.app/Contents/Resources/app.asar',
+    getPath: (name: string) => {
+      if (name === 'home') return '/Users/testuser';
+      return '/tmp';
+    },
+  },
 }));
 
 // Mock process
