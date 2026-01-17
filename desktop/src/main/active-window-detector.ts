@@ -23,24 +23,38 @@ const execAsync = promisify(exec);
  * MAS apps cannot use AppleScript to control other applications.
  */
 function isMASBuild(): boolean {
+  console.log('[ActiveWindow] Checking MAS build status...');
+  console.log('[ActiveWindow] app.isPackaged:', app.isPackaged);
+
   if (!app.isPackaged) {
+    console.log('[ActiveWindow] Not packaged, returning false');
     return false;
   }
 
   try {
     const receiptPath = path.join(app.getAppPath(), '..', '_MASReceipt', 'receipt');
+    console.log('[ActiveWindow] Receipt path:', receiptPath);
+    console.log('[ActiveWindow] Receipt exists:', fs.existsSync(receiptPath));
+
     if (fs.existsSync(receiptPath)) {
+      console.log('[ActiveWindow] MAS receipt found!');
       return true;
     }
 
     const homePath = app.getPath('home');
+    console.log('[ActiveWindow] Home path:', homePath);
+    console.log('[ActiveWindow] Contains /Library/Containers/:', homePath.includes('/Library/Containers/'));
+
     if (homePath.includes('/Library/Containers/')) {
+      console.log('[ActiveWindow] Sandbox container path detected!');
       return true;
     }
-  } catch {
+  } catch (error) {
     // If detection fails, assume not MAS
+    console.log('[ActiveWindow] Detection error:', error);
   }
 
+  console.log('[ActiveWindow] Not MAS build');
   return false;
 }
 
@@ -201,9 +215,20 @@ function parseVSCodeWindowTitle(windowTitle: string, appName: string): DetectedP
   const parts = cleanedTitle.split(/\s[—–-]\s/);
 
   if (parts.length >= 2) {
-    // 마지막 부분이 IDE 이름이면 제거 (Visual Studio Code, VS Code, Cursor 등)
-    let projectPart = parts.length >= 3 ? parts[1] : parts[0];
-    const filePart = parts[0].replace(/^[●*]\s*/, ''); // 수정됨 표시 제거
+    let projectPart: string;
+    let filePart: string | undefined;
+
+    // Source Control 패턴 감지: "커밋해시 - 메시지 … (파일수) — 프로젝트"
+    // 첫 부분이 7자 hex (git short hash)이면 마지막 부분이 프로젝트 이름
+    if (parts[0].match(/^[0-9a-f]{7}$/)) {
+      projectPart = parts[parts.length - 1]; // 맨 끝이 프로젝트 이름
+      filePart = undefined; // Source Control 뷰는 파일 없음
+    } else {
+      // 일반 패턴: "file.ts — project-name — IDE"
+      // 마지막 부분이 IDE 이름이면 제거 (Visual Studio Code, VS Code, Cursor 등)
+      projectPart = parts.length >= 3 ? parts[1] : parts[0];
+      filePart = parts[0].replace(/^[●*]\s*/, ''); // 수정됨 표시 제거
+    }
 
     // (Workspace) 접미사 제거
     projectPart = projectPart.replace(/\s*\(Workspace\)\s*$/i, '').trim();
@@ -514,26 +539,38 @@ export function parseWindowTitle(windowInfo: ActiveWindowInfo): DetectedProject 
  * 현재 활성 IDE의 프로젝트 감지 (메인 함수)
  */
 export async function detectActiveProject(): Promise<DetectedProject | null> {
+  // Write to file for debugging
+  const fs = await import('fs');
+  const logPath = '/tmp/promptlint-debug.log';
+  const log = (msg: string) => {
+    const timestamp = new Date().toISOString();
+    fs.appendFileSync(logPath, `[${timestamp}] ${msg}\n`);
+    console.log(msg);
+  };
+
+  log('[ActiveWindow] detectActiveProject called');
+
   const windowInfo = await getActiveWindowInfo();
 
   if (!windowInfo) {
-    console.log('[ActiveWindow] No active window info');
+    log('[ActiveWindow] No active window info');
     return null;
   }
 
-  console.log('[ActiveWindow] Active:', windowInfo.appName, '|', windowInfo.windowTitle);
+  log(`[ActiveWindow] Active: ${windowInfo.appName} | ${windowInfo.windowTitle}`);
+  log(`[ActiveWindow] isIDE: ${windowInfo.isIDE}, ideName: ${windowInfo.ideName}`);
 
   if (!windowInfo.isIDE) {
-    console.log('[ActiveWindow] Not a supported IDE');
+    log('[ActiveWindow] Not a supported IDE');
     return null;
   }
 
   const project = parseWindowTitle(windowInfo);
 
   if (project) {
-    console.log('[ActiveWindow] Detected project:', project.projectPath, `(${project.confidence})`);
+    log(`[ActiveWindow] Detected project: ${project.projectPath} (${project.confidence})`);
   } else {
-    console.log('[ActiveWindow] Could not parse project from window title');
+    log('[ActiveWindow] Could not parse project from window title');
   }
 
   return project;

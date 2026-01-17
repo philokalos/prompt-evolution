@@ -41,14 +41,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Disable console.log in packaged production builds (keep electron-log for file logging)
-if (app.isPackaged) {
-  // Packaged app = production, suppress console output for performance
-  const noop = () => {};
-  console.log = noop;
-  console.debug = noop;
-  console.info = noop;
-  // Keep console.warn and console.error for critical issues
-}
+// TEMPORARILY DISABLED FOR DEBUGGING
+// if (app.isPackaged) {
+//   // Packaged app = production, suppress console output for performance
+//   const noop = () => {};
+//   console.log = noop;
+//   console.debug = noop;
+//   console.info = noop;
+//   // Keep console.warn and console.error for critical issues
+// }
 
 // Settings schema
 interface AppSettings {
