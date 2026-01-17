@@ -701,12 +701,13 @@ export function registerLearningEngineHandlers(): void {
   });
 
   // Initialize default templates on first run
-  try {
-    const { initializeDefaultTemplates } = await import('./db/index.js');
-    initializeDefaultTemplates();
-  } catch (error) {
-    console.warn('[LearningEngine] Failed to initialize default templates:', error);
-  }
+  import('./db/index.js')
+    .then(({ initializeDefaultTemplates }) => {
+      initializeDefaultTemplates();
+    })
+    .catch((error) => {
+      console.warn('[LearningEngine] Failed to initialize default templates:', error);
+    });
 }
 
 export { analyzePrompt };
