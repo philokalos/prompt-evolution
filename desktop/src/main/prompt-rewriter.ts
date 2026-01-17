@@ -244,7 +244,7 @@ interface GuidelineEvaluation {
   grade: 'A' | 'B' | 'C' | 'D' | 'F';
 }
 
-export type VariantType = 'conservative' | 'balanced' | 'comprehensive' | 'ai';
+export type VariantType = 'conservative' | 'balanced' | 'comprehensive' | 'ai' | 'cosp';
 
 export interface RewriteResult {
   rewrittenPrompt: string;
@@ -256,6 +256,281 @@ export interface RewriteResult {
   aiExplanation?: string;
   needsSetup?: boolean; // API 미설정 시 true
   isLoading?: boolean; // Phase 3.1: 비동기 AI 로딩 상태
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COSP (Claude-Optimized Smart Prompt) 관련 함수들
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 프롬프트 복잡도 유형
+ */
+export type PromptComplexity = 'simple' | 'medium' | 'complex' | 'advanced';
+
+/**
+ * 프롬프트 복잡도 감지
+ * - simple: 단순 질문, 설명 요청, <50자
+ * - medium: 코드 생성, 버그 수정, 50-200자
+ * - complex: 다중 파일, 리팩토링, 200-500자
+ * - advanced: 아키텍처, 보안, >500자 또는 특정 키워드
+ */
+function detectComplexity(text: string, context?: SessionContext): PromptComplexity {
+  const length = text.length;
+
+  // 고급 키워드 감지
+  const advancedKeywords = /아키텍처|설계|보안|성능\s*최적화|마이그레이션|시스템|전체\s*구조|architecture|security|migration|performance/i;
+  if (advancedKeywords.test(text) || length > 500) {
+    return 'advanced';
+  }
+
+  // 복잡한 키워드 감지
+  const complexKeywords = /리팩토링|여러\s*파일|전체|테스트\s*작성|리뷰|refactor|multiple\s*files|comprehensive/i;
+  if (complexKeywords.test(text) || (length > 200 && length <= 500)) {
+    return 'complex';
+  }
+
+  // 중간 복잡도: 코드 생성, 버그 수정
+  const mediumPatterns = /만들어|구현|생성|수정|고쳐|버그|에러|fix|create|implement/i;
+  if (mediumPatterns.test(text) || (length >= 50 && length <= 200)) {
+    return 'medium';
+  }
+
+  // 컨텍스트에 따른 복잡도 상향
+  if (context) {
+    // 다중 파일 작업 중이면 complex
+    if (context.recentFiles.length > 2) {
+      return 'complex';
+    }
+    // 활성 작업이 있으면 medium 이상
+    if (context.currentTask && context.currentTask !== '작업 진행 중') {
+      return length > 100 ? 'complex' : 'medium';
+    }
+  }
+
+  return 'simple';
+}
+
+/**
+ * 복잡도에 따른 Think mode 선택
+ * - simple: 없음
+ * - medium: think
+ * - complex: think hard
+ * - advanced: think harder
+ */
+function selectThinkMode(complexity: PromptComplexity): string | null {
+  switch (complexity) {
+    case 'simple':
+      return null;
+    case 'medium':
+      return 'think';
+    case 'complex':
+      return 'think hard';
+    case 'advanced':
+      return 'think harder';
+    default:
+      return null;
+  }
+}
+
+/**
+ * XML 구조화된 프롬프트 빌드
+ * Claude 공식 권장 형식: <context>, <task>, <constraints>, <output_format>, <success_criteria>
+ */
+function buildXMLPrompt(
+  original: string,
+  evaluation: GuidelineEvaluation,
+  context?: SessionContext
+): string {
+  const sections: string[] = [];
+  const coreRequest = extractCoreRequest(original);
+  const category = detectCategory(coreRequest);
+  const { verb } = detectPrimaryVerb(original);
+
+  // 1. <context> 섹션 - 프로젝트/환경 정보
+  const contextLines: string[] = [];
+  if (context) {
+    const projectName = context.projectPath.split('/').pop() || 'project';
+    contextLines.push(`프로젝트: ${projectName}`);
+
+    if (context.techStack.length > 0) {
+      contextLines.push(`기술 스택: ${context.techStack.join(', ')}`);
+    }
+
+    if (context.currentTask && context.currentTask !== '작업 진행 중' && context.currentTask.length > 5) {
+      contextLines.push(`현재 작업: ${context.currentTask.slice(0, 60)}`);
+    }
+
+    if (context.gitBranch && !['main', 'master'].includes(context.gitBranch)) {
+      contextLines.push(`Git 브랜치: ${context.gitBranch}`);
+    }
+
+    if (context.recentFiles.length > 0) {
+      const files = context.recentFiles.slice(0, 3).map(f => f.split('/').pop()).join(', ');
+      contextLines.push(`관련 파일: ${files}`);
+    }
+
+    // 직전 대화 컨텍스트
+    if (context.lastExchange) {
+      if (context.lastExchange.assistantFiles.length > 0) {
+        const files = context.lastExchange.assistantFiles.slice(0, 2).map(f => f.split('/').pop()).join(', ');
+        contextLines.push(`방금 수정: ${files}`);
+      }
+    }
+  }
+
+  // 컨텍스트가 없으면 원본에서 추론
+  if (contextLines.length === 0) {
+    const error = extractErrorFromPrompt(original);
+    const code = extractCodeFromPrompt(original);
+    if (error) {
+      contextLines.push(`에러: ${error.slice(0, 80)}`);
+    }
+    if (code && !code.includes('```')) {
+      contextLines.push(`참조: ${code}`);
+    }
+  }
+
+  if (contextLines.length > 0) {
+    sections.push(`<context>\n${contextLines.join('\n')}\n</context>`);
+  }
+
+  // 2. <task> 섹션 - 핵심 요청
+  // 원본에 코드 블록이 있으면 별도로 분리
+  const codeBlock = extractCodeFromPrompt(original);
+  let taskContent = coreRequest;
+
+  // 코드 블록이 포함된 경우, task에서는 텍스트만 포함하고 코드는 context로 이동
+  if (codeBlock && codeBlock.includes('```')) {
+    taskContent = coreRequest.replace(codeBlock, '').trim();
+    // 코드 블록이 아직 context에 없으면 추가
+    if (!sections.some(s => s.includes(codeBlock))) {
+      const codeSection = `<reference_code>\n${codeBlock}\n</reference_code>`;
+      sections.push(codeSection);
+    }
+  }
+
+  sections.push(`<task>\n${taskContent || coreRequest}\n</task>`);
+
+  // 3. <constraints> 섹션 - 제약조건 (GOLDEN limits 점수가 낮거나 기술 스택이 있을 때)
+  const constraintLines: string[] = [];
+  if (context && context.techStack.length > 0) {
+    const techConstraints = getTechStackConstraints(context.techStack);
+    constraintLines.push(...techConstraints);
+  }
+
+  // 카테고리별 기본 제약 추가
+  const categoryConstraints: Record<string, string[]> = {
+    'code-generation': ['기존 코드 스타일 준수'],
+    'bug-fix': ['부작용 최소화'],
+    'refactoring': ['기존 기능 유지'],
+    'code-review': ['구체적인 라인 번호 포함'],
+    'testing': ['엣지 케이스 포함'],
+  };
+  if (categoryConstraints[category]) {
+    constraintLines.push(...categoryConstraints[category]);
+  }
+
+  if (constraintLines.length > 0) {
+    sections.push(`<constraints>\n${constraintLines.map(c => `- ${c}`).join('\n')}\n</constraints>`);
+  }
+
+  // 4. <output_format> 섹션 - 출력 형식 (GOLDEN output 점수가 낮을 때)
+  if (evaluation.goldenScore.output < 0.5) {
+    const formats = inferOutputFormat(category);
+    sections.push(`<output_format>\n${formats.map(f => `- ${f}`).join('\n')}\n</output_format>`);
+  }
+
+  // 5. <success_criteria> 섹션 - 성공 기준 (GOLDEN evaluation 점수가 낮을 때)
+  if (evaluation.goldenScore.evaluation < 0.5) {
+    const criteria = getSuccessCriteria(category);
+    const criteriaItems = [criteria];
+
+    // 카테고리별 추가 기준
+    if (category === 'code-generation' || category === 'bug-fix') {
+      criteriaItems.push('타입 에러 없음');
+    }
+    if (category === 'testing') {
+      criteriaItems.push('모든 테스트 통과');
+    }
+
+    sections.push(`<success_criteria>\n${criteriaItems.map(c => `- ${c}`).join('\n')}\n</success_criteria>`);
+  }
+
+  return sections.join('\n\n');
+}
+
+/**
+ * COSP (Claude-Optimized Smart Prompt) 생성
+ * XML 구조 + Think mode 자동 삽입
+ */
+function generateCOSPRewrite(
+  original: string,
+  evaluation: GuidelineEvaluation,
+  context?: SessionContext
+): RewriteResult {
+  const keyChanges: string[] = [];
+
+  // 복잡도 감지 및 Think mode 선택
+  const complexity = detectComplexity(original, context);
+  const thinkMode = selectThinkMode(complexity);
+
+  // XML 구조화된 프롬프트 빌드
+  const xmlPrompt = buildXMLPrompt(original, evaluation, context);
+
+  // 최종 프롬프트 조합
+  const parts: string[] = [];
+
+  // Think mode 추가 (있는 경우)
+  if (thinkMode) {
+    parts.push(thinkMode);
+    keyChanges.push(`Think mode: ${thinkMode}`);
+  }
+
+  parts.push(xmlPrompt);
+
+  // key changes 추가
+  keyChanges.push('XML 구조화');
+  if (context && context.techStack.length > 0) {
+    keyChanges.push('기술 스택 반영');
+  }
+  if (context && context.currentTask) {
+    keyChanges.push('세션 컨텍스트');
+  }
+
+  // 약한 GOLDEN 차원 보강 메시지
+  const weakDimensions = Object.entries(evaluation.goldenScore)
+    .filter(([key, value]) => key !== 'total' && (value as number) < 0.5)
+    .map(([key]) => key);
+
+  if (weakDimensions.length > 0) {
+    const dimNames: Record<string, string> = {
+      goal: '목표',
+      output: '출력',
+      limits: '제약',
+      data: '컨텍스트',
+      evaluation: '평가',
+      next: '후속',
+    };
+    const weakNames = weakDimensions.slice(0, 2).map(d => dimNames[d] || d);
+    keyChanges.push(`${weakNames.join('/')} 보강`);
+  }
+
+  // 신뢰도 계산: 컨텍스트 유무 + 복잡도 기반
+  let confidence = 0.90;
+  if (context) {
+    confidence += 0.05;
+    if (context.techStack.length > 0) confidence += 0.02;
+    if (context.currentTask && context.currentTask !== '작업 진행 중') confidence += 0.01;
+  }
+  confidence = Math.min(confidence, 0.98);
+
+  return {
+    rewrittenPrompt: parts.join('\n\n'),
+    keyChanges,
+    confidence,
+    variant: 'cosp',
+    variantLabel: 'COSP',
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -674,33 +949,29 @@ function getSuccessCriteria(category: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
- * 3가지 변형 생성 (메인 함수)
+ * COSP 변형 생성 (메인 함수)
+ * 기존 3가지 변형 → 1개의 COSP 변형으로 통합
  */
 export function generatePromptVariants(
   original: string,
   evaluation: GuidelineEvaluation,
   context?: SessionContext
 ): RewriteResult[] {
-  // 이미 점수가 높으면 변형 최소화
+  // 이미 점수가 높으면 최소 변형
   if (evaluation.overallScore >= 0.85) {
     return [
       {
         rewrittenPrompt: original,
         keyChanges: ['이미 잘 작성됨'],
         confidence: 0.95,
-        variant: 'conservative',
-        variantLabel: '보수적',
+        variant: 'cosp',
+        variantLabel: 'COSP',
       },
-      generateBalancedRewrite(original, evaluation, context),
-      generateComprehensiveRewrite(original, evaluation, context),
     ];
   }
 
-  return [
-    generateConservativeRewrite(original, evaluation, context),
-    generateBalancedRewrite(original, evaluation, context),
-    generateComprehensiveRewrite(original, evaluation, context),
-  ];
+  // COSP 변형만 반환
+  return [generateCOSPRewrite(original, evaluation, context)];
 }
 
 /**

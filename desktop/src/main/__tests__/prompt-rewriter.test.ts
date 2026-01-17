@@ -1,10 +1,10 @@
 /**
  * Prompt Rewriter Unit Tests
  *
- * Tests for the rule-based prompt rewriting engine.
+ * Tests for the COSP (Claude-Optimized Smart Prompt) rewriting engine.
  * Tests cover:
- * - Category detection (Korean/English)
- * - Variant generation (conservative, balanced, comprehensive)
+ * - COSP generation with XML structure
+ * - Think mode selection based on complexity
  * - Context integration (SessionContext)
  * - Edge cases (empty prompts, high-scoring prompts, etc.)
  */
@@ -108,83 +108,86 @@ function createMockSessionContext(overrides: Partial<{
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Category Detection Tests (via variant output analysis)
+// COSP XML Structure Tests
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('Prompt Rewriter', () => {
-  describe('Category Detection', () => {
-    it('should detect code-generation category', () => {
+  describe('COSP XML Structure', () => {
+    it('should generate XML tags in COSP output', () => {
       const prompt = '버튼 컴포넌트를 만들어줘';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
 
-      // Comprehensive variant should include category tag
-      const comprehensive = variants.find(v => v.variant === 'comprehensive');
-      expect(comprehensive?.rewrittenPrompt).toContain('코드 생성');
+      // COSP variant should include XML tags
+      const cosp = variants.find(v => v.variant === 'cosp');
+      expect(cosp?.rewrittenPrompt).toContain('<task>');
+      expect(cosp?.rewrittenPrompt).toContain('</task>');
     });
 
-    it('should detect bug-fix category', () => {
-      // Avoid "function" word which matches code-generation pattern
+    it('should include constraints section for code-generation', () => {
       const prompt = '이 버그를 수정해줘: Cannot read property of undefined';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
 
-      const comprehensive = variants.find(v => v.variant === 'comprehensive');
-      expect(comprehensive?.rewrittenPrompt).toContain('버그 수정');
+      const cosp = variants.find(v => v.variant === 'cosp');
+      expect(cosp?.rewrittenPrompt).toContain('<constraints>');
     });
 
-    it('should detect refactoring category', () => {
+    it('should include output_format when output score is low', () => {
       const prompt = '이 코드를 리팩토링해주세요';
-      const evaluation = createMockEvaluation();
+      const evaluation = createMockEvaluation({ output: 0.2 });
       const variants = generatePromptVariants(prompt, evaluation);
 
-      const comprehensive = variants.find(v => v.variant === 'comprehensive');
-      expect(comprehensive?.rewrittenPrompt).toContain('리팩토링');
+      const cosp = variants.find(v => v.variant === 'cosp');
+      expect(cosp?.rewrittenPrompt).toContain('<output_format>');
     });
 
-    it('should detect explanation category', () => {
+    it('should include success_criteria when evaluation score is low', () => {
       const prompt = '이 함수가 어떻게 동작하는지 설명해줘';
-      const evaluation = createMockEvaluation();
+      const evaluation = createMockEvaluation({ evaluation: 0.2 });
       const variants = generatePromptVariants(prompt, evaluation);
 
-      const comprehensive = variants.find(v => v.variant === 'comprehensive');
-      expect(comprehensive?.rewrittenPrompt).toContain('설명 요청');
+      const cosp = variants.find(v => v.variant === 'cosp');
+      expect(cosp?.rewrittenPrompt).toContain('<success_criteria>');
     });
 
-    it('should detect testing category', () => {
+    it('should include context section with session context', () => {
       const prompt = '이 모듈의 테스트 코드를 작성해줘';
       const evaluation = createMockEvaluation();
-      const variants = generatePromptVariants(prompt, evaluation);
+      const context = createMockSessionContext();
+      const variants = generatePromptVariants(prompt, evaluation, context);
 
-      const comprehensive = variants.find(v => v.variant === 'comprehensive');
-      expect(comprehensive?.rewrittenPrompt).toContain('테스트');
+      const cosp = variants.find(v => v.variant === 'cosp');
+      expect(cosp?.rewrittenPrompt).toContain('<context>');
+      expect(cosp?.rewrittenPrompt).toContain('my-project');
     });
 
-    it('should detect code-review category', () => {
+    it('should include tech stack constraints with context', () => {
       const prompt = '이 PR을 리뷰해줘';
       const evaluation = createMockEvaluation();
-      const variants = generatePromptVariants(prompt, evaluation);
+      const context = createMockSessionContext({ techStack: ['TypeScript', 'React'] });
+      const variants = generatePromptVariants(prompt, evaluation, context);
 
-      const comprehensive = variants.find(v => v.variant === 'comprehensive');
-      expect(comprehensive?.rewrittenPrompt).toContain('코드 리뷰');
+      const cosp = variants.find(v => v.variant === 'cosp');
+      expect(cosp?.rewrittenPrompt).toContain('TypeScript');
     });
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Variant Generation Tests
+  // COSP Variant Generation Tests
   // ─────────────────────────────────────────────────────────────────────────────
 
-  describe('Variant Generation', () => {
-    it('should generate 3 variants for low-scoring prompts', () => {
+  describe('COSP Variant Generation', () => {
+    it('should generate 1 COSP variant for low-scoring prompts', () => {
       const prompt = '버그 수정해줘';
       const evaluation = createMockEvaluation({ overallScore: 0.20 });
       const variants = generatePromptVariants(prompt, evaluation);
 
-      expect(variants).toHaveLength(3);
-      expect(variants.map(v => v.variant)).toEqual(['conservative', 'balanced', 'comprehensive']);
+      expect(variants).toHaveLength(1);
+      expect(variants[0].variant).toBe('cosp');
     });
 
-    it('should preserve original for high-scoring prompts (conservative)', () => {
+    it('should preserve original for high-scoring prompts', () => {
       const prompt = '잘 작성된 프롬프트입니다';
       const evaluation = createMockEvaluation({
         overallScore: 0.90,
@@ -197,9 +200,9 @@ describe('Prompt Rewriter', () => {
       });
       const variants = generatePromptVariants(prompt, evaluation);
 
-      const conservative = variants.find(v => v.variant === 'conservative');
-      expect(conservative?.keyChanges).toContain('이미 잘 작성됨');
-      expect(conservative?.rewrittenPrompt).toBe(prompt);
+      const cosp = variants.find(v => v.variant === 'cosp');
+      expect(cosp?.keyChanges).toContain('이미 잘 작성됨');
+      expect(cosp?.rewrittenPrompt).toBe(prompt);
     });
 
     it('should include keyChanges describing improvements', () => {
@@ -213,26 +216,23 @@ describe('Prompt Rewriter', () => {
       });
     });
 
-    it('should have increasing confidence levels', () => {
+    it('should have high confidence for COSP variant', () => {
       const prompt = 'API 구현해줘';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
 
-      const conservative = variants.find(v => v.variant === 'conservative')!;
-      const balanced = variants.find(v => v.variant === 'balanced')!;
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
-
-      expect(conservative.confidence).toBeLessThan(balanced.confidence);
-      expect(balanced.confidence).toBeLessThan(comprehensive.confidence);
+      const cosp = variants.find(v => v.variant === 'cosp')!;
+      // COSP should have confidence >= 0.9
+      expect(cosp.confidence).toBeGreaterThanOrEqual(0.9);
     });
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Conservative Variant Tests
+  // COSP Weak Dimension Targeting Tests
   // ─────────────────────────────────────────────────────────────────────────────
 
-  describe('Conservative Variant', () => {
-    it('should target the weakest dimension', () => {
+  describe('COSP Weak Dimension Targeting', () => {
+    it('should add weak dimension info to keyChanges', () => {
       const prompt = '코드 작성해줘';
       const evaluation = createMockEvaluation({
         goal: 0.1, // Weakest
@@ -243,13 +243,13 @@ describe('Prompt Rewriter', () => {
         next: 0.5,
       });
       const variants = generatePromptVariants(prompt, evaluation);
-      const conservative = variants.find(v => v.variant === 'conservative')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      // Should improve goal (weakest dimension)
-      expect(conservative.keyChanges).toContain('목표 명확화');
+      // Should indicate weak dimension in keyChanges
+      expect(cosp.keyChanges).toContain('목표 보강');
     });
 
-    it('should add output format when output is weakest', () => {
+    it('should add output_format XML tag when output is weakest', () => {
       const prompt = '함수 만들어줘';
       const evaluation = createMockEvaluation({
         goal: 0.8,
@@ -260,36 +260,36 @@ describe('Prompt Rewriter', () => {
         next: 0.5,
       });
       const variants = generatePromptVariants(prompt, evaluation);
-      const conservative = variants.find(v => v.variant === 'conservative')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(conservative.keyChanges).toContain('출력 형식 추가');
-      expect(conservative.rewrittenPrompt).toContain('출력');
+      expect(cosp.rewrittenPrompt).toContain('<output_format>');
+      expect(cosp.rewrittenPrompt).toContain('</output_format>');
     });
 
-    it('should have confidence around 0.6', () => {
+    it('should have confidence >= 0.9 for COSP', () => {
       const prompt = '테스트 작성';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
-      const conservative = variants.find(v => v.variant === 'conservative')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(conservative.confidence).toBe(0.6);
+      expect(cosp.confidence).toBeGreaterThanOrEqual(0.9);
     });
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Balanced Variant Tests
+  // COSP Context Integration Tests
   // ─────────────────────────────────────────────────────────────────────────────
 
-  describe('Balanced Variant', () => {
-    it('should include context section with session context', () => {
+  describe('COSP Context Integration', () => {
+    it('should include context XML section with session context', () => {
       const prompt = '인증 기능 구현해줘';
       const evaluation = createMockEvaluation();
       const context = createMockSessionContext();
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const balanced = variants.find(v => v.variant === 'balanced')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(balanced.rewrittenPrompt).toContain('현재 상황');
-      expect(balanced.rewrittenPrompt).toContain('my-project');
+      expect(cosp.rewrittenPrompt).toContain('<context>');
+      expect(cosp.rewrittenPrompt).toContain('my-project');
     });
 
     it('should include tech stack in context', () => {
@@ -299,7 +299,7 @@ describe('Prompt Rewriter', () => {
         techStack: ['Node.js', 'Express', 'MongoDB'],
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const balanced = variants.find(v => v.variant === 'balanced')!;
+      const balanced = variants.find(v => v.variant === 'cosp')!;
 
       expect(balanced.rewrittenPrompt).toContain('Node.js');
     });
@@ -308,12 +308,12 @@ describe('Prompt Rewriter', () => {
       const prompt = '컴포넌트 만들어줘';
       const evaluationNoContext = createMockEvaluation();
       const variantsNoContext = generatePromptVariants(prompt, evaluationNoContext);
-      const balancedNoContext = variantsNoContext.find(v => v.variant === 'balanced')!;
+      const balancedNoContext = variantsNoContext.find(v => v.variant === 'cosp')!;
 
       const evaluationWithContext = createMockEvaluation();
       const context = createMockSessionContext();
       const variantsWithContext = generatePromptVariants(prompt, evaluationWithContext, context);
-      const balancedWithContext = variantsWithContext.find(v => v.variant === 'balanced')!;
+      const balancedWithContext = variantsWithContext.find(v => v.variant === 'cosp')!;
 
       expect(balancedWithContext.confidence).toBeGreaterThan(balancedNoContext.confidence);
     });
@@ -331,40 +331,39 @@ describe('Prompt Rewriter', () => {
         },
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const balanced = variants.find(v => v.variant === 'balanced')!;
+      const balanced = variants.find(v => v.variant === 'cosp')!;
 
       expect(balanced.rewrittenPrompt).toContain('방금 수정');
     });
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Comprehensive Variant Tests
+  // COSP XML Structure Tests
   // ─────────────────────────────────────────────────────────────────────────────
 
-  describe('Comprehensive Variant', () => {
-    it('should include full GOLDEN structure', () => {
+  describe('COSP Full XML Structure', () => {
+    it('should include task XML section', () => {
       const prompt = 'React 컴포넌트 만들어줘';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      // Should have structured sections
-      expect(comprehensive.rewrittenPrompt).toContain('요청');
-      expect(comprehensive.rewrittenPrompt).toContain('출력');
-      expect(comprehensive.rewrittenPrompt).toContain('완료 조건');
+      // Should have task XML section
+      expect(cosp.rewrittenPrompt).toContain('<task>');
+      expect(cosp.rewrittenPrompt).toContain('</task>');
     });
 
-    it('should include tech constraints with context', () => {
+    it('should include constraints XML with context', () => {
       const prompt = '폼 컴포넌트 구현해줘';
       const evaluation = createMockEvaluation();
       const context = createMockSessionContext({
         techStack: ['TypeScript', 'React'],
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(comprehensive.rewrittenPrompt).toContain('제약');
-      expect(comprehensive.keyChanges).toContain('기술 제약');
+      expect(cosp.rewrittenPrompt).toContain('<constraints>');
+      expect(cosp.keyChanges).toContain('기술 스택 반영');
     });
 
     it('should have highest confidence with context', () => {
@@ -372,27 +371,27 @@ describe('Prompt Rewriter', () => {
       const evaluation = createMockEvaluation();
       const context = createMockSessionContext();
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(comprehensive.confidence).toBeGreaterThanOrEqual(0.85);
+      expect(cosp.confidence).toBeGreaterThanOrEqual(0.85);
     });
 
-    it('should extract and structure code blocks', () => {
+    it('should extract and structure code blocks with reference_code XML', () => {
       const prompt = '이 코드를 개선해줘:\n```typescript\nconst x = 1;\n```';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(comprehensive.rewrittenPrompt).toContain('참조 코드');
+      expect(cosp.rewrittenPrompt).toContain('<reference_code>');
     });
 
     it('should extract error messages', () => {
       const prompt = '에러 수정해줘: TypeError: Cannot read property of undefined';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(comprehensive.rewrittenPrompt).toContain('TypeError');
+      expect(cosp.rewrittenPrompt).toContain('TypeError');
     });
   });
 
@@ -405,7 +404,7 @@ describe('Prompt Rewriter', () => {
       const prompt = '안녕하세요, 버튼 컴포넌트 만들어주세요';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
-      const conservative = variants.find(v => v.variant === 'conservative')!;
+      const conservative = variants.find(v => v.variant === 'cosp')!;
 
       expect(conservative.rewrittenPrompt).not.toMatch(/^안녕하세요/);
     });
@@ -414,7 +413,7 @@ describe('Prompt Rewriter', () => {
       const prompt = '그래서 API 구현해줘';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
-      const conservative = variants.find(v => v.variant === 'conservative')!;
+      const conservative = variants.find(v => v.variant === 'cosp')!;
 
       expect(conservative.rewrittenPrompt).not.toMatch(/^그래서/);
     });
@@ -425,31 +424,33 @@ describe('Prompt Rewriter', () => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   describe('Verb Detection', () => {
-    it('should detect creation verbs', () => {
+    it('should preserve original prompt in task section', () => {
       const prompt = '새 컴포넌트 만들어줘';
       const evaluation = createMockEvaluation({ goal: 0.1 }); // Make goal weakest
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(comprehensive.rewrittenPrompt).toContain('생성');
+      expect(cosp.rewrittenPrompt).toContain('컴포넌트');
+      expect(cosp.rewrittenPrompt).toContain('<task>');
     });
 
     it('should detect fix verbs', () => {
       const prompt = '버그 고쳐줘';
       const evaluation = createMockEvaluation({ goal: 0.1 });
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(comprehensive.rewrittenPrompt).toContain('수정');
+      // Should contain the original bug-fix request
+      expect(cosp.rewrittenPrompt).toContain('버그');
     });
 
     it('should detect explanation verbs', () => {
       const prompt = '이 코드가 왜 안 되는지 설명해줘';
       const evaluation = createMockEvaluation({ goal: 0.1 });
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(comprehensive.rewrittenPrompt).toContain('설명');
+      expect(cosp.rewrittenPrompt).toContain('설명');
     });
   });
 
@@ -465,7 +466,7 @@ describe('Prompt Rewriter', () => {
         techStack: ['TypeScript'],
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toMatch(/타입|strict/);
     });
@@ -477,7 +478,7 @@ describe('Prompt Rewriter', () => {
         techStack: ['React'],
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toMatch(/함수형|hooks/);
     });
@@ -489,7 +490,7 @@ describe('Prompt Rewriter', () => {
         techStack: ['Firebase'],
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toMatch(/보안|비용/);
     });
@@ -504,7 +505,7 @@ describe('Prompt Rewriter', () => {
       const prompt = 'React 훅 만들어줘';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toMatch(/구현|코드/);
     });
@@ -513,7 +514,7 @@ describe('Prompt Rewriter', () => {
       const prompt = '에러 수정해줘';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toMatch(/원인|분석/);
     });
@@ -525,7 +526,7 @@ describe('Prompt Rewriter', () => {
         techStack: ['TypeScript'],
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const balanced = variants.find(v => v.variant === 'balanced')!;
+      const balanced = variants.find(v => v.variant === 'cosp')!;
 
       expect(balanced.rewrittenPrompt).toContain('타입');
     });
@@ -536,23 +537,22 @@ describe('Prompt Rewriter', () => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   describe('Success Criteria', () => {
-    it('should include appropriate success criteria for code-generation', () => {
+    it('should include success_criteria XML when evaluation score is low', () => {
       const prompt = '컴포넌트 만들어줘';
-      const evaluation = createMockEvaluation();
+      const evaluation = createMockEvaluation({ evaluation: 0.2 }); // Low evaluation score
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(comprehensive.rewrittenPrompt).toContain('완료 조건');
-      expect(comprehensive.rewrittenPrompt).toMatch(/실행|동작/);
+      expect(cosp.rewrittenPrompt).toContain('<success_criteria>');
     });
 
     it('should include test-passing criteria for bug-fix', () => {
       const prompt = '버그 수정해줘';
-      const evaluation = createMockEvaluation();
+      const evaluation = createMockEvaluation({ evaluation: 0.2 });
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(comprehensive.rewrittenPrompt).toMatch(/해결|테스트/);
+      expect(cosp.rewrittenPrompt).toMatch(/해결|테스트/);
     });
   });
 
@@ -567,7 +567,7 @@ describe('Prompt Rewriter', () => {
 
       expect(() => generatePromptVariants(prompt, evaluation)).not.toThrow();
       const variants = generatePromptVariants(prompt, evaluation);
-      expect(variants).toHaveLength(3);
+      expect(variants).toHaveLength(1);
     });
 
     it('should handle very short prompt', () => {
@@ -575,7 +575,7 @@ describe('Prompt Rewriter', () => {
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
 
-      expect(variants).toHaveLength(3);
+      expect(variants).toHaveLength(1);
       variants.forEach(v => {
         expect(v.rewrittenPrompt).toBeDefined();
       });
@@ -586,7 +586,7 @@ describe('Prompt Rewriter', () => {
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
 
-      expect(variants).toHaveLength(3);
+      expect(variants).toHaveLength(1);
     });
 
     it('should handle prompt with special characters', () => {
@@ -594,7 +594,7 @@ describe('Prompt Rewriter', () => {
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
 
-      expect(variants).toHaveLength(3);
+      expect(variants).toHaveLength(1);
     });
 
     it('should handle undefined context gracefully', () => {
@@ -602,7 +602,7 @@ describe('Prompt Rewriter', () => {
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation, undefined);
 
-      expect(variants).toHaveLength(3);
+      expect(variants).toHaveLength(1);
     });
 
     it('should handle empty tech stack', () => {
@@ -613,7 +613,7 @@ describe('Prompt Rewriter', () => {
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
 
-      expect(variants).toHaveLength(3);
+      expect(variants).toHaveLength(1);
     });
   });
 
@@ -631,7 +631,7 @@ describe('Prompt Rewriter', () => {
       const evaluation = createMockEvaluation();
       const variants = await generateAllVariants(prompt, evaluation);
 
-      expect(variants).toHaveLength(4);
+      expect(variants).toHaveLength(2);
       expect(variants[0].variant).toBe('ai');
       expect(variants[0].needsSetup).toBe(true);
       expect(variants[0].isAiGenerated).toBe(false);
@@ -642,7 +642,7 @@ describe('Prompt Rewriter', () => {
       const evaluation = createMockEvaluation();
       const variants = await generateAllVariants(prompt, evaluation, undefined, '');
 
-      expect(variants).toHaveLength(4);
+      expect(variants).toHaveLength(2);
       expect(variants[0].variant).toBe('ai');
       expect(variants[0].needsSetup).toBe(true);
     });
@@ -655,7 +655,7 @@ describe('Prompt Rewriter', () => {
 
       // Skip AI placeholder, check rule-based variants
       const ruleBasedVariants = variants.filter(v => v.variant !== 'ai');
-      const balanced = ruleBasedVariants.find(v => v.variant === 'balanced');
+      const balanced = ruleBasedVariants.find(v => v.variant === 'cosp');
 
       expect(balanced?.rewrittenPrompt).toContain('my-project');
     });
@@ -667,9 +667,7 @@ describe('Prompt Rewriter', () => {
 
       expect(variants.map(v => v.variant)).toEqual([
         'ai',
-        'conservative',
-        'balanced',
-        'comprehensive',
+        'cosp',
       ]);
     });
 
@@ -680,9 +678,7 @@ describe('Prompt Rewriter', () => {
 
       expect(variants.map(v => v.variantLabel)).toEqual([
         'AI 추천',
-        '보수적',
-        '균형',
-        '적극적',
+        'COSP',
       ]);
     });
 
@@ -698,7 +694,7 @@ describe('Prompt Rewriter', () => {
 
       const variants = await generateAllVariants(prompt, evaluation, undefined, 'test-api-key');
 
-      expect(variants).toHaveLength(4);
+      expect(variants).toHaveLength(2);
       expect(variants[0].variant).toBe('ai');
       expect(variants[0].needsSetup).toBe(true);
       expect(variants[0].isAiGenerated).toBe(false);
@@ -713,7 +709,7 @@ describe('Prompt Rewriter', () => {
 
       const variants = await generateAllVariants(prompt, evaluation, undefined, 'test-api-key');
 
-      expect(variants).toHaveLength(4);
+      expect(variants).toHaveLength(2);
       expect(variants[0].variant).toBe('ai');
       expect(variants[0].needsSetup).toBe(true);
     });
@@ -732,7 +728,7 @@ describe('Prompt Rewriter', () => {
 
       const variants = await generateAllVariants(prompt, evaluation, undefined, 'test-api-key');
 
-      expect(variants).toHaveLength(4);
+      expect(variants).toHaveLength(2);
       expect(variants[0].variant).toBe('ai');
       expect(variants[0].isAiGenerated).toBe(true);
       expect(variants[0].rewrittenPrompt).toBe('개선된 프롬프트');
@@ -764,7 +760,7 @@ describe('Prompt Rewriter', () => {
 
       const variants = await generateAllVariants(prompt, evaluation, undefined, 'test-api-key', mockEvaluator);
 
-      expect(variants).toHaveLength(4);
+      expect(variants).toHaveLength(2);
       expect(variants[0].isAiGenerated).toBe(true);
       expect(variants[0].keyChanges).toContain('GOLDEN 평가 기반 개선');
       expect(variants[0].keyChanges.some(c => c.includes('30%'))).toBe(true);
@@ -906,7 +902,7 @@ describe('Prompt Rewriter', () => {
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
 
-      expect(variants).toHaveLength(3);
+      expect(variants).toHaveLength(1);
       // Should still apply improvements
       variants.forEach(v => {
         expect(v.keyChanges.length).toBeGreaterThan(0);
@@ -921,19 +917,19 @@ describe('Prompt Rewriter', () => {
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
 
-      expect(variants).toHaveLength(3);
+      expect(variants).toHaveLength(1);
       // Should detect React-related content
-      const comprehensive = variants.find(v => v.variant === 'comprehensive');
+      const comprehensive = variants.find(v => v.variant === 'cosp');
       expect(comprehensive?.rewrittenPrompt).toContain('React');
     });
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
-  // Additional Conservative Variant Branch Tests
+  // COSP Weak Dimension Indication Tests
   // ─────────────────────────────────────────────────────────────────────────────
 
-  describe('Conservative Variant - All Dimensions', () => {
-    it('should add context when data is weakest', () => {
+  describe('COSP Weak Dimension Indication', () => {
+    it('should indicate context in keyChanges when session context is provided', () => {
       const prompt = '코드 작성해줘';
       const evaluation = createMockEvaluation({
         goal: 0.8,
@@ -945,9 +941,9 @@ describe('Prompt Rewriter', () => {
       });
       const context = createMockSessionContext();
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const conservative = variants.find(v => v.variant === 'conservative')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(conservative.keyChanges).toContain('프로젝트 컨텍스트');
+      expect(cosp.keyChanges).toContain('세션 컨텍스트');
     });
 
     it('should not add reference code when data is weakest but code already in prompt', () => {
@@ -963,13 +959,13 @@ describe('Prompt Rewriter', () => {
         next: 0.8,
       });
       const variants = generatePromptVariants(prompt, evaluation);
-      const conservative = variants.find(v => v.variant === 'conservative')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
       // Code already in prompt, so no additional reference added
-      expect(conservative.keyChanges).not.toContain('참조 코드 정리');
+      expect(cosp.keyChanges).not.toContain('참조 코드 정리');
     });
 
-    it('should not add extra changes when data is weakest and no extractable code', () => {
+    it('should include XML structure even without context', () => {
       const prompt = '이 함수 수정해줘'; // No inline code
       const evaluation = createMockEvaluation({
         goal: 0.8,
@@ -980,14 +976,14 @@ describe('Prompt Rewriter', () => {
         next: 0.8,
       });
       const variants = generatePromptVariants(prompt, evaluation);
-      const conservative = variants.find(v => v.variant === 'conservative')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      // No context provided and no extractable code, so no keyChanges for data
-      expect(conservative.keyChanges).not.toContain('프로젝트 컨텍스트');
-      expect(conservative.keyChanges).not.toContain('참조 코드 정리');
+      // COSP always includes XML structure
+      expect(cosp.rewrittenPrompt).toContain('<task>');
+      expect(cosp.keyChanges).toContain('XML 구조화');
     });
 
-    it('should add tech constraints when limits is weakest', () => {
+    it('should add tech stack info to keyChanges when provided', () => {
       const prompt = '함수 만들어줘';
       const evaluation = createMockEvaluation({
         goal: 0.8,
@@ -1001,12 +997,12 @@ describe('Prompt Rewriter', () => {
         techStack: ['TypeScript'],
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const conservative = variants.find(v => v.variant === 'conservative')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(conservative.keyChanges).toContain('기술 제약 추가');
+      expect(cosp.keyChanges).toContain('기술 스택 반영');
     });
 
-    it('should add brevity constraint when limits is weakest and no tech stack', () => {
+    it('should include constraints section when limits score is low', () => {
       const prompt = '함수 만들어줘';
       const evaluation = createMockEvaluation({
         goal: 0.8,
@@ -1017,13 +1013,13 @@ describe('Prompt Rewriter', () => {
         next: 0.8,
       });
       const variants = generatePromptVariants(prompt, evaluation);
-      const conservative = variants.find(v => v.variant === 'conservative')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(conservative.keyChanges).toContain('간결함 제약');
-      expect(conservative.rewrittenPrompt).toContain('간결하게');
+      // COSP includes constraints for code-generation category
+      expect(cosp.rewrittenPrompt).toContain('<constraints>');
     });
 
-    it('should add success criteria when evaluation is weakest', () => {
+    it('should add success_criteria XML when evaluation is weakest', () => {
       const prompt = '코드 작성해줘';
       const evaluation = createMockEvaluation({
         goal: 0.8,
@@ -1034,13 +1030,13 @@ describe('Prompt Rewriter', () => {
         next: 0.8,
       });
       const variants = generatePromptVariants(prompt, evaluation);
-      const conservative = variants.find(v => v.variant === 'conservative')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(conservative.keyChanges).toContain('성공 기준 추가');
-      expect(conservative.rewrittenPrompt).toContain('성공 기준');
+      expect(cosp.keyChanges).toContain('평가 보강');
+      expect(cosp.rewrittenPrompt).toContain('<success_criteria>');
     });
 
-    it('should add follow-up mention when next is weakest', () => {
+    it('should indicate weak dimension in keyChanges when next is weakest', () => {
       const prompt = '컴포넌트 만들어줘';
       const evaluation = createMockEvaluation({
         goal: 0.8,
@@ -1051,13 +1047,12 @@ describe('Prompt Rewriter', () => {
         next: 0.1, // Weakest
       });
       const variants = generatePromptVariants(prompt, evaluation);
-      const conservative = variants.find(v => v.variant === 'conservative')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(conservative.keyChanges).toContain('후속 작업 언급');
-      expect(conservative.rewrittenPrompt).toContain('테스트 예정');
+      expect(cosp.keyChanges).toContain('후속 보강');
     });
 
-    it('should add goal tag when prompt already has polite ending', () => {
+    it('should indicate goal weakness in keyChanges', () => {
       const prompt = '버튼 컴포넌트를 구현해주세요';
       const evaluation = createMockEvaluation({
         goal: 0.1, // Weakest
@@ -1068,10 +1063,9 @@ describe('Prompt Rewriter', () => {
         next: 0.8,
       });
       const variants = generatePromptVariants(prompt, evaluation);
-      const conservative = variants.find(v => v.variant === 'conservative')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(conservative.keyChanges).toContain('목표 명확화');
-      expect(conservative.rewrittenPrompt).toMatch(/\[생성\]/);
+      expect(cosp.keyChanges).toContain('목표 보강');
     });
   });
 
@@ -1080,22 +1074,23 @@ describe('Prompt Rewriter', () => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   describe('LastExchange Context', () => {
-    it('should include assistant summary when no files modified', () => {
+    it('should include modified files in context when available', () => {
       const prompt = '다음 진행해줘';
       const evaluation = createMockEvaluation();
       const context = createMockSessionContext({
         lastExchange: {
           userMessage: '이전 요청',
           assistantSummary: '인증 시스템을 분석했습니다',
-          assistantTools: ['Read'],
-          assistantFiles: [], // No files modified
+          assistantTools: ['Edit'],
+          assistantFiles: ['src/auth.ts'], // Has modified files
           timestamp: new Date(),
         },
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const balanced = variants.find(v => v.variant === 'balanced')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(balanced.rewrittenPrompt).toContain('직전 작업');
+      expect(cosp.rewrittenPrompt).toContain('방금 수정');
+      expect(cosp.rewrittenPrompt).toContain('auth.ts');
     });
 
     it('should show multiple modified files', () => {
@@ -1111,7 +1106,7 @@ describe('Prompt Rewriter', () => {
         },
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const balanced = variants.find(v => v.variant === 'balanced')!;
+      const balanced = variants.find(v => v.variant === 'cosp')!;
 
       expect(balanced.rewrittenPrompt).toContain('auth.ts');
       expect(balanced.rewrittenPrompt).toContain('login.ts');
@@ -1127,7 +1122,7 @@ describe('Prompt Rewriter', () => {
       const prompt = '`useState`와 `useEffect` 훅 사용법 설명해줘';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       // Should preserve the inline code references
       expect(comprehensive.rewrittenPrompt).toContain('useState');
@@ -1137,7 +1132,7 @@ describe('Prompt Rewriter', () => {
       const prompt = '에러 수정해줘 at handleClick (Button.tsx:15:3)';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toContain('Button.tsx');
     });
@@ -1146,7 +1141,7 @@ describe('Prompt Rewriter', () => {
       const prompt = 'SyntaxError: Unexpected token 수정해줘';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toContain('SyntaxError');
     });
@@ -1155,7 +1150,7 @@ describe('Prompt Rewriter', () => {
       const prompt = 'ReferenceError: x is not defined 해결해줘';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toContain('ReferenceError');
     });
@@ -1174,7 +1169,7 @@ describe('Prompt Rewriter', () => {
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
 
-      expect(variants).toHaveLength(3);
+      expect(variants).toHaveLength(1);
     });
 
     it('should recognize Grep tool', () => {
@@ -1185,7 +1180,7 @@ describe('Prompt Rewriter', () => {
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
 
-      expect(variants).toHaveLength(3);
+      expect(variants).toHaveLength(1);
     });
 
     it('should recognize Bash tool', () => {
@@ -1196,7 +1191,7 @@ describe('Prompt Rewriter', () => {
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
 
-      expect(variants).toHaveLength(3);
+      expect(variants).toHaveLength(1);
     });
   });
 
@@ -1212,7 +1207,7 @@ describe('Prompt Rewriter', () => {
         techStack: ['Vue'],
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toContain('Composition API');
     });
@@ -1224,7 +1219,7 @@ describe('Prompt Rewriter', () => {
         techStack: ['Next.js'],
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toMatch(/App Router|SSR/);
     });
@@ -1236,7 +1231,7 @@ describe('Prompt Rewriter', () => {
         techStack: ['Electron'],
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toContain('main/renderer');
     });
@@ -1248,7 +1243,7 @@ describe('Prompt Rewriter', () => {
         techStack: ['Node.js'],
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toContain('async/await');
     });
@@ -1260,7 +1255,7 @@ describe('Prompt Rewriter', () => {
         techStack: ['Vite'],
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toContain('HMR');
     });
@@ -1272,7 +1267,7 @@ describe('Prompt Rewriter', () => {
         techStack: ['Tailwind CSS'],
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toContain('테마');
     });
@@ -1287,7 +1282,7 @@ describe('Prompt Rewriter', () => {
       const prompt = '성능 최적화해줘';
       const evaluation = createMockEvaluation({ goal: 0.1 });
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toContain('최적화');
     });
@@ -1296,7 +1291,7 @@ describe('Prompt Rewriter', () => {
       const prompt = '새 기능 추가해줘';
       const evaluation = createMockEvaluation({ goal: 0.1 });
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toContain('추가');
     });
@@ -1305,7 +1300,7 @@ describe('Prompt Rewriter', () => {
       const prompt = '이 함수 삭제해줘';
       const evaluation = createMockEvaluation({ goal: 0.1 });
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toContain('삭제');
     });
@@ -1314,7 +1309,7 @@ describe('Prompt Rewriter', () => {
       const prompt = '이 모듈 테스트해줘';
       const evaluation = createMockEvaluation({ goal: 0.1 });
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toContain('테스트');
     });
@@ -1323,19 +1318,20 @@ describe('Prompt Rewriter', () => {
       const prompt = '코드 검토해줘';
       const evaluation = createMockEvaluation({ goal: 0.1 });
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const comprehensive = variants.find(v => v.variant === 'cosp')!;
 
       expect(comprehensive.rewrittenPrompt).toContain('검토');
     });
 
-    it('should use default verb for unknown patterns', () => {
+    it('should preserve original text in task section for unknown patterns', () => {
       const prompt = '뭔가 해줘';
       const evaluation = createMockEvaluation({ goal: 0.1 });
       const variants = generatePromptVariants(prompt, evaluation);
-      const comprehensive = variants.find(v => v.variant === 'comprehensive')!;
+      const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      // Default verb is '처리'
-      expect(comprehensive.rewrittenPrompt).toContain('처리');
+      // COSP preserves the original request in task section
+      expect(cosp.rewrittenPrompt).toContain('<task>');
+      expect(cosp.rewrittenPrompt).toContain('뭔가 해줘');
     });
   });
 
@@ -1352,7 +1348,7 @@ describe('Prompt Rewriter', () => {
         projectPath: '/Users/test/simple-project',
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const balanced = variants.find(v => v.variant === 'balanced')!;
+      const balanced = variants.find(v => v.variant === 'cosp')!;
 
       expect(balanced.rewrittenPrompt).toContain('프로젝트');
       expect(balanced.rewrittenPrompt).toContain('simple-project');
@@ -1365,7 +1361,7 @@ describe('Prompt Rewriter', () => {
         currentTask: '작업 진행 중', // Generic task - should be skipped
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const balanced = variants.find(v => v.variant === 'balanced')!;
+      const balanced = variants.find(v => v.variant === 'cosp')!;
 
       expect(balanced.rewrittenPrompt).not.toContain('작업 진행 중');
     });
@@ -1377,7 +1373,7 @@ describe('Prompt Rewriter', () => {
         currentTask: 'test', // Too short (< 5 chars) - should be skipped
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const balanced = variants.find(v => v.variant === 'balanced')!;
+      const balanced = variants.find(v => v.variant === 'cosp')!;
 
       expect(balanced.rewrittenPrompt).not.toContain('진행 중: test');
     });
@@ -1389,7 +1385,7 @@ describe('Prompt Rewriter', () => {
         currentTask: 'This is a very long task description that should be truncated to prevent the prompt from becoming too verbose and hard to read',
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const balanced = variants.find(v => v.variant === 'balanced')!;
+      const balanced = variants.find(v => v.variant === 'cosp')!;
 
       // Task should be truncated
       expect(balanced.rewrittenPrompt.length).toBeLessThan(1000);
@@ -1400,7 +1396,7 @@ describe('Prompt Rewriter', () => {
       const evaluation = createMockEvaluation();
       // No context provided
       const variants = generatePromptVariants(prompt, evaluation);
-      const balanced = variants.find(v => v.variant === 'balanced')!;
+      const balanced = variants.find(v => v.variant === 'cosp')!;
 
       // Should extract error from original prompt
       expect(balanced.rewrittenPrompt).toContain('에러');
@@ -1419,7 +1415,7 @@ describe('Prompt Rewriter', () => {
         gitBranch: 'feature/new-dashboard',
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const balanced = variants.find(v => v.variant === 'balanced')!;
+      const balanced = variants.find(v => v.variant === 'cosp')!;
 
       expect(balanced.rewrittenPrompt).toContain('feature/new-dashboard');
     });
@@ -1431,7 +1427,7 @@ describe('Prompt Rewriter', () => {
         gitBranch: 'main',
       });
       const variants = generatePromptVariants(prompt, evaluation, context);
-      const balanced = variants.find(v => v.variant === 'balanced')!;
+      const balanced = variants.find(v => v.variant === 'cosp')!;
 
       expect(balanced.rewrittenPrompt).not.toContain('main');
     });

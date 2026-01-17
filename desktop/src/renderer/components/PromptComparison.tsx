@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useReducer, useMemo, memo } from 'react';
-import { Copy, Check, Sparkles, FileText, Wand2, Play, AlertCircle, ChevronDown, ChevronUp, GitCompare, Loader2 } from 'lucide-react';
+import { Copy, Check, Sparkles, FileText, Wand2, Play, AlertCircle, ChevronDown, ChevronUp, GitCompare, Loader2, Zap } from 'lucide-react';
 import { diffWords } from 'diff';
 
 // DiffView component for word-level diff highlighting
@@ -83,7 +83,7 @@ function comparisonReducer(state: ComparisonState, action: ComparisonAction): Co
   }
 }
 
-export type VariantType = 'conservative' | 'balanced' | 'comprehensive' | 'ai';
+export type VariantType = 'conservative' | 'balanced' | 'comprehensive' | 'ai' | 'cosp';
 
 export interface RewriteResult {
   rewrittenPrompt: string;
@@ -114,6 +114,12 @@ const VARIANT_COLORS: Record<VariantType, { bg: string; text: string; border: st
     text: 'text-amber-400',
     border: 'border-amber-500/30',
   },
+  cosp: {
+    bg: 'bg-emerald-500/20',
+    text: 'text-emerald-400',
+    border: 'border-emerald-500/30',
+  },
+  // Legacy variant types (kept for backwards compatibility)
   conservative: {
     bg: 'bg-blue-500/20',
     text: 'text-blue-400',
@@ -291,6 +297,7 @@ function PromptComparisonInner({
             {v.variant === 'ai' && (
               v.isLoading ? <Loader2 size={12} className="animate-spin" /> : <Wand2 size={12} />
             )}
+            {v.variant === 'cosp' && <Zap size={12} />}
             {!v.needsSetup && !v.isLoading && <span className="opacity-50 text-[10px]">⌘{i + 1}</span>}
             {v.variantLabel}
             {v.isLoading && <span className="text-[10px] opacity-70">분석중</span>}
@@ -321,6 +328,8 @@ function PromptComparisonInner({
                 <Loader2 size={14} className="text-amber-400 animate-spin" />
               ) : currentVariant.isAiGenerated || currentVariant.variant === 'ai' ? (
                 <Wand2 size={14} className={colors.text} />
+              ) : currentVariant.variant === 'cosp' ? (
+                <Zap size={14} className={colors.text} />
               ) : (
                 <Sparkles size={14} className={colors.text} />
               )}
