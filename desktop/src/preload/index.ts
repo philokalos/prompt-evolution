@@ -57,6 +57,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Window controls
   hideWindow: (): Promise<boolean> => ipcRenderer.invoke('hide-window'),
   minimizeWindow: (): Promise<boolean> => ipcRenderer.invoke('minimize-window'),
+  setWindowCompact: (compact: boolean): Promise<boolean> => ipcRenderer.invoke('set-window-compact', compact),
 
   // Apply improved prompt to source app
   applyImprovedPrompt: (text: string): Promise<{ success: boolean; fallback?: string; message?: string }> =>
@@ -97,6 +98,38 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('get-project-patterns', projectPath),
   getContextRecommendations: (category: string | undefined, projectPath: string | undefined): Promise<unknown> =>
     ipcRenderer.invoke('get-context-recommendations', category, projectPath),
+
+  // Phase 3: Advanced analytics
+  getIssuePatterns: (days?: number): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-issue-patterns', days),
+  getGoldenTrendByDimension: (weeks?: number): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-golden-trend-by-dimension', weeks),
+  getConsecutiveImprovements: (limit?: number): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-consecutive-improvements', limit),
+  getCategoryPerformance: (): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-category-performance'),
+  getPredictedScore: (windowDays?: number): Promise<unknown> =>
+    ipcRenderer.invoke('get-predicted-score', windowDays),
+
+  // Phase 4: Project settings and templates
+  getProjectSettings: (projectPath: string): Promise<unknown> =>
+    ipcRenderer.invoke('get-project-settings', projectPath),
+  saveProjectSettings: (settings: unknown): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('save-project-settings', settings),
+  deleteProjectSettings: (projectPath: string): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('delete-project-settings', projectPath),
+  getTemplates: (options?: unknown): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-templates', options),
+  getTemplate: (idOrName: number | string): Promise<unknown> =>
+    ipcRenderer.invoke('get-template', idOrName),
+  saveTemplate: (template: unknown): Promise<{ success: boolean; id: number }> =>
+    ipcRenderer.invoke('save-template', template),
+  deleteTemplate: (id: number): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('delete-template', id),
+  getRecommendedTemplate: (context: unknown): Promise<unknown> =>
+    ipcRenderer.invoke('get-recommended-template', context),
+  incrementTemplateUsage: (templateId: number): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('increment-template-usage', templateId),
 
   // Renderer ready signal (fixes IPC race condition)
   signalReady: (): Promise<boolean> => ipcRenderer.invoke('renderer-ready'),
@@ -241,6 +274,7 @@ declare global {
       setSetting: (key: string, value: unknown) => Promise<boolean>;
       hideWindow: () => Promise<boolean>;
       minimizeWindow: () => Promise<boolean>;
+      setWindowCompact: (compact: boolean) => Promise<boolean>;
       applyImprovedPrompt: (text: string) => Promise<{ success: boolean; fallback?: string; message?: string }>;
       analyzePrompt: (text: string) => Promise<unknown>;
       getAIVariant: (text: string) => Promise<unknown>;
@@ -258,6 +292,22 @@ declare global {
       selectProject: (projectPath: string | null) => Promise<boolean>;
       getProjectPatterns: (projectPath: string) => Promise<unknown>;
       getContextRecommendations: (category: string | undefined, projectPath: string | undefined) => Promise<unknown>;
+      // Phase 3: Advanced analytics
+      getIssuePatterns: (days?: number) => Promise<unknown[]>;
+      getGoldenTrendByDimension: (weeks?: number) => Promise<unknown[]>;
+      getConsecutiveImprovements: (limit?: number) => Promise<unknown[]>;
+      getCategoryPerformance: () => Promise<unknown[]>;
+      getPredictedScore: (windowDays?: number) => Promise<unknown>;
+      // Phase 4: Project settings and templates
+      getProjectSettings: (projectPath: string) => Promise<unknown>;
+      saveProjectSettings: (settings: unknown) => Promise<{ success: boolean }>;
+      deleteProjectSettings: (projectPath: string) => Promise<{ success: boolean }>;
+      getTemplates: (options?: unknown) => Promise<unknown[]>;
+      getTemplate: (idOrName: number | string) => Promise<unknown>;
+      saveTemplate: (template: unknown) => Promise<{ success: boolean; id: number }>;
+      deleteTemplate: (id: number) => Promise<{ success: boolean }>;
+      getRecommendedTemplate: (context: unknown) => Promise<unknown>;
+      incrementTemplateUsage: (templateId: number) => Promise<{ success: boolean }>;
       signalReady: () => Promise<boolean>;
       onClipboardText: (callback: (payload: ClipboardPayload) => void) => void;
       removeClipboardListener: () => void;
