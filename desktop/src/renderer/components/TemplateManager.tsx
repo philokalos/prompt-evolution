@@ -3,7 +3,7 @@
  * Phase 4: CRUD interface for prompt templates
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { FileText, Plus, Edit2, Trash2, Copy, Check, Eye, EyeOff, Search, Filter } from 'lucide-react';
 import type { PromptTemplate } from '../electron.d';
 
@@ -43,15 +43,8 @@ export default function TemplateManager({ className = '' }: TemplateManagerProps
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [showInactive, setShowInactive] = useState(false);
 
-  useEffect(() => {
-    loadTemplates();
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [templates, searchQuery, filterIde, filterCategory, showInactive]);
-
-  const loadTemplates = async () => {
+  // Load templates function - extracted to be called from multiple places
+  const loadTemplates = useCallback(async () => {
     setLoading(true);
     try {
       const data = await window.electronAPI.getTemplates({});
@@ -61,9 +54,13 @@ export default function TemplateManager({ className = '' }: TemplateManagerProps
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const applyFilters = () => {
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
+
+  useEffect(() => {
     let filtered = [...templates];
 
     // Search query
@@ -93,7 +90,7 @@ export default function TemplateManager({ className = '' }: TemplateManagerProps
     }
 
     setFilteredTemplates(filtered);
-  };
+  }, [templates, searchQuery, filterIde, filterCategory, showInactive]);
 
   const handleCreate = () => {
     setEditingTemplate(null);

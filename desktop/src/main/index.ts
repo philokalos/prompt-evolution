@@ -197,7 +197,6 @@ export interface CapturedContext {
 }
 
 let mainWindow: BrowserWindow | null = null;
-let quickActionWindow: BrowserWindow | null = null;
 let isQuitting = false;
 let showWindowTimeout: NodeJS.Timeout | null = null;
 
@@ -307,75 +306,6 @@ function positionWindowNearCursor(): void {
 
   mainWindow.setPosition(x, y);
   console.log(`[Main] Positioned window at ${x}, ${y} (cursor: ${cursor.x}, ${cursor.y})`);
-}
-
-/**
- * Create a minimal quick action window near the cursor.
- * This window shows only the grade change and apply/cancel buttons.
- */
-function _createQuickActionWindow(): void {
-  const cursor = screen.getCursorScreenPoint();
-  const display = screen.getDisplayNearestPoint(cursor);
-  const { width: screenW } = display.workAreaSize;
-  const { x: screenX, y: screenY } = display.workArea;
-
-  // Small window: approximately 280x60
-  const winW = 280;
-  const winH = 60;
-
-  // Position to the right of cursor (20px gap)
-  let x = cursor.x + 20;
-  let y = cursor.y - Math.floor(winH / 2);
-
-  // If overflows right edge, position to the left
-  if (x + winW > screenX + screenW) {
-    x = cursor.x - winW - 20;
-  }
-
-  // Clamp to screen bounds
-  if (y < screenY) y = screenY + 10;
-
-  quickActionWindow = new BrowserWindow({
-    width: winW,
-    height: winH,
-    x,
-    y,
-    frame: false,
-    transparent: true,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    resizable: false,
-    show: false,
-    hasShadow: true,
-    webPreferences: {
-      preload: path.join(__dirname, '../preload/index.cjs'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-    },
-  });
-
-  // Load the quick action view
-  const devPort = process.env.VITE_PORT || '5173';
-  if (process.env.NODE_ENV === 'development') {
-    quickActionWindow.loadURL(`http://localhost:${devPort}#/quick-action`);
-  } else {
-    const htmlPath = path.join(__dirname, '../renderer/index.html');
-    quickActionWindow.loadFile(htmlPath, { hash: '/quick-action' });
-  }
-
-  quickActionWindow.once('ready-to-show', () => {
-    quickActionWindow?.show();
-  });
-
-  quickActionWindow.on('closed', () => {
-    quickActionWindow = null;
-  });
-
-  // Hide when focus lost
-  quickActionWindow.on('blur', () => {
-    quickActionWindow?.hide();
-  });
 }
 
 function createWindow(): void {
@@ -902,6 +832,28 @@ ipcMain.handle('apply-improved-prompt', async (_event, text: string): Promise<Ap
 
 ipcMain.handle('minimize-window', () => {
   mainWindow?.minimize();
+  return true;
+});
+
+// IPC Handler: Set window size for quick action mode toggle
+ipcMain.handle('set-window-compact', (_event, compact: boolean) => {
+  if (!mainWindow) return false;
+
+  if (compact) {
+    // Quick action mode: small compact window
+    mainWindow.setSize(360, 200);
+    mainWindow.setMinimumSize(300, 150);
+  } else {
+    // Full mode: restore to normal size
+    const bounds = store.get('windowBounds') as { width: number; height: number };
+    mainWindow.setSize(bounds.width, bounds.height);
+    mainWindow.setMinimumSize(360, 400);
+  }
+
+  // Re-position near cursor after resize
+  positionWindowNearCursor();
+
+  console.log(`[Main] Window ${compact ? 'compact' : 'full'} mode`);
   return true;
 });
 

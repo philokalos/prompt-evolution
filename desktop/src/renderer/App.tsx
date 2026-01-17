@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { X, Minus, BarChart3, Lightbulb, ArrowLeft, Settings as SettingsIcon, Edit3, Send, Plus, HelpCircle } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { X, Minus, BarChart3, Lightbulb, ArrowLeft, Settings as SettingsIcon, Edit3, Send, Plus, HelpCircle, ArrowRight, Play, Copy, Check, Maximize2 } from 'lucide-react';
 import GoldenRadar from './components/GoldenRadar';
 import ProgressTracker from './components/ProgressTracker';
 import PersonalTips from './components/PersonalTips';
@@ -80,6 +80,9 @@ function App() {
   const [isSourceAppBlocked, setIsSourceAppBlocked] = useState(false); // True if source app doesn't support Apply
   const [emptyState, setEmptyState] = useState<EmptyStatePayload | null>(null); // Empty state when no text captured
   const [quickActionMode, setQuickActionMode] = useState(false);
+  const [quickActionCopied, setQuickActionCopied] = useState(false);
+  const [quickActionApplying, setQuickActionApplying] = useState(false);
+  const [quickActionResult, setQuickActionResult] = useState<{ success: boolean; message?: string } | null>(null);
 
   // Project selection handlers
   const handleProjectSelect = useCallback(async (projectPath: string | null) => {
@@ -115,9 +118,14 @@ function App() {
       setCurrentProject(project as DetectedProject | null);
     });
 
-    // Load quick action settings
+    // Load quick action settings and adjust window size accordingly
     window.electronAPI.getSettings().then((settings) => {
-      setQuickActionMode((settings.quickActionMode as boolean) ?? false);
+      const isQuickMode = (settings.quickActionMode as boolean) ?? false;
+      setQuickActionMode(isQuickMode);
+      if (isQuickMode) {
+        // Set compact window on load if quick action mode is enabled
+        window.electronAPI.setWindowCompact(true);
+      }
     });
 
     console.log('[Renderer] Setting up clipboard listener');
@@ -183,18 +191,6 @@ function App() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // analyzePrompt is stable (useCallback with empty deps), mount-only effect
-
-  // Escape key to hide window
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        window.electronAPI.hideWindow();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   const analyzePrompt = useCallback(async (text: string) => {
     if (!text.trim()) return;
@@ -325,6 +321,80 @@ function App() {
     }
   };
 
+  // Get projected grade from score
+  const getGradeFromScore = (score: number): 'A' | 'B' | 'C' | 'D' | 'F' => {
+    if (score >= 90) return 'A';
+    if (score >= 80) return 'B';
+    if (score >= 70) return 'C';
+    if (score >= 60) return 'D';
+    return 'F';
+  };
+
+  // Find best variant for Quick Action Mode
+  const bestVariant = useMemo(() => {
+    if (!analysis || !analysis.promptVariants || analysis.promptVariants.length === 0) {
+      return null;
+    }
+    // Find variant with highest confidence (projected score)
+    return analysis.promptVariants.reduce((best, current) => {
+      // Skip loading or needs-setup variants
+      if (current.isLoading || current.needsSetup) return best;
+      if (!best || current.confidence > best.confidence) return current;
+      return best;
+    }, null as typeof analysis.promptVariants[0] | null);
+  }, [analysis]);
+
+  // Quick Action handlers
+  const handleQuickApply = useCallback(async () => {
+    if (!bestVariant) return;
+    setQuickActionApplying(true);
+    setQuickActionResult(null);
+    try {
+      const result = await window.electronAPI.applyImprovedPrompt(bestVariant.rewrittenPrompt);
+      setQuickActionResult(result);
+      if (result.success) {
+        // Auto-hide after successful apply
+        setTimeout(() => window.electronAPI.hideWindow(), 1500);
+      }
+    } catch {
+      setQuickActionResult({ success: false, message: '적용 실패' });
+    } finally {
+      setQuickActionApplying(false);
+    }
+  }, [bestVariant]);
+
+  const handleQuickCopy = useCallback(async () => {
+    if (!bestVariant) return;
+    await window.electronAPI.setClipboard(bestVariant.rewrittenPrompt);
+    setQuickActionCopied(true);
+    setTimeout(() => setQuickActionCopied(false), 2000);
+  }, [bestVariant]);
+
+  const exitQuickActionMode = useCallback(() => {
+    setQuickActionMode(false);
+    // Persist to settings and resize window
+    window.electronAPI.setSetting('quickActionMode', false);
+    window.electronAPI.setWindowCompact(false);
+  }, []);
+
+  // Keyboard shortcuts: Escape to hide, Cmd+Enter to apply in quick action mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        window.electronAPI.hideWindow();
+        return;
+      }
+
+      // Cmd+Enter in quick action mode → apply best variant
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && quickActionMode && bestVariant && !isSourceAppBlocked) {
+        e.preventDefault();
+        handleQuickApply();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [quickActionMode, bestVariant, isSourceAppBlocked, handleQuickApply]);
 
   return (
     <div className="window-container h-full flex flex-col text-gray-200">
@@ -428,12 +498,130 @@ function App() {
         ) : analysis ? (
           <>
             {quickActionMode ? (
-              /* Quick Action Mode: Minimal UI */
-              <div className="flex items-center justify-center gap-3 mb-4">
-                <span className={`grade-badge text-3xl font-bold ${getGradeColor(analysis.grade)}`}>
-                  {analysis.grade}
-                </span>
-                <span className="text-xl font-medium">{analysis.overallScore}%</span>
+              /* Quick Action Mode: Enhanced Minimal UI */
+              <div className="space-y-4">
+                {/* Grade & Score Comparison */}
+                <div className="flex items-center justify-center gap-4">
+                  {/* Current */}
+                  <div className="text-center">
+                    <div className={`text-3xl font-bold ${getGradeColor(analysis.grade)}`}>
+                      {analysis.grade}
+                    </div>
+                    <div className="text-sm text-gray-500">{analysis.overallScore}%</div>
+                  </div>
+
+                  {/* Arrow */}
+                  {bestVariant && (
+                    <>
+                      <ArrowRight size={24} className="text-gray-600" />
+
+                      {/* Projected */}
+                      <div className="text-center">
+                        <div className={`text-3xl font-bold ${getGradeColor(getGradeFromScore(bestVariant.confidence))}`}>
+                          {getGradeFromScore(bestVariant.confidence)}
+                        </div>
+                        <div className="text-sm text-accent-success">
+                          {Math.round(bestVariant.confidence)}%
+                          <span className="text-xs ml-1 text-accent-success/70">
+                            (+{Math.round(bestVariant.confidence - analysis.overallScore)})
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Variant Label */}
+                {bestVariant && (
+                  <div className="text-center text-xs text-gray-500">
+                    {bestVariant.variantLabel} 변형
+                  </div>
+                )}
+
+                {/* Result Message */}
+                {quickActionResult && (
+                  <div
+                    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm ${
+                      quickActionResult.success
+                        ? 'bg-accent-success/20 text-accent-success'
+                        : 'bg-amber-500/20 text-amber-400'
+                    }`}
+                  >
+                    {quickActionResult.success ? <Check size={16} /> : null}
+                    <span>{quickActionResult.message || (quickActionResult.success ? '적용됨!' : '적용 실패')}</span>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div className="flex items-center gap-2">
+                  {/* Apply Button */}
+                  {!isSourceAppBlocked && bestVariant && (
+                    <button
+                      onClick={handleQuickApply}
+                      disabled={quickActionApplying}
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                        quickActionApplying
+                          ? 'bg-accent-primary/50 text-white/70 cursor-wait'
+                          : 'bg-accent-primary hover:bg-accent-primary/90 text-white'
+                      }`}
+                    >
+                      {quickActionApplying ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />
+                          적용 중...
+                        </>
+                      ) : (
+                        <>
+                          <Play size={16} />
+                          적용
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Copy Button */}
+                  {bestVariant && (
+                    <button
+                      onClick={handleQuickCopy}
+                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                        quickActionCopied
+                          ? 'bg-accent-success/20 text-accent-success'
+                          : 'bg-dark-hover hover:bg-dark-border text-gray-300'
+                      }`}
+                    >
+                      {quickActionCopied ? (
+                        <>
+                          <Check size={16} />
+                          복사됨!
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={16} />
+                          복사
+                        </>
+                      )}
+                    </button>
+                  )}
+
+                  {/* Full View Button */}
+                  <button
+                    onClick={exitQuickActionMode}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-dark-hover hover:bg-dark-border text-gray-400 transition-colors"
+                    title="전체 분석 보기"
+                  >
+                    <Maximize2 size={16} />
+                  </button>
+                </div>
+
+                {/* Keyboard shortcut hint */}
+                <div className="text-center text-[10px] text-gray-600">
+                  <kbd className="px-1 py-0.5 bg-dark-hover rounded">⌘</kbd>
+                  <kbd className="px-1 py-0.5 bg-dark-hover rounded ml-0.5">Enter</kbd>
+                  <span className="ml-1">적용</span>
+                  <span className="mx-2">·</span>
+                  <kbd className="px-1 py-0.5 bg-dark-hover rounded">Esc</kbd>
+                  <span className="ml-1">닫기</span>
+                </div>
               </div>
             ) : (
               /* Full Analysis Mode */

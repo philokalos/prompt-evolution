@@ -54,6 +54,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
 
   // Phase 4: Project & Templates tab state
   const [projectTemplatesTab, setProjectTemplatesTab] = useState<'project' | 'templates'>('project');
+  const [currentProjectPath, setCurrentProjectPath] = useState<string | undefined>();
 
   // Load settings and version on mount
   useEffect(() => {
@@ -61,6 +62,12 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
       loadSettings();
       // Load app version
       window.electronAPI.getAppVersion().then(setAppVersion).catch(console.error);
+      // Load current project for Phase 4
+      window.electronAPI.getCurrentProject().then((project) => {
+        if (project && typeof project === 'object' && 'projectPath' in project) {
+          setCurrentProjectPath((project as { projectPath: string }).projectPath);
+        }
+      }).catch(console.error);
     }
   }, [isOpen]);
 
@@ -80,6 +87,12 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
     try {
       await window.electronAPI.setSetting(key, value);
       setSettings({ ...settings, [key]: value });
+
+      // Handle special cases
+      if (key === 'quickActionMode') {
+        // Resize window when quick action mode is toggled
+        window.electronAPI.setWindowCompact(value as boolean);
+      }
     } catch (error) {
       console.error('Failed to save setting:', error);
     } finally {
@@ -437,7 +450,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
 
                 {/* Tab Content */}
                 {projectTemplatesTab === 'project' ? (
-                  <ProjectSettings projectPath={undefined} />
+                  <ProjectSettings projectPath={currentProjectPath} />
                 ) : (
                   <TemplateManager />
                 )}
