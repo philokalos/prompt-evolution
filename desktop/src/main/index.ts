@@ -72,8 +72,9 @@ interface AppSettings {
   autoShowWindow: boolean; // Automatically show window after analysis completes
   // Manual project override
   manualProjectPath: string; // Empty = auto-detect, path = manual override
-  // First launch flag
+  // First launch flags
   hasSeenWelcome: boolean; // Whether user has seen the welcome/onboarding message
+  hasSeenAccessibilityDialog: boolean; // Whether user has seen the accessibility permission dialog
 }
 
 // Initialize settings store with explicit name to ensure consistency across dev/prod
@@ -99,8 +100,9 @@ const store = new Store<AppSettings>({
     autoShowWindow: true, // Auto-show window after analysis (convenient)
     // Manual project override - empty = auto-detect
     manualProjectPath: '',
-    // First launch flag
+    // First launch flags
     hasSeenWelcome: false, // Show welcome message on first launch
+    hasSeenAccessibilityDialog: false, // Show accessibility dialog on first launch
   },
 });
 
@@ -1028,18 +1030,27 @@ app.whenReady().then(async () => {
   // Check accessibility permission for text selection capture
   // This is needed for AppleScript keyboard simulation (Cmd+C)
   const hasAccessibility = checkAccessibilityPermission(false);
-  if (!hasAccessibility) {
+  const hasSeenAccessibilityDialog = store.get('hasSeenAccessibilityDialog');
+
+  // Only show dialog if:
+  // 1. User hasn't seen it before
+  // 2. Permission is not granted
+  if (!hasAccessibility && !hasSeenAccessibilityDialog) {
     console.log('[Main] Accessibility permission not granted, showing dialog');
     // Delay to let the main window show first
     setTimeout(async () => {
       await showAccessibilityPermissionDialog();
+      // Mark as seen so it won't show again
+      store.set('hasSeenAccessibilityDialog', true);
     }, 2000);
+  } else if (!hasAccessibility && hasSeenAccessibilityDialog) {
+    console.log('[Main] Accessibility permission not granted, but user has already seen the dialog');
   }
 
   // Show welcome message on first launch
   setTimeout(async () => {
     await showWelcomeMessage();
-  }, hasAccessibility ? 2000 : 4000); // Show after accessibility dialog if needed
+  }, (hasAccessibility || hasSeenAccessibilityDialog) ? 2000 : 4000); // Show after accessibility dialog if needed
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
