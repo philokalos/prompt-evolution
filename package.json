@@ -16,7 +16,7 @@
     "dev": "tsx watch src/cli.ts",
     "dev:server": "tsx watch server/index.ts",
     "dev:web": "cd web && npm run dev",
-    "start": "node dist/src/cli.js",
+    "start": "node dist/cli.js",
     "start:dashboard": "node dist/server/index.js",
     "parse": "tsx src/cli.ts parse",
     "test": "vitest",

@@ -38,7 +38,16 @@ cd desktop && npm test         # Desktop tests
 ~/.claude/projects/{path}/*.jsonl → Parser → SQLite → Analysis → Reports
 ```
 
-**Three Components**: CLI (`src/`), Dashboard (`server/` + `web/`), Desktop (`desktop/`)
+**Products (3)**:
+- **Desktop App (PromptLint)**: `desktop/` - Electron 앱, 실시간 프롬프트 분석
+- **Dashboard**: `server/` + `web/` - Express API + React 분석 대시보드
+- **Landing Page**: `landing-page/` - 프로모션 페이지 (Vercel 배포)
+
+**Shared Core**: `src/` - CLI + 분석 로직 (Desktop이 esbuild로 번들링)
+
+**Scripts**:
+- `scripts/` - Dashboard 서버 관리 (start/stop)
+- `desktop/scripts/` - Desktop 빌드 스크립트
 
 ## Key Patterns
 
