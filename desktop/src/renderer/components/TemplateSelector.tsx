@@ -21,30 +21,29 @@ export default function TemplateSelector({ context, onSelect, onClose }: Templat
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    const loadTemplates = async () => {
+      setLoading(true);
+      try {
+        // Get recommended template
+        const rec = await window.electronAPI.getRecommendedTemplate(context);
+        setRecommended(rec);
+
+        // Get all relevant templates
+        const allTemplates = await window.electronAPI.getTemplates({
+          ideType: context.ideType,
+          category: context.category,
+          activeOnly: true,
+        });
+
+        setTemplates(allTemplates);
+      } catch (error) {
+        console.error('Failed to load templates:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     loadTemplates();
   }, [context]);
-
-  const loadTemplates = async () => {
-    setLoading(true);
-    try {
-      // Get recommended template
-      const rec = await window.electronAPI.getRecommendedTemplate(context);
-      setRecommended(rec);
-
-      // Get all relevant templates
-      const allTemplates = await window.electronAPI.getTemplates({
-        ideType: context.ideType,
-        category: context.category,
-        activeOnly: true,
-      });
-
-      setTemplates(allTemplates);
-    } catch (error) {
-      console.error('Failed to load templates:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSelect = async (template: PromptTemplate) => {
     setSelectedId(template.id || null);

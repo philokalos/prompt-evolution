@@ -50,35 +50,32 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
   const [autoInjectContext, setAutoInjectContext] = useState(true);
 
   useEffect(() => {
-    if (projectPath) {
-      loadSettings();
-    }
-  }, [projectPath]);
-
-  const loadSettings = async () => {
     if (!projectPath) return;
 
-    setLoading(true);
-    setError(null);
+    const loadSettings = async () => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const data = await window.electronAPI.getProjectSettings(projectPath);
+      try {
+        const data = await window.electronAPI.getProjectSettings(projectPath);
 
-      if (data) {
-        setSettings(data);
-        setProjectName(data.projectName || '');
-        setIdeType(data.ideType || '');
-        setPreferredVariant(data.preferredVariant || 'balanced');
-        setCustomConstraints(data.customConstraints || '');
-        setAutoInjectContext(data.autoInjectContext !== false);
+        if (data) {
+          setSettings(data);
+          setProjectName(data.projectName || '');
+          setIdeType(data.ideType || '');
+          setPreferredVariant(data.preferredVariant || 'balanced');
+          setCustomConstraints(data.customConstraints || '');
+          setAutoInjectContext(data.autoInjectContext !== false);
+        }
+      } catch (err) {
+        console.error('Failed to load project settings:', err);
+        setError('설정을 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error('Failed to load project settings:', err);
-      setError('설정을 불러오는데 실패했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    loadSettings();
+  }, [projectPath]);
 
   const handleSave = async () => {
     if (!projectPath) return;

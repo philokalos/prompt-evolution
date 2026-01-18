@@ -38,6 +38,47 @@ export interface PromptTemplate {
   createdAt?: Date;
 }
 
+// Database row types (snake_case columns)
+interface ProjectSettingsRow {
+  id: number;
+  project_path: string;
+  project_name: string | null;
+  ide_type: string | null;
+  preferred_variant: string | null;
+  custom_constraints: string | null;
+  custom_templates_json: string | null;
+  auto_inject_context: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface PromptTemplateRow {
+  id: number;
+  name: string;
+  ide_type: string | null;
+  category: string | null;
+  template_text: string;
+  description: string | null;
+  is_active: number;
+  usage_count: number;
+  created_at: string;
+}
+
+/** Convert database row to PromptTemplate */
+function rowToTemplate(row: PromptTemplateRow): PromptTemplate {
+  return {
+    id: row.id,
+    name: row.name,
+    ideType: row.ide_type ?? undefined,
+    category: row.category ?? undefined,
+    templateText: row.template_text,
+    description: row.description ?? undefined,
+    isActive: Boolean(row.is_active),
+    usageCount: row.usage_count,
+    createdAt: new Date(row.created_at),
+  };
+}
+
 /**
  * Get project settings by path
  */
@@ -49,16 +90,16 @@ export function getProjectSettings(projectPath: string): ProjectSettings | null 
     WHERE project_path = ?
   `);
 
-  const row = stmt.get(projectPath) as any;
+  const row = stmt.get(projectPath) as ProjectSettingsRow | undefined;
   if (!row) return null;
 
   return {
     id: row.id,
     projectPath: row.project_path,
-    projectName: row.project_name,
-    ideType: row.ide_type,
-    preferredVariant: row.preferred_variant,
-    customConstraints: row.custom_constraints,
+    projectName: row.project_name ?? undefined,
+    ideType: row.ide_type ?? undefined,
+    preferredVariant: row.preferred_variant as ProjectSettings['preferredVariant'],
+    customConstraints: row.custom_constraints ?? undefined,
     customTemplates: row.custom_templates_json
       ? JSON.parse(row.custom_templates_json)
       : [],
@@ -123,7 +164,7 @@ export function getTemplates(options?: {
   const db = getDatabase();
 
   let query = `SELECT * FROM prompt_templates WHERE 1=1`;
-  const params: any[] = [];
+  const params: (string | number)[] = [];
 
   if (options?.ideType) {
     query += ` AND (ide_type = ? OR ide_type IS NULL)`;
@@ -142,19 +183,9 @@ export function getTemplates(options?: {
   query += ` ORDER BY usage_count DESC, name ASC`;
 
   const stmt = db.prepare(query);
-  const rows = stmt.all(...params) as any[];
+  const rows = stmt.all(...params) as PromptTemplateRow[];
 
-  return rows.map(row => ({
-    id: row.id,
-    name: row.name,
-    ideType: row.ide_type,
-    category: row.category,
-    templateText: row.template_text,
-    description: row.description,
-    isActive: Boolean(row.is_active),
-    usageCount: row.usage_count,
-    createdAt: new Date(row.created_at),
-  }));
+  return rows.map(rowToTemplate);
 }
 
 /**
@@ -167,20 +198,10 @@ export function getTemplate(idOrName: number | string): PromptTemplate | null {
     ? db.prepare(`SELECT * FROM prompt_templates WHERE id = ?`)
     : db.prepare(`SELECT * FROM prompt_templates WHERE name = ?`);
 
-  const row = stmt.get(idOrName) as any;
+  const row = stmt.get(idOrName) as PromptTemplateRow | undefined;
   if (!row) return null;
 
-  return {
-    id: row.id,
-    name: row.name,
-    ideType: row.ide_type,
-    category: row.category,
-    templateText: row.template_text,
-    description: row.description,
-    isActive: Boolean(row.is_active),
-    usageCount: row.usage_count,
-    createdAt: new Date(row.created_at),
-  };
+  return rowToTemplate(row);
 }
 
 /**
@@ -423,19 +444,9 @@ export function getRecommendedTemplate(context: {
       ORDER BY usage_count DESC
       LIMIT 1
     `);
-    const row = stmt.get(context.ideType, context.category) as any;
+    const row = stmt.get(context.ideType, context.category) as PromptTemplateRow | undefined;
     if (row) {
-      return {
-        id: row.id,
-        name: row.name,
-        ideType: row.ide_type,
-        category: row.category,
-        templateText: row.template_text,
-        description: row.description,
-        isActive: Boolean(row.is_active),
-        usageCount: row.usage_count,
-        createdAt: new Date(row.created_at),
-      };
+      return rowToTemplate(row);
     }
   }
 
@@ -447,19 +458,9 @@ export function getRecommendedTemplate(context: {
       ORDER BY usage_count DESC
       LIMIT 1
     `);
-    const row = stmt.get(context.category) as any;
+    const row = stmt.get(context.category) as PromptTemplateRow | undefined;
     if (row) {
-      return {
-        id: row.id,
-        name: row.name,
-        ideType: row.ide_type,
-        category: row.category,
-        templateText: row.template_text,
-        description: row.description,
-        isActive: Boolean(row.is_active),
-        usageCount: row.usage_count,
-        createdAt: new Date(row.created_at),
-      };
+      return rowToTemplate(row);
     }
   }
 
@@ -471,19 +472,9 @@ export function getRecommendedTemplate(context: {
       ORDER BY usage_count DESC
       LIMIT 1
     `);
-    const row = stmt.get(context.ideType) as any;
+    const row = stmt.get(context.ideType) as PromptTemplateRow | undefined;
     if (row) {
-      return {
-        id: row.id,
-        name: row.name,
-        ideType: row.ide_type,
-        category: row.category,
-        templateText: row.template_text,
-        description: row.description,
-        isActive: Boolean(row.is_active),
-        usageCount: row.usage_count,
-        createdAt: new Date(row.created_at),
-      };
+      return rowToTemplate(row);
     }
   }
 

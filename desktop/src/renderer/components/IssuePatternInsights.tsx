@@ -23,20 +23,19 @@ export default function IssuePatternInsights() {
   const [days, setDays] = useState(30);
 
   useEffect(() => {
+    const loadPatterns = async () => {
+      setLoading(true);
+      try {
+        const data = await window.electronAPI.getIssuePatterns(days);
+        setPatterns(data);
+      } catch (error) {
+        console.error('Failed to load issue patterns:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
     loadPatterns();
   }, [days]);
-
-  const loadPatterns = async () => {
-    setLoading(true);
-    try {
-      const data = await window.electronAPI.getIssuePatterns(days);
-      setPatterns(data);
-    } catch (error) {
-      console.error('Failed to load issue patterns:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const getTrendIcon = (trend: IssuePattern['trend']) => {
     switch (trend) {

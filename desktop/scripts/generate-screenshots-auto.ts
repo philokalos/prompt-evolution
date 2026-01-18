@@ -155,7 +155,7 @@ async function generateScreenshots() {
 
     try {
       await page.goto(devUrl, { waitUntil: 'networkidle', timeout: 30000 });
-    } catch (_error) {
+    } catch {
       console.error('❌ Failed to connect to dev server.');
       console.error('   Make sure Vite is running: npm run dev');
       process.exit(1);
