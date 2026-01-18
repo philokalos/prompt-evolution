@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Minus, BarChart3, Lightbulb, ArrowLeft, Settings as SettingsIcon, Edit3, Send, Plus, HelpCircle, ArrowRight, Play, Copy, Check, Maximize2 } from 'lucide-react';
+import { X, Minus, BarChart3, Lightbulb, ArrowLeft, Settings as SettingsIcon, Edit3, Send, Plus, HelpCircle, ArrowRight, Play, Copy, Check, Maximize2, ChevronDown, ChevronUp } from 'lucide-react';
 import GoldenRadar from './components/GoldenRadar';
 import ProgressTracker from './components/ProgressTracker';
 import PersonalTips from './components/PersonalTips';
@@ -83,6 +83,7 @@ function App() {
   const [quickActionCopied, setQuickActionCopied] = useState(false);
   const [quickActionApplying, setQuickActionApplying] = useState(false);
   const [quickActionResult, setQuickActionResult] = useState<{ success: boolean; message?: string } | null>(null);
+  const [showDetails, setShowDetails] = useState(false); // 세부 분석 접이식 상태
 
   // Project selection handlers
   const handleProjectSelect = useCallback(async (projectPath: string | null) => {
@@ -624,67 +625,117 @@ function App() {
                 </div>
               </div>
             ) : (
-              /* Full Analysis Mode */
+              /* Full Analysis Mode - 핵심 가치 중심 레이아웃 */
               <>
-                {/* Session Context Indicator - prefer analysis context, fallback to polling */}
+                {/* Session Context Indicator */}
                 <ContextIndicator
                   context={analysis.sessionContext || (currentProject ? projectToContextInfo(currentProject) : null)}
                   onProjectSelect={handleProjectSelect}
                   onLoadProjects={loadAllProjects}
                 />
 
-                {/* GOLDEN Score Summary with Radar Chart */}
-                <div className="bg-dark-surface rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <span className="text-sm text-gray-400">GOLDEN Score</span>
-                      <div className="text-2xl font-bold">{analysis.overallScore}%</div>
-                    </div>
-                    <span
-                      className={`grade-badge text-4xl font-bold ${getGradeColor(analysis.grade)}`}
-                    >
-                      {analysis.grade}
-                    </span>
-                  </div>
-                  <div className="flex justify-center">
-                    <GoldenRadar scores={analysis.goldenScores} size={200} />
-                  </div>
-                </div>
-
-                {/* Issues */}
-                <IssueList issues={analysis.issues} />
-
-                {/* History-based Recommendations (Phase 2) */}
-                {(analysis.historyRecommendations?.length || analysis.comparisonWithHistory?.improvement) && (
-                  <HistoryRecommendations
-                    recommendations={analysis.historyRecommendations || []}
-                    comparisonWithHistory={analysis.comparisonWithHistory}
+                {/* [Hero] Prompt Comparison - Before→After 변환을 가장 먼저 */}
+                {analysis.promptVariants.length > 0 && (
+                  <PromptComparison
+                    originalPrompt={originalPrompt}
+                    variants={analysis.promptVariants}
+                    onCopy={handleCopy}
+                    onApply={isSourceAppBlocked ? undefined : handleApply}
+                    onOpenSettings={() => setSettingsOpen(true)}
                   />
                 )}
 
-                {/* Personal Tips Preview */}
-                {analysis.personalTips.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <Lightbulb size={16} className="text-accent-primary" />
-                        <span>맞춤 팁</span>
+                {/* [Summary] 간략 GOLDEN Score + 접이식 토글 */}
+                <div className="bg-dark-surface rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div>
+                        <span className="text-xs text-gray-500">GOLDEN</span>
+                        <div className="text-xl font-bold">{analysis.overallScore}%</div>
                       </div>
-                      <button
-                        onClick={() => setViewMode('tips')}
-                        className="text-xs text-accent-primary hover:underline"
+                      <span
+                        className={`grade-badge text-3xl font-bold ${getGradeColor(analysis.grade)}`}
                       >
-                        더 보기
-                      </button>
+                        {analysis.grade}
+                      </span>
                     </div>
-                    <div className="bg-dark-surface rounded-lg p-3 space-y-2">
-                      {analysis.personalTips.slice(0, 2).map((tip, index) => (
-                        <div key={index} className="flex items-start gap-2 text-sm">
-                          <span className="text-accent-secondary">•</span>
-                          <span className="text-gray-300">{tip}</span>
+                    <button
+                      onClick={() => setShowDetails(!showDetails)}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 bg-dark-hover hover:bg-dark-border rounded-lg transition-colors"
+                    >
+                      {showDetails ? (
+                        <>
+                          <ChevronUp size={14} />
+                          <span>접기</span>
+                        </>
+                      ) : (
+                        <>
+                          <ChevronDown size={14} />
+                          <span>세부 분석</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* 핵심 개선점 한 줄 요약 */}
+                  {analysis.issues.length > 0 && !showDetails && (
+                    <div className="mt-3 pt-3 border-t border-dark-border">
+                      <div className="flex items-start gap-2 text-sm">
+                        <Lightbulb size={14} className="text-accent-warning mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-400">
+                          {analysis.issues[0].suggestion}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* [Expandable] 세부 분석 - 접이식 */}
+                {showDetails && (
+                  <div className="space-y-4">
+                    {/* Radar Chart */}
+                    <div className="bg-dark-surface rounded-lg p-4">
+                      <div className="flex justify-center">
+                        <GoldenRadar scores={analysis.goldenScores} size={180} />
+                      </div>
+                    </div>
+
+                    {/* Issues */}
+                    <IssueList issues={analysis.issues} />
+
+                    {/* History-based Recommendations */}
+                    {(analysis.historyRecommendations?.length || analysis.comparisonWithHistory?.improvement) && (
+                      <HistoryRecommendations
+                        recommendations={analysis.historyRecommendations || []}
+                        comparisonWithHistory={analysis.comparisonWithHistory}
+                      />
+                    )}
+
+                    {/* Personal Tips */}
+                    {analysis.personalTips.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-sm font-medium">
+                            <Lightbulb size={16} className="text-accent-primary" />
+                            <span>맞춤 팁</span>
+                          </div>
+                          <button
+                            onClick={() => setViewMode('tips')}
+                            className="text-xs text-accent-primary hover:underline"
+                          >
+                            더 보기
+                          </button>
                         </div>
-                      ))}
-                    </div>
+                        <div className="bg-dark-surface rounded-lg p-3 space-y-2">
+                          {analysis.personalTips.slice(0, 2).map((tip, index) => (
+                            <div key={index} className="flex items-start gap-2 text-sm">
+                              <span className="text-accent-secondary">•</span>
+                              <span className="text-gray-300">{tip}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </>
@@ -895,28 +946,15 @@ function App() {
 
       {/* Footer Actions */}
       {viewMode === 'analysis' && (
-        <div className="p-4 border-t border-dark-border bg-dark-surface space-y-4">
-          {/* Prompt Comparison (new) */}
-          {analysis && analysis.promptVariants.length > 0 && (
-            <PromptComparison
-              originalPrompt={originalPrompt}
-              variants={analysis.promptVariants}
-              onCopy={handleCopy}
-              onApply={isSourceAppBlocked ? undefined : handleApply}
-              onOpenSettings={() => setSettingsOpen(true)}
-            />
-          )}
-
+        <div className="p-4 border-t border-dark-border bg-dark-surface">
           {/* Progress button */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setViewMode('progress')}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-dark-hover hover:bg-dark-border rounded-lg text-sm transition-colors"
-            >
-              <BarChart3 size={16} />
-              <span>내 진행 상황 보기</span>
-            </button>
-          </div>
+          <button
+            onClick={() => setViewMode('progress')}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-dark-hover hover:bg-dark-border rounded-lg text-sm transition-colors"
+          >
+            <BarChart3 size={16} />
+            <span>내 진행 상황 보기</span>
+          </button>
         </div>
       )}
 
