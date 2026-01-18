@@ -35,7 +35,7 @@ export function extractFeatures(text: string): PromptFeatures {
   const wordCount = text.split(/\s+/).filter(Boolean).length;
   const hasCodeBlock = /```[\s\S]*?```/.test(text) || /`[^`]+`/.test(text);
   const hasUrl = /https?:\/\/[^\s]+/.test(text);
-  const hasFilePath = /[\/\\][\w.-]+\.[a-z]+/i.test(text) || /src\/|\.tsx?|\.jsx?/.test(text);
+  const hasFilePath = /[/\\][\w.-]+\.[a-z]+/i.test(text) || /src\/|\.tsx?|\.jsx?/.test(text);
   const hasQuestionMark = text.includes('?');
   const hasExclamationMark = text.includes('!');
 

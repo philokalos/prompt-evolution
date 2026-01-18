@@ -29,7 +29,7 @@ export interface SyncStatus {
   lastResult: SyncResult | null;
 }
 
-let syncStatus: SyncStatus = {
+const syncStatus: SyncStatus = {
   isRunning: false,
   lastSync: null,
   lastResult: null,
