@@ -85,6 +85,8 @@ function comparisonReducer(state: ComparisonState, action: ComparisonAction): Co
 
 export type VariantType = 'conservative' | 'balanced' | 'comprehensive' | 'ai' | 'cosp';
 
+export type ProviderType = 'claude' | 'openai' | 'gemini';
+
 export interface RewriteResult {
   rewrittenPrompt: string;
   keyChanges: string[];
@@ -95,7 +97,18 @@ export interface RewriteResult {
   aiExplanation?: string;
   needsSetup?: boolean; // API 미설정 시 true
   isLoading?: boolean; // Phase 3.1: 비동기 AI 로딩 중
+  // Multi-provider metadata
+  provider?: ProviderType; // 사용된 프로바이더
+  wasFallback?: boolean;   // Fallback 발생 여부
+  fallbackReason?: string; // Fallback 사유
 }
+
+// Provider display names for UI
+const PROVIDER_NAMES: Record<ProviderType, string> = {
+  claude: 'Claude',
+  openai: 'GPT',
+  gemini: 'Gemini',
+};
 
 interface PromptComparisonProps {
   originalPrompt: string;
@@ -338,8 +351,15 @@ function PromptComparisonInner({
                 {currentVariant.isLoading && <span className="text-gray-500 ml-1">(분석중...)</span>}
               </span>
               {currentVariant.isAiGenerated && !currentVariant.isLoading && (
-                <span className="px-1.5 py-0.5 bg-amber-500/30 text-amber-400 text-[10px] rounded font-medium">
-                  AI
+                <span className="flex items-center gap-1">
+                  <span className="px-1.5 py-0.5 bg-amber-500/30 text-amber-400 text-[10px] rounded font-medium">
+                    {currentVariant.provider ? PROVIDER_NAMES[currentVariant.provider] : 'AI'}
+                  </span>
+                  {currentVariant.wasFallback && (
+                    <span className="px-1 py-0.5 bg-orange-500/20 text-orange-400 text-[9px] rounded" title={currentVariant.fallbackReason}>
+                      fallback
+                    </span>
+                  )}
                 </span>
               )}
               <div className="ml-auto flex items-center gap-2">

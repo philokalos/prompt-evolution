@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, MousePointer2, Key, EyeOff, Zap, Clipboard, Sparkles, ChevronDown } from 'lucide-react';
+import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, MousePointer2, EyeOff, Zap, Clipboard, Sparkles, ChevronDown } from 'lucide-react';
 import ProjectSettings from './ProjectSettings';
 import TemplateManager from './TemplateManager';
+import ProviderSettings from './ProviderSettings';
 
 interface AppSettings {
   shortcut: string;
@@ -41,7 +42,6 @@ const AVAILABLE_SHORTCUTS = [
 export default function Settings({ isOpen, onClose }: SettingsProps) {
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [, setSaving] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
   const [appVersion, setAppVersion] = useState<string>('');
 
   // Section collapse states
@@ -292,59 +292,8 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                 isOpen={showSmartFeatures}
                 onToggle={() => setShowSmartFeatures(!showSmartFeatures)}
               >
-                {/* AI 개선 */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <Key size={14} className="text-gray-400" />
-                        <span className="text-sm">AI로 더 똑똑하게 개선</span>
-                      </div>
-                      <span className="text-xs text-gray-500">71% → 83% 품질 향상 (API 비용 발생)</span>
-                    </div>
-                    <ToggleSwitch
-                      checked={settings.useAiRewrite}
-                      onChange={(v) => updateSetting('useAiRewrite', v)}
-                    />
-                  </div>
-
-                  {settings.useAiRewrite && (
-                    <div className="space-y-2">
-                      <label className="text-sm text-gray-400">API Key</label>
-                      <div className="relative">
-                        <input
-                          type={showApiKey ? 'text' : 'password'}
-                          value={settings.claudeApiKey}
-                          onChange={(e) => updateSetting('claudeApiKey', e.target.value)}
-                          placeholder="sk-ant-..."
-                          className="w-full px-3 py-2 pr-10 bg-dark-hover border border-dark-border rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-accent-primary font-mono"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowApiKey(!showApiKey)}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-200"
-                        >
-                          {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                        </button>
-                      </div>
-                      <div className="text-xs text-gray-500 space-y-1">
-                        <p>• <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer" className="text-accent-primary hover:underline">Anthropic Console</a>에서 API 키 발급</p>
-                        <p>• 키는 이 기기에만 저장 (서버 전송 없음)</p>
-                      </div>
-                    </div>
-                  )}
-
-                  {!settings.useAiRewrite && (
-                    <div className="p-2.5 bg-green-500/10 border border-green-500/20 rounded-lg">
-                      <p className="text-xs text-gray-300 leading-relaxed">
-                        <strong className="text-green-400">기본 모드:</strong> 규칙 기반 분석 및 개선 (무료)
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        AI 모드를 켜면 더 정교한 개선안을 받을 수 있습니다
-                      </p>
-                    </div>
-                  )}
-                </div>
+                {/* Multi-Provider AI Settings */}
+                <ProviderSettings />
 
                 {/* 자동 감지 */}
                 <div className="pt-3 border-t border-dark-border space-y-3">

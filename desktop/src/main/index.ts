@@ -35,6 +35,14 @@ import {
   destroyAIContextButton,
   initAIContextPopupIPC,
 } from './ai-context-popup.js';
+import {
+  needsMigration,
+  migrateToProviders,
+  getProvidersFromStore,
+  saveProvidersToStore,
+} from './settings-migration.js';
+import type { ProviderConfig } from './providers/types.js';
+import { validateProviderKey as validateProviderKeyFn, hasAnyProvider } from './providers/provider-manager.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -208,6 +216,45 @@ export function getAIRewriteSettings(): { apiKey: string; enabled: boolean } {
     apiKey: store.get('claudeApiKey') || '',
     enabled: store.get('useAiRewrite') || false,
   };
+}
+
+/**
+ * Get AI providers configuration
+ * Returns array of provider configs with fallback to legacy format
+ */
+export function getAIProviders(): ProviderConfig[] {
+  return getProvidersFromStore(store as unknown as Store<Record<string, unknown>>);
+}
+
+/**
+ * Set AI providers configuration
+ * Also updates legacy fields for backward compatibility
+ */
+export function setAIProviders(providers: ProviderConfig[]): void {
+  saveProvidersToStore(store as unknown as Store<Record<string, unknown>>, providers);
+}
+
+/**
+ * Get the primary provider config
+ * Returns the provider marked as primary, or first enabled provider
+ */
+export function getPrimaryProviderConfig(): ProviderConfig | null {
+  const providers = getAIProviders();
+  const primary = providers.find(p => p.isPrimary && p.isEnabled);
+  if (primary) return primary;
+
+  // Fallback to first enabled provider
+  const enabled = providers
+    .filter(p => p.isEnabled && p.apiKey && p.apiKey.trim() !== '')
+    .sort((a, b) => a.priority - b.priority);
+  return enabled.length > 0 ? enabled[0] : null;
+}
+
+/**
+ * Check if any AI provider is available
+ */
+export function hasAnyAIProvider(): boolean {
+  return hasAnyProvider(getAIProviders());
 }
 
 // State tracking for improved hotkey behavior
@@ -759,6 +806,34 @@ ipcMain.handle('set-setting', (_event, key: string, value: unknown) => {
   return true;
 });
 
+// IPC Handlers: Multi-provider API support
+ipcMain.handle('get-providers', () => {
+  return getAIProviders();
+});
+
+ipcMain.handle('set-providers', (_event, providers: ProviderConfig[]) => {
+  setAIProviders(providers);
+  return true;
+});
+
+ipcMain.handle('validate-provider-key', async (_event, providerType: string, apiKey: string) => {
+  try {
+    const valid = await validateProviderKeyFn(providerType as 'claude' | 'openai' | 'gemini', apiKey);
+    return { valid, error: null };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return { valid: false, error: message };
+  }
+});
+
+ipcMain.handle('get-primary-provider', () => {
+  return getPrimaryProviderConfig();
+});
+
+ipcMain.handle('has-any-provider', () => {
+  return hasAnyAIProvider();
+});
+
 // IPC Handler: Get current detected project
 ipcMain.handle('get-current-project', async () => {
   // Check for user-selected project first (runtime state)
@@ -923,6 +998,11 @@ The component should follow React best practices and be reusable across the appl
 
 // App lifecycle
 app.whenReady().then(async () => {
+  // Run settings migration before anything else
+  if (needsMigration(store as unknown as Store<Record<string, unknown>>)) {
+    migrateToProviders(store as unknown as Store<Record<string, unknown>>);
+  }
+
   createWindow();
   const shortcutRegistered = registerShortcut();
 

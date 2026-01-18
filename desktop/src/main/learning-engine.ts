@@ -18,8 +18,18 @@ import {
   getMonthlyStats,
   getImprovementAnalysis,
   getStats,
+  type ProjectSettings,
+  type PromptTemplate,
 } from './db/index.js';
-import { generatePromptVariants, generateAIVariantOnly, RewriteResult, VariantType, type GOLDENEvaluator } from './prompt-rewriter.js';
+import {
+  generatePromptVariants,
+  generateAIVariantOnly,
+  generateAIVariantWithProviders,
+  RewriteResult,
+  VariantType,
+  type GOLDENEvaluator,
+  type ProviderConfig,
+} from './prompt-rewriter.js';
 import { getAIRewriteSettings, getLastCapturedContext } from './index.js';
 import {
   getSessionContext,
@@ -133,6 +143,7 @@ export type {
   HistoryRecommendation,
   ProjectPatternAnalysis,
   PromptContextRecommendations,
+  ProviderConfig,
 };
 
 // Cache for loaded modules
@@ -614,6 +625,78 @@ export function registerLearningEngineHandlers(): void {
     }
   });
 
+  // Multi-provider AI variant handler (Phase 3.2)
+  ipcMain.handle('get-ai-variant-with-providers', async (_event, text: string, providerConfigs: ProviderConfig[]) => {
+    if (!providerConfigs || providerConfigs.length === 0) {
+      return {
+        rewrittenPrompt: '',
+        keyChanges: [],
+        confidence: 0,
+        variant: 'ai' as VariantType,
+        variantLabel: 'AI 추천',
+        isAiGenerated: false,
+        needsSetup: true,
+      };
+    }
+
+    // Load modules if not already loaded
+    if (!evaluatePromptAgainstGuidelines) {
+      const loaded = await loadAnalysisModules();
+      if (!loaded) {
+        console.warn('[LearningEngine] Cannot generate AI variant - modules not loaded');
+        return {
+          rewrittenPrompt: '',
+          keyChanges: [],
+          confidence: 0,
+          variant: 'ai' as VariantType,
+          variantLabel: 'AI 추천',
+          isAiGenerated: false,
+          needsSetup: false,
+        };
+      }
+    }
+
+    try {
+      // Get session context
+      const capturedContext = getLastCapturedContext();
+      let sessionContext: ActiveSessionContext | null = null;
+
+      if (capturedContext?.project) {
+        sessionContext = await getSessionContextForCapturedProject(capturedContext);
+      } else {
+        sessionContext = await getActiveWindowSessionContext();
+      }
+
+      // Run evaluation for AI variant generation
+      const evaluation = evaluatePromptAgainstGuidelines!(text);
+
+      // Generate AI variant using multi-provider system
+      const aiVariant = await generateAIVariantWithProviders(
+        text,
+        evaluation,
+        sessionContext || undefined,
+        providerConfigs
+      );
+
+      console.log('[LearningEngine] Multi-provider AI variant generated:',
+        aiVariant.isAiGenerated ? `success (${aiVariant.provider})` : 'fallback',
+        aiVariant.wasFallback ? '(fallback used)' : ''
+      );
+      return aiVariant;
+    } catch (error) {
+      console.error('[LearningEngine] Multi-provider AI variant generation error:', error);
+      return {
+        rewrittenPrompt: '',
+        keyChanges: [],
+        confidence: 0,
+        variant: 'ai' as VariantType,
+        variantLabel: 'AI 추천',
+        isAiGenerated: false,
+        needsSetup: false,
+      };
+    }
+  });
+
   // Phase 3: Advanced analytics handlers
   ipcMain.handle('get-issue-patterns', async (_event, days?: number) => {
     const { getIssuePatterns } = await import('./db/index.js');
@@ -646,9 +729,9 @@ export function registerLearningEngineHandlers(): void {
     return getProjectSettings(projectPath);
   });
 
-  ipcMain.handle('save-project-settings', async (_event, settings: unknown) => {
+  ipcMain.handle('save-project-settings', async (_event, settings: ProjectSettings) => {
     const { saveProjectSettings } = await import('./db/index.js');
-    saveProjectSettings(settings as any);
+    saveProjectSettings(settings);
     return { success: true };
   });
 
@@ -658,9 +741,9 @@ export function registerLearningEngineHandlers(): void {
     return { success: true };
   });
 
-  ipcMain.handle('get-templates', async (_event, options?: unknown) => {
+  ipcMain.handle('get-templates', async (_event, options?: { ideType?: string; category?: string; activeOnly?: boolean }) => {
     const { getTemplates } = await import('./db/index.js');
-    return getTemplates(options as any);
+    return getTemplates(options);
   });
 
   ipcMain.handle('get-template', async (_event, idOrName: number | string) => {
@@ -668,9 +751,9 @@ export function registerLearningEngineHandlers(): void {
     return getTemplate(idOrName);
   });
 
-  ipcMain.handle('save-template', async (_event, template: unknown) => {
+  ipcMain.handle('save-template', async (_event, template: PromptTemplate) => {
     const { saveTemplate } = await import('./db/index.js');
-    const id = saveTemplate(template as any);
+    const id = saveTemplate(template);
     return { success: true, id };
   });
 
@@ -680,9 +763,9 @@ export function registerLearningEngineHandlers(): void {
     return { success: true };
   });
 
-  ipcMain.handle('get-recommended-template', async (_event, context: unknown) => {
+  ipcMain.handle('get-recommended-template', async (_event, context: { ideType?: string; category?: string; projectPath?: string }) => {
     const { getRecommendedTemplate } = await import('./db/index.js');
-    return getRecommendedTemplate(context as any);
+    return getRecommendedTemplate(context);
   });
 
   ipcMain.handle('increment-template-usage', async (_event, templateId: number) => {

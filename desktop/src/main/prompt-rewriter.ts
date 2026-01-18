@@ -14,6 +14,14 @@
 
 import type { SessionContext } from './session-context.js';
 import { rewritePromptWithClaude, rewritePromptWithMultiVariant, type RewriteRequest, type RewriteResult as _AIRewriteResult } from './claude-api.js';
+import {
+  type ProviderConfig,
+  type ProviderType,
+  type RewriteRequest as ProviderRewriteRequest,
+  rewriteWithFallback,
+  hasAnyProvider,
+  getPrimaryProvider,
+} from './providers/index.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 헬퍼 함수: 원본 분석 및 컨텍스트 추출
@@ -256,6 +264,10 @@ export interface RewriteResult {
   aiExplanation?: string;
   needsSetup?: boolean; // API 미설정 시 true
   isLoading?: boolean; // Phase 3.1: 비동기 AI 로딩 상태
+  // Multi-provider metadata
+  provider?: ProviderType; // 사용된 프로바이더
+  wasFallback?: boolean;   // Fallback 발생 여부
+  fallbackReason?: string; // Fallback 사유
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -344,7 +356,7 @@ function buildXMLPrompt(
   const sections: string[] = [];
   const coreRequest = extractCoreRequest(original);
   const category = detectCategory(coreRequest);
-  const { verb } = detectPrimaryVerb(original);
+  const { verb: _verb } = detectPrimaryVerb(original);
 
   // 1. <context> 섹션 - 프로젝트/환경 정보
   const contextLines: string[] = [];
@@ -572,7 +584,7 @@ function getCategoryLabel(category: string): string {
 // 보수적 리라이트 - 가장 약한 차원 1개만 개선 (항상 의미 있는 변경)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function generateConservativeRewrite(
+function _generateConservativeRewrite(
   original: string,
   evaluation: GuidelineEvaluation,
   context?: SessionContext
@@ -674,7 +686,7 @@ function generateConservativeRewrite(
 // 균형잡힌 리라이트 - 상위 2-3개 약한 영역 보완 (실제 값 사용)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function generateBalancedRewrite(
+function _generateBalancedRewrite(
   original: string,
   evaluation: GuidelineEvaluation,
   context?: SessionContext
@@ -827,7 +839,7 @@ function buildLimitsSection(context?: SessionContext): string | null {
 // 적극적 리라이트 - 완전한 GOLDEN 구조 (원본에서 콘텐츠 추출)
 // ─────────────────────────────────────────────────────────────────────────────
 
-function generateComprehensiveRewrite(
+function _generateComprehensiveRewrite(
   original: string,
   evaluation: GuidelineEvaluation,
   context?: SessionContext
@@ -1095,6 +1107,177 @@ export async function generateAIRewrite(
 }
 
 /**
+ * AI-powered prompt rewriting using multi-provider system
+ * Supports fallback across Claude, OpenAI, and Gemini providers
+ * Returns null if no providers are available or all fail
+ */
+export async function generateAIRewriteWithProviders(
+  providerConfigs: ProviderConfig[],
+  original: string,
+  evaluation: GuidelineEvaluation,
+  context?: SessionContext
+): Promise<RewriteResult | null> {
+  if (!hasAnyProvider(providerConfigs)) {
+    return null;
+  }
+
+  const request: ProviderRewriteRequest = {
+    originalPrompt: original,
+    goldenScores: {
+      goal: Math.round(evaluation.goldenScore.goal * 100),
+      output: Math.round(evaluation.goldenScore.output * 100),
+      limits: Math.round(evaluation.goldenScore.limits * 100),
+      data: Math.round(evaluation.goldenScore.data * 100),
+      evaluation: Math.round(evaluation.goldenScore.evaluation * 100),
+      next: Math.round(evaluation.goldenScore.next * 100),
+    },
+    issues: evaluation.guidelineScores
+      .filter((g) => g.score < 0.5)
+      .map((g) => ({
+        severity: g.score < 0.3 ? 'high' : 'medium',
+        category: g.guideline,
+        message: g.description,
+        suggestion: g.suggestion,
+      })),
+    sessionContext: context
+      ? {
+          projectPath: context.projectPath,
+          projectName: context.projectPath.split('/').pop(),
+          techStack: context.techStack,
+          currentTask: context.currentTask,
+          recentFiles: context.recentFiles,
+          recentTools: context.recentTools,
+          gitBranch: context.gitBranch,
+          lastExchange: context.lastExchange
+            ? {
+                userMessage: context.lastExchange.userMessage,
+                assistantSummary: context.lastExchange.assistantSummary,
+                assistantTools: context.lastExchange.assistantTools,
+                assistantFiles: context.lastExchange.assistantFiles,
+              }
+            : undefined,
+        }
+      : undefined,
+  };
+
+  try {
+    const result = await rewriteWithFallback(request, providerConfigs);
+
+    if (!result.success || !result.rewrittenPrompt) {
+      console.warn('[PromptRewriter] Multi-provider rewrite failed:', result.error);
+      return null;
+    }
+
+    // Provider label for logging (provider info is in result)
+
+    return {
+      rewrittenPrompt: result.rewrittenPrompt,
+      keyChanges: [
+        ...(result.improvements || ['AI가 자동 개선']),
+        ...(result.wasFallback ? [`Fallback: ${result.fallbackReason}`] : []),
+      ],
+      confidence: 0.95,
+      variant: 'ai',
+      variantLabel: 'AI 추천',
+      isAiGenerated: true,
+      aiExplanation: result.explanation,
+      provider: result.provider,
+      wasFallback: result.wasFallback,
+      fallbackReason: result.fallbackReason,
+    };
+  } catch (error) {
+    console.error('[PromptRewriter] Multi-provider AI rewrite error:', error);
+    return null;
+  }
+}
+
+/**
+ * Generate all prompt variants using multi-provider system
+ * Uses provider configs instead of single API key
+ */
+export async function generateAllVariantsWithProviders(
+  original: string,
+  evaluation: GuidelineEvaluation,
+  context?: SessionContext,
+  providerConfigs?: ProviderConfig[]
+): Promise<RewriteResult[]> {
+  // Start with rule-based variants
+  const variants = generatePromptVariants(original, evaluation, context);
+
+  // Try multi-provider AI rewrite if configs provided
+  if (providerConfigs && hasAnyProvider(providerConfigs)) {
+    try {
+      const aiVariant = await generateAIRewriteWithProviders(
+        providerConfigs,
+        original,
+        evaluation,
+        context
+      );
+      if (aiVariant) {
+        variants.unshift(aiVariant);
+      } else {
+        variants.unshift(createAIPlaceholder());
+      }
+    } catch (error) {
+      console.warn('[PromptRewriter] Multi-provider variant generation failed:', error);
+      variants.unshift(createAIPlaceholder());
+    }
+  } else {
+    // No providers configured
+    variants.unshift({
+      rewrittenPrompt: '',
+      keyChanges: [],
+      confidence: 0,
+      variant: 'ai',
+      variantLabel: 'AI 추천',
+      isAiGenerated: false,
+      needsSetup: true,
+    });
+  }
+
+  return variants;
+}
+
+/**
+ * Generate only the AI variant using multi-provider system
+ * Called separately from main analysis to avoid blocking initial render
+ */
+export async function generateAIVariantWithProviders(
+  original: string,
+  evaluation: GuidelineEvaluation,
+  context?: SessionContext,
+  providerConfigs?: ProviderConfig[]
+): Promise<RewriteResult> {
+  if (!providerConfigs || !hasAnyProvider(providerConfigs)) {
+    return {
+      rewrittenPrompt: '',
+      keyChanges: [],
+      confidence: 0,
+      variant: 'ai',
+      variantLabel: 'AI 추천',
+      isAiGenerated: false,
+      needsSetup: true,
+    };
+  }
+
+  try {
+    const aiVariant = await generateAIRewriteWithProviders(
+      providerConfigs,
+      original,
+      evaluation,
+      context
+    );
+    if (aiVariant) {
+      return aiVariant;
+    }
+    return createAIPlaceholder();
+  } catch (error) {
+    console.warn('[PromptRewriter] Async multi-provider variant generation failed:', error);
+    return createAIPlaceholder();
+  }
+}
+
+/**
  * Generate all prompt variants including AI-powered one if API key is available
  * Always returns 4 variants: AI (or placeholder) + 3 rule-based
  * v2: Now accepts GOLDEN evaluator for multi-variant selection
@@ -1193,3 +1376,4 @@ export async function generateAIVariantOnly(
 }
 
 export { GuidelineEvaluation };
+export type { ProviderConfig, ProviderType };

@@ -69,6 +69,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Phase 3.1: Async AI variant loading
   getAIVariant: (text: string): Promise<unknown> => ipcRenderer.invoke('get-ai-variant', text),
 
+  // Multi-provider AI API support
+  getProviders: (): Promise<unknown[]> => ipcRenderer.invoke('get-providers'),
+  setProviders: (providers: unknown[]): Promise<boolean> =>
+    ipcRenderer.invoke('set-providers', providers),
+  validateProviderKey: (providerType: string, apiKey: string): Promise<{ valid: boolean; error: string | null }> =>
+    ipcRenderer.invoke('validate-provider-key', providerType, apiKey),
+  getPrimaryProvider: (): Promise<unknown> => ipcRenderer.invoke('get-primary-provider'),
+  hasAnyProvider: (): Promise<boolean> => ipcRenderer.invoke('has-any-provider'),
+  getAIVariantWithProviders: (text: string, providers: unknown[]): Promise<unknown> =>
+    ipcRenderer.invoke('get-ai-variant-with-providers', text, providers),
+
   // History & Progress
   getHistory: (limit?: number): Promise<unknown[]> => ipcRenderer.invoke('get-history', limit),
   getScoreTrend: (days?: number): Promise<unknown[]> => ipcRenderer.invoke('get-score-trend', days),
@@ -278,6 +289,13 @@ declare global {
       applyImprovedPrompt: (text: string) => Promise<{ success: boolean; fallback?: string; message?: string }>;
       analyzePrompt: (text: string) => Promise<unknown>;
       getAIVariant: (text: string) => Promise<unknown>;
+      // Multi-provider AI API support
+      getProviders: () => Promise<unknown[]>;
+      setProviders: (providers: unknown[]) => Promise<boolean>;
+      validateProviderKey: (providerType: string, apiKey: string) => Promise<{ valid: boolean; error: string | null }>;
+      getPrimaryProvider: () => Promise<unknown>;
+      hasAnyProvider: () => Promise<boolean>;
+      getAIVariantWithProviders: (text: string, providers: unknown[]) => Promise<unknown>;
       getHistory: (limit?: number) => Promise<unknown[]>;
       getScoreTrend: (days?: number) => Promise<unknown[]>;
       getGoldenAverages: (days?: number) => Promise<Record<string, number>>;
