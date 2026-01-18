@@ -8,7 +8,7 @@
  * - BIV Loop (Baseline → Improve → Verify)
  */
 
-import { extractFeatures, classifyPrompt } from './classifier.js';
+import { extractFeatures } from './classifier.js';
 
 // Import and re-export shared types
 import type {
@@ -340,7 +340,6 @@ export function evaluatePromptAgainstGuidelines(text: string): GuidelineEvaluati
  */
 export function calculateGOLDENScore(text: string): GOLDENScore {
   const features = extractFeatures(text);
-  const textLower = text.toLowerCase();
 
   // G - Goal (목표 명확성)
   // - 목표/의도 표현

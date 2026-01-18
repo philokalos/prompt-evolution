@@ -3,11 +3,10 @@
  * 자기 학습 및 프롬프트 개선을 위한 피드백 생성
  */
 
-import { TaskCategory, PromptIntent, classifyPrompt, extractFeatures } from './classifier.js';
+import { TaskCategory, classifyPrompt, extractFeatures } from './classifier.js';
 import {
   evaluatePromptAgainstGuidelines,
   GuidelineEvaluation,
-  GOLDENScore,
 } from './guidelines-evaluator.js';
 import {
   improvePrompt,

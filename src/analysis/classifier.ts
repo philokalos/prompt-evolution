@@ -6,8 +6,6 @@
 import {
   INTENT_PATTERNS,
   CATEGORY_PATTERNS,
-  getIntentKeywords,
-  getCategoryKeywords,
 } from './patterns/index.js';
 
 // Import and re-export shared types

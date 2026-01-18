@@ -16,7 +16,6 @@ import type {
   Insight,
   PrioritizedRecommendation,
   PromptLibrary,
-  PromptLibraryEntry,
   GuidelinesSummary,
   GOLDENScore,
   SelfImprovementFeedback,
@@ -995,7 +994,7 @@ function generatePromptLibrarySection(library?: PromptLibrary): string {
     .sort((a, b) => b.effectiveness - a.effectiveness)
     .slice(0, 6);
 
-  const entriesHtml = topEntries.map((entry, idx) => `
+  const entriesHtml = topEntries.map((entry, _idx) => `
     <div class="library-card">
       <div class="library-header">
         <span class="library-category">${entry.category}</span>
@@ -1084,7 +1083,7 @@ function generateSelfImprovementSection(feedback?: SelfImprovementFeedback): str
   }).join('');
 
   // Learning Priorities
-  const learningHtml = feedback.learningPriorities.slice(0, 3).map((priority, idx) => `
+  const learningHtml = feedback.learningPriorities.slice(0, 3).map((priority, _idx) => `
     <div class="learning-item">
       <div class="learning-rank">${priority.rank}</div>
       <div class="learning-content">

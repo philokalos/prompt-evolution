@@ -517,14 +517,16 @@ function extractGoal(prompt: string, classification: PromptClassification, langu
 /**
  * 카테고리별 템플릿 반환
  */
-function getCategoryTemplates(category: string, language: 'ko' | 'en'): {
+interface CategoryTemplate {
   output: string;
   limits: string[];
   projectType: string;
   evaluation: string[];
   next: string;
-} {
-  const templates: Record<string, { ko: any; en: any }> = {
+}
+
+function getCategoryTemplates(category: string, language: 'ko' | 'en'): CategoryTemplate {
+  const templates: Record<string, { ko: CategoryTemplate; en: CategoryTemplate }> = {
     'code-generation': {
       ko: {
         output: 'TypeScript 코드와 사용법 예시',
@@ -672,26 +674,4 @@ function inferTechStack(prompt: string, language: 'ko' | 'en'): string {
   }
 
   return language === 'ko' ? 'TypeScript, Node.js' : 'TypeScript, Node.js';
-}
-
-/**
- * 카테고리 라벨 변환
- */
-function getCategoryLabel(category: string, language: 'ko' | 'en'): string {
-  const labels: Record<string, { ko: string; en: string }> = {
-    'code-generation': { ko: '코드 생성', en: 'Code Generation' },
-    'code-review': { ko: '코드 리뷰', en: 'Code Review' },
-    'bug-fix': { ko: '버그 수정', en: 'Bug Fix' },
-    'refactoring': { ko: '리팩토링', en: 'Refactoring' },
-    'explanation': { ko: '설명 요청', en: 'Explanation' },
-    'documentation': { ko: '문서화', en: 'Documentation' },
-    'testing': { ko: '테스트', en: 'Testing' },
-    'architecture': { ko: '아키텍처', en: 'Architecture' },
-    'deployment': { ko: '배포', en: 'Deployment' },
-    'data-analysis': { ko: '데이터 분석', en: 'Data Analysis' },
-    'general': { ko: '일반', en: 'General' },
-    'unknown': { ko: '기타', en: 'Other' },
-  };
-
-  return labels[category]?.[language] || labels['general'][language];
 }

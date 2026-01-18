@@ -11,7 +11,6 @@ import {
   containsSignalPattern,
   findSignalKeywords,
   countSignalMatches,
-  type SignalType,
 } from './signal-patterns.js';
 
 /**
@@ -22,7 +21,7 @@ export type PatternType = 'intent' | 'category' | 'signal';
 /**
  * Get patterns by type
  */
-export function getPatterns(type: PatternType): Record<string, any> {
+export function getPatterns(type: PatternType): Record<string, { ko: string[]; en: string[] }> {
   switch (type) {
     case 'intent':
       return INTENT_PATTERNS;

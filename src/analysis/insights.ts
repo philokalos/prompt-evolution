@@ -5,9 +5,7 @@
 
 import {
   classifyPrompt,
-  getIntentLabel,
   getCategoryLabel,
-  type PromptIntent,
   type TaskCategory,
   type ClassificationResult,
 } from './classifier.js';

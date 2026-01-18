@@ -3,7 +3,7 @@
  * Calculates effectiveness scores for conversations
  */
 
-import type { SignalSummary, ConversationSignals } from './signal-detector.js';
+import type { ConversationSignals } from './signal-detector.js';
 import {
   classifyPrompt,
   type ClassificationResult,

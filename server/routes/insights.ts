@@ -5,7 +5,6 @@ import {
   getAllConversations,
   getConversationsInRange,
   type TimePeriod,
-  type TaskCategory,
 } from '../../src/index.js';
 import { getPromptDataFromConversations } from '../repositories/index.js';
 import {

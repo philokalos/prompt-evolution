@@ -72,8 +72,8 @@ export function reportCommand(options: ReportCommandOptions): void {
 
   // Build prompt data for analysis
   const promptDataList: PromptData[] = [];
-  let totalEffectiveness = 0;
-  let effectivenessCount = 0;
+  let _totalEffectiveness = 0;
+  let _effectivenessCount = 0;
 
   for (const conv of conversations) {
     const turns = getTurnsByConversationId(conv.id);
@@ -91,8 +91,8 @@ export function reportCommand(options: ReportCommandOptions): void {
     // Get effectiveness if analyzed
     const signals = getSignalStats();
     if (signals.length > 0) {
-      totalEffectiveness += 65; // Average placeholder
-      effectivenessCount++;
+      _totalEffectiveness += 65; // Average placeholder
+      _effectivenessCount++;
     }
   }
 

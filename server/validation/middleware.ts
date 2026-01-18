@@ -16,7 +16,7 @@ export function validateQuery(schema: ZodSchema) {
     if (!result.success) {
       res.status(400).json({
         error: 'Validation failed',
-        details: result.error.issues.map((err: any) => ({
+        details: result.error.issues.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
         })),
@@ -25,7 +25,7 @@ export function validateQuery(schema: ZodSchema) {
     }
 
     // Replace query with validated data
-    req.query = result.data as any;
+    req.query = result.data as typeof req.query;
     next();
   };
 }
@@ -40,7 +40,7 @@ export function validateBody(schema: ZodSchema) {
     if (!result.success) {
       res.status(400).json({
         error: 'Validation failed',
-        details: result.error.issues.map((err: any) => ({
+        details: result.error.issues.map((err) => ({
           field: err.path.join('.'),
           message: err.message,
         })),

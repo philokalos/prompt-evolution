@@ -3,15 +3,9 @@
  * ~/.claude/projects/ 내의 대화 로그를 파싱
  */
 
-import { readFileSync, readdirSync, statSync } from 'fs';
-import { join, basename } from 'path';
+import { readdirSync, statSync } from 'fs';
+import { join } from 'path';
 import { homedir } from 'os';
-import type { 
-  ClaudeCodeRecord, 
-  ParsedConversation, 
-  ParsedTurn,
-  AssistantContentItem 
-} from '../types/index.js';
 
 const CLAUDE_PROJECTS_PATH = join(homedir(), '.claude', 'projects');
 

@@ -7,9 +7,8 @@ import type {
   PromptIntent,
   TaskCategory,
   ClassificationResult,
-  PromptFeatures,
 } from './classifier.js';
-import { classifyPrompt as ruleBasedClassify, extractFeatures } from './classifier.js';
+import { classifyPrompt as ruleBasedClassify } from './classifier.js';
 
 /**
  * AI classification configuration

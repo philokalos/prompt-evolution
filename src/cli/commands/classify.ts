@@ -118,7 +118,7 @@ export function classifyCommand(options: ClassifyCommandOptions): void {
 
     for (const [intent, count] of intentEntries) {
       const percent = ((count / stats.totalPrompts) * 100).toFixed(1);
-      const label = getIntentLabel(intent as any);
+      const label = getIntentLabel(intent as Parameters<typeof getIntentLabel>[0]);
       const bar = '█'.repeat(
         Math.round((count / stats.totalPrompts) * 30)
       );
@@ -135,7 +135,7 @@ export function classifyCommand(options: ClassifyCommandOptions): void {
 
     for (const [category, count] of categoryEntries) {
       const percent = ((count / stats.totalPrompts) * 100).toFixed(1);
-      const label = getCategoryLabel(category as any);
+      const label = getCategoryLabel(category as Parameters<typeof getCategoryLabel>[0]);
       const bar = '█'.repeat(
         Math.round((count / stats.totalPrompts) * 30)
       );

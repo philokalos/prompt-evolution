@@ -30,7 +30,7 @@ export function parseJsonlFile(filePath: string): ClaudeCodeRecord[] {
     try {
       const record = JSON.parse(line) as ClaudeCodeRecord;
       records.push(record);
-    } catch (error) {
+    } catch {
       // 파싱 실패한 라인은 스킵
       continue;
     }
