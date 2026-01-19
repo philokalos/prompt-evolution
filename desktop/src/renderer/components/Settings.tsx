@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, MousePointer2, EyeOff, Zap, Clipboard, Sparkles, ChevronDown } from 'lucide-react';
+import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, MousePointer2, Zap, Clipboard, Sparkles, ChevronDown } from 'lucide-react';
 import ProjectSettings from './ProjectSettings';
 import TemplateManager from './TemplateManager';
 import ProviderSettings from './ProviderSettings';

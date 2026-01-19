@@ -28,6 +28,14 @@ export interface ElectronAPI {
   // Phase 3.1: Async AI variant loading
   getAIVariant: (text: string) => Promise<AIVariantResult>;
 
+  // Multi-provider AI API support
+  getProviders: () => Promise<ProviderConfig[]>;
+  setProviders: (providers: ProviderConfig[]) => Promise<boolean>;
+  validateProviderKey: (providerType: string, apiKey: string) => Promise<{ valid: boolean; error?: string }>;
+  getPrimaryProvider: () => Promise<ProviderConfig | null>;
+  hasAnyProvider: () => Promise<boolean>;
+  getAIVariantWithProviders: (text: string, providers: ProviderConfig[]) => Promise<AIVariantResult>;
+
   // History & Progress
   getHistory: (limit?: number) => Promise<unknown[]>;
   getScoreTrend: (days?: number) => Promise<unknown[]>;
@@ -279,6 +287,17 @@ export interface TemplateContext {
   ideType?: string;
   category?: string;
   projectPath?: string;
+}
+
+// Multi-provider configuration
+export interface ProviderConfig {
+  provider: 'claude' | 'openai' | 'gemini';
+  apiKey: string;
+  isEnabled: boolean;
+  isPrimary: boolean;
+  priority: number;
+  displayName?: string;
+  modelId?: string;
 }
 
 declare global {

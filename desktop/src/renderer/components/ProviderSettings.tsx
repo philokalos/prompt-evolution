@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Key, Eye, EyeOff, Check, X, Plus, GripVertical, Trash2, ExternalLink, AlertCircle, Loader2 } from 'lucide-react';
+import { Key, Eye, EyeOff, Check, Plus, GripVertical, Trash2, ExternalLink, AlertCircle, Loader2 } from 'lucide-react';
 
 /**
  * Provider configuration type (mirrors main process type)
@@ -136,7 +136,7 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
         ...prev,
         [providerType]: result,
       }));
-    } catch (error) {
+    } catch {
       setValidationResults(prev => ({
         ...prev,
         [providerType]: { valid: false, error: '검증 중 오류가 발생했습니다' },
