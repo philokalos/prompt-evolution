@@ -132,6 +132,8 @@ interface AnalysisResult {
     scoreDiff: number;
     improvement: string | null;
   } | null;
+  // Error tracking
+  dbSaveError?: string; // 히스토리 저장 실패 시 에러 메시지
 }
 
 // Re-export for renderer
@@ -412,7 +414,10 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
       });
       console.log('[LearningEngine] Database save complete');
     } catch (dbError) {
-      console.warn('[LearningEngine] Failed to save to history:', dbError);
+      const errorMessage = dbError instanceof Error ? dbError.message : String(dbError);
+      console.warn('[LearningEngine] Failed to save to history:', errorMessage);
+      // 에러 정보를 결과에 포함하여 UI에서 알림 표시 가능
+      result.dbSaveError = '분석 결과 저장에 실패했습니다. 진행 추적이 기록되지 않았습니다.';
     }
 
     console.log('[LearningEngine] analyzePrompt COMPLETE - returning result');

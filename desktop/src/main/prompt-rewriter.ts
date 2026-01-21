@@ -20,7 +20,6 @@ import {
   type RewriteRequest as ProviderRewriteRequest,
   rewriteWithFallback,
   hasAnyProvider,
-  getPrimaryProvider,
 } from './providers/index.js';
 
 // ─────────────────────────────────────────────────────────────────────────────

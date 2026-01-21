@@ -241,6 +241,10 @@ function App() {
       }
     } catch (error) {
       console.error('Analysis failed:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isNetworkError = errorMessage.includes('timeout') || errorMessage.includes('network');
+      const isDbError = errorMessage.includes('데이터베이스') || errorMessage.includes('database');
+
       // Fallback to basic analysis if IPC fails
       setAnalysis({
         overallScore: 50,
@@ -257,11 +261,19 @@ function App() {
           {
             severity: 'medium',
             category: 'analysis',
-            message: '분석 엔진 연결 실패',
-            suggestion: '앱을 다시 시작해보세요',
+            message: isDbError
+              ? '데이터베이스 연결 실패'
+              : isNetworkError
+                ? '네트워크 연결 문제'
+                : '분석 엔진 연결 실패',
+            suggestion: isDbError
+              ? '디스크 공간을 확인하고 앱을 다시 시작해보세요'
+              : isNetworkError
+                ? 'AI 기능은 오프라인에서도 작동합니다. 잠시 후 다시 시도해주세요'
+                : '앱을 다시 시작해보세요. 문제가 지속되면 앱을 재설치해주세요',
           },
         ],
-        personalTips: ['분석 모듈 로드 대기 중...'],
+        personalTips: ['기본 분석 모드로 전환됨'],
         improvedPrompt: undefined,
         promptVariants: [],
       });
@@ -555,7 +567,16 @@ function App() {
 
                 {/* Action Buttons */}
                 <div className="flex items-center gap-2">
-                  {/* Apply Button */}
+                  {/* Apply Button or Blocked Notice */}
+                  {isSourceAppBlocked && bestVariant && (
+                    <div
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm text-gray-500 bg-dark-hover/50 cursor-not-allowed"
+                      title="이 앱에서는 자동 적용이 지원되지 않습니다. 복사 후 수동으로 붙여넣어주세요."
+                    >
+                      <Play size={16} className="opacity-50" />
+                      <span className="opacity-70">적용 불가</span>
+                    </div>
+                  )}
                   {!isSourceAppBlocked && bestVariant && (
                     <button
                       onClick={handleQuickApply}

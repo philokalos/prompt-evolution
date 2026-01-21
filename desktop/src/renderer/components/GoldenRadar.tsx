@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { HelpCircle, X } from 'lucide-react';
 import { GOLDEN_EXPLANATIONS } from '../../shared/constants';
 
 interface GoldenRadarProps {
@@ -28,6 +29,7 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
   const center = size / 2;
   const maxRadius = size / 2 - 30;
   const [hoveredDimension, setHoveredDimension] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
 
   // Calculate points for each dimension
   const points = useMemo(() => {
@@ -107,6 +109,8 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
         height={size}
         viewBox={`0 0 ${size} ${size}`}
         className="radar-chart"
+        role="img"
+        aria-label={`GOLDEN 점수 레이더 차트: Goal ${scores.goal}%, Output ${scores.output}%, Limits ${scores.limits}%, Data ${scores.data}%, Evaluation ${scores.evaluation}%, Next ${scores.next}%`}
       >
         {/* Background gradient */}
         <defs>
@@ -224,6 +228,70 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
           </div>
           <div className="text-gray-300 mt-1">
             {GOLDEN_EXPLANATIONS[hoveredDimension].short}
+          </div>
+        </div>
+      )}
+
+      {/* Help button */}
+      <button
+        onClick={() => setShowHelp(true)}
+        className="absolute top-0 right-0 p-1 text-gray-500 hover:text-gray-300 transition-colors"
+        title="GOLDEN 평가 기준 알아보기"
+        aria-label="GOLDEN 평가 기준 도움말"
+      >
+        <HelpCircle size={16} />
+      </button>
+
+      {/* Help modal */}
+      {showHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowHelp(false)}>
+          <div
+            className="bg-dark-card border border-dark-border rounded-xl p-4 max-w-md mx-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold text-white">GOLDEN 평가 기준</h3>
+              <button
+                onClick={() => setShowHelp(false)}
+                className="p-1 text-gray-500 hover:text-gray-300 transition-colors"
+                aria-label="닫기"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <p className="text-sm text-gray-400 mb-4">
+              GOLDEN은 좋은 프롬프트의 6가지 핵심 요소를 평가합니다.
+              각 차원은 0-100 점으로 측정됩니다.
+            </p>
+            <div className="space-y-3">
+              {GOLDEN_LABELS.map(({ key, label }) => {
+                const explanation = GOLDEN_EXPLANATIONS[label];
+                const score = scores[key as keyof typeof scores];
+                return (
+                  <div key={key} className="flex gap-3">
+                    <div
+                      className="w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm"
+                      style={{ backgroundColor: `${getScoreColor(score)}20`, color: getScoreColor(score) }}
+                    >
+                      {label}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-white">{explanation.name}</span>
+                        <span className="text-gray-500">({explanation.nameKo})</span>
+                        <span className="ml-auto text-sm" style={{ color: getScoreColor(score) }}>{score}%</span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-0.5">{explanation.short}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 pt-3 border-t border-dark-border">
+              <p className="text-xs text-gray-500">
+                💡 팁: 차트의 각 라벨에 마우스를 올리면 해당 항목의 설명을 볼 수 있습니다.
+              </p>
+            </div>
           </div>
         </div>
       )}

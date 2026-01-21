@@ -8,7 +8,6 @@ import type {
   ProviderConfig,
   AIProvider,
   RewriteRequest,
-  ProviderRewriteResult,
   RewriteResultWithProvider,
 } from './types.js';
 import { claudeProvider } from './claude-provider.js';

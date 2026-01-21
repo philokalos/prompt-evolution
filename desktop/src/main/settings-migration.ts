@@ -7,18 +7,6 @@ import Store from 'electron-store';
 import type { ProviderConfig } from './providers/types.js';
 import { migrateFromSingleKey } from './providers/provider-manager.js';
 
-interface OldSettings {
-  claudeApiKey?: string;
-  useAiRewrite?: boolean;
-}
-
-interface NewSettings {
-  providers?: ProviderConfig[];
-  // Keep old fields for backward compatibility during transition
-  claudeApiKey?: string;
-  useAiRewrite?: boolean;
-}
-
 const MIGRATION_VERSION_KEY = 'providerMigrationVersion';
 const CURRENT_MIGRATION_VERSION = 1;
 

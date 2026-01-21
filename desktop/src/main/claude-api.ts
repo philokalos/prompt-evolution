@@ -569,16 +569,19 @@ export async function rewritePromptWithMultiVariant(
 }
 
 /**
- * Validate API key by making a simple request
+ * Validate API key by making a simple request with timeout
  */
 export async function validateApiKey(apiKey: string): Promise<boolean> {
   if (!apiKey || apiKey.trim() === '') {
     return false;
   }
 
+  const VALIDATION_TIMEOUT_MS = 10000; // 10 seconds
+
   try {
     const client = new Anthropic({
       apiKey: apiKey,
+      timeout: VALIDATION_TIMEOUT_MS,
     });
 
     // Make a minimal request to validate the key
@@ -595,7 +598,9 @@ export async function validateApiKey(apiKey: string): Promise<boolean> {
 
     return true;
   } catch (error) {
-    console.error('[ClaudeAPI] Key validation failed:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isTimeout = errorMessage.includes('timeout') || errorMessage.includes('ETIMEDOUT');
+    console.error('[ClaudeAPI] Key validation failed:', isTimeout ? 'Connection timeout' : errorMessage);
     return false;
   }
 }

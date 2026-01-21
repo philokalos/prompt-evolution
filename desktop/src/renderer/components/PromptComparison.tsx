@@ -273,10 +273,17 @@ function PromptComparisonInner({
       </div>
 
       {/* Horizontal Tab Bar */}
-      <div className="flex items-center gap-1 overflow-x-auto pb-1 -mx-1 px-1">
+      <div
+        className="flex items-center gap-1 overflow-x-auto pb-1 -mx-1 px-1"
+        role="tablist"
+        aria-label="프롬프트 변형 선택"
+      >
         {/* Original Tab */}
         <button
           onClick={() => dispatch({ type: 'SHOW_ORIGINAL' })}
+          role="tab"
+          aria-selected={showOriginal}
+          aria-controls="prompt-content-panel"
           className={`flex-shrink-0 px-3 py-1.5 text-xs rounded-lg transition-all flex items-center gap-1.5 ${
             showOriginal
               ? 'bg-gray-600/30 text-gray-200 ring-1 ring-gray-500/50'
@@ -294,6 +301,10 @@ function PromptComparisonInner({
             onClick={() => {
               dispatch({ type: 'SELECT_VARIANT', index: i });
             }}
+            role="tab"
+            aria-selected={!showOriginal && i === selectedIndex}
+            aria-controls="prompt-content-panel"
+            aria-label={`${v.variantLabel} 변형 (${v.isLoading ? '분석 중' : v.needsSetup ? '설정 필요' : `⌘${i + 1}`})`}
             title={v.isLoading ? 'AI 분석 중...' : v.needsSetup ? '설정 필요' : `⌘${i + 1}`}
             className={`relative flex-shrink-0 px-3 py-1.5 text-xs rounded-lg transition-all flex items-center gap-1.5 ${
               copiedIndex === i
@@ -324,9 +335,14 @@ function PromptComparisonInner({
       </div>
 
       {/* Single Content Panel */}
-      <div className={`bg-dark-surface rounded-lg p-3 border ${
-        showOriginal ? 'border-dark-border' : colors.border
-      }`}>
+      <div
+        id="prompt-content-panel"
+        role="tabpanel"
+        aria-label={showOriginal ? '원본 프롬프트' : '개선된 프롬프트'}
+        className={`bg-dark-surface rounded-lg p-3 border ${
+          showOriginal ? 'border-dark-border' : colors.border
+        }`}
+      >
         {/* Panel Header */}
         <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dark-border">
           {showOriginal ? (
@@ -513,7 +529,16 @@ function PromptComparisonInner({
             </button>
           ) : (
             <>
-              {/* Apply Button */}
+              {/* Apply Button or Blocked Notice */}
+              {!onApply && (
+                <div
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm text-gray-500 bg-dark-hover/50 cursor-not-allowed"
+                  title="이 앱에서는 자동 적용이 지원되지 않습니다. 복사 후 수동으로 붙여넣어주세요."
+                >
+                  <Play size={16} className="opacity-50" />
+                  <span className="opacity-70">적용 불가</span>
+                </div>
+              )}
               {onApply && (
                 <button
                   onClick={() => applyVariant()}

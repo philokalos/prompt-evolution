@@ -6,7 +6,8 @@
 import Database from 'better-sqlite3';
 import { join } from 'path';
 import { homedir } from 'os';
-import { mkdirSync, existsSync } from 'fs';
+import { mkdirSync, existsSync, renameSync, unlinkSync } from 'fs';
+import { app } from 'electron';
 import {
   DESKTOP_SCHEMA_BASE,
   DESKTOP_SCHEMA_V2_INDEXES,
@@ -14,31 +15,162 @@ import {
   DESKTOP_SCHEMA_VERSION,
 } from './schema.js';
 
-// Database location
-const DB_DIR = join(homedir(), '.promptlint');
-const DB_PATH = join(DB_DIR, 'history.db');
+// Database locations (primary and fallback)
+const DB_DIR_PRIMARY = join(homedir(), '.promptlint');
 
+// Get fallback directory safely (handles test environment where app may not be fully initialized)
+function getFallbackDir(): string {
+  try {
+    if (app?.isPackaged) {
+      return join(app.getPath('userData'), 'data');
+    }
+  } catch {
+    // app.getPath may throw in test environment
+  }
+  return DB_DIR_PRIMARY;
+}
+
+const DB_DIR_FALLBACK = getFallbackDir();
+
+let dbDir = DB_DIR_PRIMARY;
+let dbPath = join(dbDir, 'history.db');
 let db: Database.Database | null = null;
+let lastDbError: Error | null = null;
 
 /**
- * Get or create database connection
+ * Get the last database error (for error reporting)
+ */
+export function getLastDbError(): Error | null {
+  return lastDbError;
+}
+
+/**
+ * Get current database path
+ */
+export function getDatabasePath(): string {
+  return dbPath;
+}
+
+/**
+ * Ensure database directory exists with fallback
+ */
+function ensureDbDirectory(): boolean {
+  // Try primary location first
+  try {
+    if (!existsSync(DB_DIR_PRIMARY)) {
+      mkdirSync(DB_DIR_PRIMARY, { recursive: true });
+    }
+    dbDir = DB_DIR_PRIMARY;
+    dbPath = join(dbDir, 'history.db');
+    return true;
+  } catch (primaryError) {
+    console.warn('[DB] Primary directory failed:', primaryError);
+
+    // Try fallback location
+    try {
+      if (!existsSync(DB_DIR_FALLBACK)) {
+        mkdirSync(DB_DIR_FALLBACK, { recursive: true });
+      }
+      dbDir = DB_DIR_FALLBACK;
+      dbPath = join(dbDir, 'history.db');
+      console.log('[DB] Using fallback directory:', dbDir);
+      return true;
+    } catch (fallbackError) {
+      console.error('[DB] Fallback directory also failed:', fallbackError);
+      lastDbError = fallbackError instanceof Error
+        ? fallbackError
+        : new Error(String(fallbackError));
+      return false;
+    }
+  }
+}
+
+/**
+ * Handle corrupted database by backing up and recreating
+ */
+function handleCorruptedDatabase(): boolean {
+  const backupPath = `${dbPath}.backup.${Date.now()}`;
+
+  try {
+    if (existsSync(dbPath)) {
+      console.warn('[DB] Backing up corrupted database to:', backupPath);
+      renameSync(dbPath, backupPath);
+    }
+
+    // Also backup WAL and SHM files if they exist
+    const walPath = `${dbPath}-wal`;
+    const shmPath = `${dbPath}-shm`;
+    if (existsSync(walPath)) {
+      try { unlinkSync(walPath); } catch { /* ignore */ }
+    }
+    if (existsSync(shmPath)) {
+      try { unlinkSync(shmPath); } catch { /* ignore */ }
+    }
+
+    return true;
+  } catch (error) {
+    console.error('[DB] Failed to backup corrupted database:', error);
+    return false;
+  }
+}
+
+/**
+ * Get or create database connection with error handling
  */
 export function getDatabase(): Database.Database {
   if (db) return db;
 
   // Ensure directory exists
-  if (!existsSync(DB_DIR)) {
-    mkdirSync(DB_DIR, { recursive: true });
+  if (!ensureDbDirectory()) {
+    throw new Error(
+      '데이터베이스 디렉토리를 생성할 수 없습니다. ' +
+      '디스크 공간 또는 권한을 확인해주세요.'
+    );
   }
 
-  // Create connection with WAL mode
-  db = new Database(DB_PATH);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  // Auto-checkpoint WAL file every 1000 pages to prevent unbounded growth
-  db.pragma('wal_autocheckpoint = 1000');
+  // Try to create connection
+  let retryCount = 0;
+  const maxRetries = 2;
 
-  return db;
+  while (retryCount < maxRetries) {
+    try {
+      db = new Database(dbPath);
+      db.pragma('journal_mode = WAL');
+      db.pragma('foreign_keys = ON');
+      // Auto-checkpoint WAL file every 1000 pages to prevent unbounded growth
+      db.pragma('wal_autocheckpoint = 1000');
+      lastDbError = null;
+      return db;
+    } catch (error) {
+      console.error(`[DB] Failed to open database (attempt ${retryCount + 1}):`, error);
+      lastDbError = error instanceof Error ? error : new Error(String(error));
+      db = null;
+
+      // Check if it's a corruption error
+      const errorMessage = String(error);
+      const isCorruption = errorMessage.includes('database disk image is malformed')
+        || errorMessage.includes('file is not a database')
+        || errorMessage.includes('SQLITE_CORRUPT')
+        || errorMessage.includes('SQLITE_NOTADB');
+
+      if (isCorruption && retryCount === 0) {
+        console.warn('[DB] Database appears corrupted, attempting recovery...');
+        if (handleCorruptedDatabase()) {
+          retryCount++;
+          continue;
+        }
+      }
+
+      throw new Error(
+        '데이터베이스를 열 수 없습니다. ' +
+        (isCorruption
+          ? '데이터베이스 파일이 손상되었습니다. 백업 후 새로 생성됩니다.'
+          : '다른 프로그램이 사용 중이거나 권한 문제일 수 있습니다.')
+      );
+    }
+  }
+
+  throw new Error('데이터베이스 연결에 실패했습니다.');
 }
 
 /**
@@ -146,7 +278,16 @@ export function closeDatabase(): void {
  * Check if database exists
  */
 export function databaseExists(): boolean {
-  return existsSync(DB_PATH);
+  return existsSync(dbPath);
 }
 
-export { DB_PATH, DB_DIR };
+/**
+ * Get database directory path
+ */
+export function getDbDir(): string {
+  return dbDir;
+}
+
+// Legacy exports for backward compatibility
+export const DB_PATH = dbPath;
+export const DB_DIR = dbDir;

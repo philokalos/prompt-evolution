@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, MousePointer2, Zap, Clipboard, Sparkles, ChevronDown } from 'lucide-react';
+import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, MousePointer2, Zap, Clipboard, Sparkles, ChevronDown, AlertTriangle } from 'lucide-react';
 import ProjectSettings from './ProjectSettings';
 import TemplateManager from './TemplateManager';
 import ProviderSettings from './ProviderSettings';
@@ -251,6 +251,17 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                       onChange={(v) => updateSetting('hideOnCopy', v)}
                     />
                   </div>
+
+                  {/* 설정 충돌 경고 */}
+                  {settings.alwaysOnTop && settings.hideOnCopy && (
+                    <div className="flex items-start gap-2 p-2 mt-1 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
+                      <AlertTriangle size={14} className="text-yellow-500 mt-0.5 flex-shrink-0" />
+                      <span className="text-xs text-yellow-500/90">
+                        &ldquo;항상 위에 표시&rdquo;와 &ldquo;복사하면 자동으로 닫기&rdquo;가 동시에 활성화되어 있습니다.
+                        복사 후 창이 닫히면 다시 열 때까지 다른 앱 위에 표시되지 않습니다.
+                      </span>
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-between py-2">
                     <div className="flex flex-col gap-0.5">

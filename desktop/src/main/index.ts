@@ -769,41 +769,47 @@ ipcMain.handle('get-settings', () => {
   return store.store;
 });
 
-ipcMain.handle('set-setting', (_event, key: string, value: unknown) => {
-  // For shortcut changes, unregister old first
-  const oldShortcut = key === 'shortcut' ? (store.get('shortcut') as string) : null;
+ipcMain.handle('set-setting', (_event, key: string, value: unknown): { success: boolean; error?: string } => {
+  try {
+    // For shortcut changes, unregister old first
+    const oldShortcut = key === 'shortcut' ? (store.get('shortcut') as string) : null;
 
-  store.set(key, value);
+    store.set(key, value);
 
-  // Re-register shortcut if it changed
-  if (key === 'shortcut' && oldShortcut) {
-    globalShortcut.unregister(oldShortcut);
-    const success = registerShortcut();
-    if (!success && mainWindow) {
-      mainWindow.webContents.send('shortcut-failed', {
-        shortcut: value as string,
-        message: `단축키 (${value}) 등록 실패. 다른 앱이 사용 중입니다.`,
-      });
+    // Re-register shortcut if it changed
+    if (key === 'shortcut' && oldShortcut) {
+      globalShortcut.unregister(oldShortcut);
+      const success = registerShortcut();
+      if (!success && mainWindow) {
+        mainWindow.webContents.send('shortcut-failed', {
+          shortcut: value as string,
+          message: `단축키 (${value}) 등록 실패. 다른 앱이 사용 중입니다.`,
+        });
+      }
+      return { success };
     }
-    return success;
-  }
 
-  // Restart polling if polling settings changed
-  if (key === 'enableProjectPolling' || key === 'pollingIntervalMs') {
-    initProjectPolling();
-  }
+    // Restart polling if polling settings changed
+    if (key === 'enableProjectPolling' || key === 'pollingIntervalMs') {
+      initProjectPolling();
+    }
 
-  // Toggle clipboard watching if setting changed
-  if (key === 'enableClipboardWatch') {
-    initClipboardWatch();
-  }
+    // Toggle clipboard watching if setting changed
+    if (key === 'enableClipboardWatch') {
+      initClipboardWatch();
+    }
 
-  // Toggle AI context popup if setting changed
-  if (key === 'enableAIContextPopup') {
-    initAIContextPolling();
-  }
+    // Toggle AI context popup if setting changed
+    if (key === 'enableAIContextPopup') {
+      initAIContextPolling();
+    }
 
-  return true;
+    return { success: true };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[Settings] Failed to save setting:', key, errorMessage);
+    return { success: false, error: `설정 저장 실패: ${errorMessage}` };
+  }
 });
 
 // IPC Handlers: Multi-provider API support

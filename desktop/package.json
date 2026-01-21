@@ -1,6 +1,6 @@
 {
   "name": "promptlint",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Real-time prompt correction with AI-powered personalized learning",
   "type": "module",
   "main": "dist/main/index.js",
@@ -57,7 +57,7 @@
     "@vitejs/plugin-react": "^4.2.1",
     "@vitest/coverage-v8": "^4.0.16",
     "autoprefixer": "^10.4.17",
-    "electron": "^37.7.0",
+    "electron": "^39.2.7",
     "electron-builder": "^24.9.1",
     "esbuild": "^0.27.2",
     "eslint": "^9.39.2",
