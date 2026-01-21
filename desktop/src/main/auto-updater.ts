@@ -1,6 +1,6 @@
 /**
  * Auto Updater Module
- * GitHub Releases 기반 자동 업데이트
+ * GitHub Releases based auto-update
  */
 
 import pkg from 'electron-updater';
@@ -10,6 +10,7 @@ type UpdateInfo = pkg.UpdateInfo;
 import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import electronLog from 'electron-log';
 const log = electronLog.default ?? electronLog;
+import { t } from './i18n.js';
 
 // 로깅 설정
 autoUpdater.logger = log;
@@ -51,6 +52,8 @@ let updateStatus: UpdateStatus = {
 };
 
 let mainWindow: BrowserWindow | null = null;
+let periodicCheckInterval: NodeJS.Timeout | null = null;
+let initialCheckTimeout: NodeJS.Timeout | null = null;
 
 /**
  * 렌더러에 상태 전송
@@ -86,13 +89,13 @@ export function initAutoUpdater(window: BrowserWindow): void {
       version: info.version,
     });
 
-    // 사용자에게 알림
+    // Notify user
     dialog.showMessageBox(mainWindow!, {
       type: 'info',
-      title: '업데이트 가능',
-      message: `새 버전 ${info.version}이 있습니다.`,
-      detail: '지금 다운로드하시겠습니까?',
-      buttons: ['다운로드', '나중에'],
+      title: t('errors:update.availableTitle'),
+      message: t('errors:update.availableMessage', { version: info.version }),
+      detail: t('errors:update.availableDetail'),
+      buttons: [t('errors:update.downloadButton'), t('errors:update.laterButton')],
       defaultId: 0,
     }).then(({ response }) => {
       if (response === 0) {
@@ -125,13 +128,13 @@ export function initAutoUpdater(window: BrowserWindow): void {
       progress: 100,
     });
 
-    // 설치 안내
+    // Installation guide
     dialog.showMessageBox(mainWindow!, {
       type: 'info',
-      title: '업데이트 준비 완료',
-      message: `버전 ${info.version} 다운로드 완료`,
-      detail: '앱을 재시작하면 업데이트가 설치됩니다.',
-      buttons: ['지금 재시작', '나중에'],
+      title: t('errors:update.readyTitle'),
+      message: t('errors:update.readyMessage', { version: info.version }),
+      detail: t('errors:update.readyDetail'),
+      buttons: [t('errors:update.restartNowButton'), t('errors:update.laterButton')],
       defaultId: 0,
     }).then(({ response }) => {
       if (response === 0) {
@@ -143,16 +146,16 @@ export function initAutoUpdater(window: BrowserWindow): void {
   autoUpdater.on('error', (error) => {
     log.error('[AutoUpdater] Error:', error);
 
-    // 에러 유형별 사용자 친화적 메시지
+    // User-friendly error messages by type
     let userMessage = error.message;
 
     if (error.message.includes('404')) {
-      userMessage = 'GitHub에 릴리스가 없습니다. 최신 버전을 사용 중일 수 있습니다.';
+      userMessage = t('errors:update.noRelease');
       log.info('[AutoUpdater] No GitHub release found - this is expected if releases are not published');
     } else if (error.message.includes('net::ERR_FAILED') || error.message.includes('ENOTFOUND')) {
-      userMessage = '네트워크 연결을 확인해주세요.';
+      userMessage = t('errors:update.networkError');
     } else if (error.message.includes('401') || error.message.includes('403')) {
-      userMessage = 'GitHub 접근 권한이 없습니다. Private repository인 경우 토큰이 필요합니다.';
+      userMessage = t('errors:update.authError');
     }
 
     sendStatusToRenderer({
@@ -200,15 +203,16 @@ export function initAutoUpdater(window: BrowserWindow): void {
   // Note: 'get-app-version' is already registered in index.ts
 
   // 앱 시작 시 업데이트 체크 (5초 후)
-  setTimeout(() => {
+  initialCheckTimeout = setTimeout(() => {
     log.info('[AutoUpdater] Initial update check');
     autoUpdater.checkForUpdates().catch((err) => {
       log.error('[AutoUpdater] Initial check failed:', err);
     });
+    initialCheckTimeout = null;
   }, 5000);
 
   // 주기적 업데이트 체크 (1시간마다)
-  setInterval(() => {
+  periodicCheckInterval = setInterval(() => {
     log.info('[AutoUpdater] Periodic update check');
     autoUpdater.checkForUpdates().catch((err) => {
       log.error('[AutoUpdater] Periodic check failed:', err);
@@ -232,4 +236,20 @@ export async function checkForUpdates(): Promise<boolean> {
     log.error('[AutoUpdater] Manual check failed:', error);
     return false;
   }
+}
+
+/**
+ * 타이머 정리 (앱 종료 시 호출)
+ */
+export function cleanupAutoUpdater(): void {
+  if (initialCheckTimeout) {
+    clearTimeout(initialCheckTimeout);
+    initialCheckTimeout = null;
+  }
+  if (periodicCheckInterval) {
+    clearInterval(periodicCheckInterval);
+    periodicCheckInterval = null;
+  }
+  mainWindow = null;
+  log.info('[AutoUpdater] Cleanup completed');
 }

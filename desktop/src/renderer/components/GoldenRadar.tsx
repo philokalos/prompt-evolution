@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { HelpCircle, X } from 'lucide-react';
-import { GOLDEN_EXPLANATIONS } from '../../shared/constants';
 
 interface GoldenRadarProps {
   scores: {
@@ -15,21 +15,34 @@ interface GoldenRadarProps {
 }
 
 const GOLDEN_LABELS = [
-  { key: 'goal', label: 'G', fullName: 'Goal' },
-  { key: 'output', label: 'O', fullName: 'Output' },
-  { key: 'limits', label: 'L', fullName: 'Limits' },
-  { key: 'data', label: 'D', fullName: 'Data' },
-  { key: 'evaluation', label: 'E', fullName: 'Evaluation' },
-  { key: 'next', label: 'N', fullName: 'Next' },
+  { key: 'goal', label: 'G' },
+  { key: 'output', label: 'O' },
+  { key: 'limits', label: 'L' },
+  { key: 'data', label: 'D' },
+  { key: 'evaluation', label: 'E' },
+  { key: 'next', label: 'N' },
 ] as const;
 
 const GRID_LEVELS = [20, 40, 60, 80, 100] as const;
 
 export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
+  const { t } = useTranslation(['analysis', 'help']);
   const center = size / 2;
   const maxRadius = size / 2 - 30;
   const [hoveredDimension, setHoveredDimension] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+
+  // Helper to get GOLDEN dimension info from translations
+  const getDimensionInfo = useCallback((label: string) => {
+    const keyMap: Record<string, string> = { G: 'goal', O: 'output', L: 'limits', D: 'data', E: 'evaluation', N: 'next' };
+    const key = keyMap[label] || label.toLowerCase();
+    return {
+      title: t(`help:golden.${key}.title`),
+      short: t(`help:golden.${key}.short`),
+      detail: t(`help:golden.${key}.detail`),
+      improvement: t(`help:golden.${key}.improvement`),
+    };
+  }, [t]);
 
   // Calculate points for each dimension
   const points = useMemo(() => {
@@ -110,7 +123,7 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
         viewBox={`0 0 ${size} ${size}`}
         className="radar-chart"
         role="img"
-        aria-label={`GOLDEN 점수 레이더 차트: Goal ${scores.goal}%, Output ${scores.output}%, Limits ${scores.limits}%, Data ${scores.data}%, Evaluation ${scores.evaluation}%, Next ${scores.next}%`}
+        aria-label={t('radar.ariaLabel', { goal: scores.goal, output: scores.output, limits: scores.limits, data: scores.data, evaluation: scores.evaluation, next: scores.next })}
       >
         {/* Background gradient */}
         <defs>
@@ -188,7 +201,7 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
 
         {/* Labels - Interactive with hover */}
         {points.map((point) => {
-          const explanation = GOLDEN_EXPLANATIONS[point.label];
+          const dimInfo = getDimensionInfo(point.label);
           return (
             <g
               key={`label-${point.key}`}
@@ -214,7 +227,7 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
               >
                 {point.label}
               </text>
-              <title>{`${explanation.name} (${explanation.nameKo}): ${explanation.short}`}</title>
+              <title>{`${dimInfo.title}: ${dimInfo.short}`}</title>
             </g>
           );
         })}
@@ -224,10 +237,10 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
       {hoveredDimension && (
         <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-gray-800 border border-gray-700 rounded-lg p-2 text-xs max-w-[200px] shadow-lg z-10">
           <div className="font-bold text-indigo-400">
-            {GOLDEN_EXPLANATIONS[hoveredDimension].name} ({GOLDEN_EXPLANATIONS[hoveredDimension].nameKo})
+            {getDimensionInfo(hoveredDimension).title}
           </div>
           <div className="text-gray-300 mt-1">
-            {GOLDEN_EXPLANATIONS[hoveredDimension].short}
+            {getDimensionInfo(hoveredDimension).short}
           </div>
         </div>
       )}
@@ -236,8 +249,8 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
       <button
         onClick={() => setShowHelp(true)}
         className="absolute top-0 right-0 p-1 text-gray-500 hover:text-gray-300 transition-colors"
-        title="GOLDEN 평가 기준 알아보기"
-        aria-label="GOLDEN 평가 기준 도움말"
+        title={t('radar.helpTitle')}
+        aria-label={t('radar.helpTitle')}
       >
         <HelpCircle size={16} />
       </button>
@@ -250,22 +263,21 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-bold text-white">GOLDEN 평가 기준</h3>
+              <h3 className="text-lg font-bold text-white">{t('radar.helpTitle')}</h3>
               <button
                 onClick={() => setShowHelp(false)}
                 className="p-1 text-gray-500 hover:text-gray-300 transition-colors"
-                aria-label="닫기"
+                aria-label={t('radar.closeAria')}
               >
                 <X size={18} />
               </button>
             </div>
             <p className="text-sm text-gray-400 mb-4">
-              GOLDEN은 좋은 프롬프트의 6가지 핵심 요소를 평가합니다.
-              각 차원은 0-100 점으로 측정됩니다.
+              {t('radar.helpDescription')}
             </p>
             <div className="space-y-3">
               {GOLDEN_LABELS.map(({ key, label }) => {
-                const explanation = GOLDEN_EXPLANATIONS[label];
+                const dimInfo = getDimensionInfo(label);
                 const score = scores[key as keyof typeof scores];
                 return (
                   <div key={key} className="flex gap-3">
@@ -277,11 +289,10 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
                     </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-white">{explanation.name}</span>
-                        <span className="text-gray-500">({explanation.nameKo})</span>
+                        <span className="font-medium text-white">{dimInfo.title}</span>
                         <span className="ml-auto text-sm" style={{ color: getScoreColor(score) }}>{score}%</span>
                       </div>
-                      <p className="text-xs text-gray-400 mt-0.5">{explanation.short}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{dimInfo.short}</p>
                     </div>
                   </div>
                 );
@@ -289,7 +300,7 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
             </div>
             <div className="mt-4 pt-3 border-t border-dark-border">
               <p className="text-xs text-gray-500">
-                💡 팁: 차트의 각 라벨에 마우스를 올리면 해당 항목의 설명을 볼 수 있습니다.
+                {t('radar.helpTip')}
               </p>
             </div>
           </div>
@@ -299,12 +310,12 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
       {/* Score legend */}
       <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-4 text-xs">
         {points.map((point) => {
-          const explanation = GOLDEN_EXPLANATIONS[point.label];
+          const dimInfo = getDimensionInfo(point.label);
           return (
             <div
               key={`score-${point.key}`}
               className="flex items-center gap-1 cursor-help"
-              title={`${explanation.name} (${explanation.nameKo})\n${explanation.short}\n\n💡 ${explanation.improvement}`}
+              title={`${dimInfo.title}\n${dimInfo.short}\n\n💡 ${dimInfo.improvement}`}
             >
               <span className="text-gray-500">{point.label}</span>
               <span

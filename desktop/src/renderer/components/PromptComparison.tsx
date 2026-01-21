@@ -1,6 +1,7 @@
 import { useEffect, useCallback, useReducer, useMemo, memo } from 'react';
 import { Copy, Check, Sparkles, FileText, Wand2, Play, AlertCircle, ChevronDown, ChevronUp, GitCompare, Loader2, Zap } from 'lucide-react';
 import { diffWords } from 'diff';
+import { useTranslation } from 'react-i18next';
 
 // DiffView component for word-level diff highlighting
 interface DiffViewProps {
@@ -157,6 +158,8 @@ function PromptComparisonInner({
   onApply,
   onOpenSettings,
 }: PromptComparisonProps) {
+  const { t } = useTranslation('analysis');
+  const { t: tc } = useTranslation('common');
   // Check for AI variant (loaded, not loading)
   const hasAiVariant = variants.length > 0 && variants[0].isAiGenerated && !variants[0].isLoading;
 
@@ -221,13 +224,49 @@ function PromptComparisonInner({
       dispatch({ type: 'APPLY_COMPLETE', result });
       setTimeout(() => dispatch({ type: 'APPLY_RESET' }), 3000);
     } catch {
-      dispatch({ type: 'APPLY_COMPLETE', result: { success: false, message: '적용 실패' } });
+      dispatch({ type: 'APPLY_COMPLETE', result: { success: false, message: tc('failed') } });
     }
-  }, [selectedIndex, variants, onApply]);
+  }, [selectedIndex, variants, onApply, tc]);
 
   // Keyboard shortcuts - stable handler with empty deps using refs pattern
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Arrow key navigation (without modifier)
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        e.preventDefault();
+        // Tab order: Original (-1) -> Variant 0 -> Variant 1 -> ... -> Variant N-1
+        // showOriginal = true means we're at index -1 (original tab)
+        const currentIndex = showOriginal ? -1 : selectedIndex;
+        const maxIndex = variants.length - 1;
+
+        if (e.key === 'ArrowLeft') {
+          if (currentIndex === -1) {
+            // Already at leftmost (original), wrap to last variant
+            dispatch({ type: 'SELECT_VARIANT', index: maxIndex });
+          } else if (currentIndex === 0) {
+            // At first variant, go to original
+            dispatch({ type: 'SHOW_ORIGINAL' });
+          } else {
+            // Go to previous variant
+            dispatch({ type: 'SELECT_VARIANT', index: currentIndex - 1 });
+          }
+        } else {
+          // ArrowRight
+          if (showOriginal) {
+            // At original, go to first variant
+            dispatch({ type: 'SELECT_VARIANT', index: 0 });
+          } else if (currentIndex === maxIndex) {
+            // At last variant, wrap to original
+            dispatch({ type: 'SHOW_ORIGINAL' });
+          } else {
+            // Go to next variant
+            dispatch({ type: 'SELECT_VARIANT', index: currentIndex + 1 });
+          }
+        }
+        return;
+      }
+
+      // ⌘/Ctrl modifier shortcuts
       if (!(e.metaKey || e.ctrlKey)) return;
 
       // ⌘+Enter: Apply current variant
@@ -251,7 +290,7 @@ function PromptComparisonInner({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [variants.length, hasAiVariant, copyVariant, applyVariant]);
+  }, [variants.length, hasAiVariant, copyVariant, applyVariant, showOriginal, selectedIndex]);
 
   if (variants.length === 0) {
     return null;
@@ -269,14 +308,14 @@ function PromptComparisonInner({
       {/* Header */}
       <div className="flex items-center gap-2">
         <Sparkles size={16} className="text-accent-primary" />
-        <span className="text-sm font-medium">프롬프트 개선 비교</span>
+        <span className="text-sm font-medium">{t('comparison.title')}</span>
       </div>
 
       {/* Horizontal Tab Bar */}
       <div
         className="flex items-center gap-1 overflow-x-auto pb-1 -mx-1 px-1"
         role="tablist"
-        aria-label="프롬프트 변형 선택"
+        aria-label={t('comparison.selectVariant')}
       >
         {/* Original Tab */}
         <button
@@ -291,7 +330,7 @@ function PromptComparisonInner({
           }`}
         >
           <FileText size={12} />
-          원본
+          {t('comparison.original')}
         </button>
 
         {/* Variant Tabs */}
@@ -304,8 +343,8 @@ function PromptComparisonInner({
             role="tab"
             aria-selected={!showOriginal && i === selectedIndex}
             aria-controls="prompt-content-panel"
-            aria-label={`${v.variantLabel} 변형 (${v.isLoading ? '분석 중' : v.needsSetup ? '설정 필요' : `⌘${i + 1}`})`}
-            title={v.isLoading ? 'AI 분석 중...' : v.needsSetup ? '설정 필요' : `⌘${i + 1}`}
+            aria-label={`${v.variantLabel} (${v.isLoading ? t('comparison.analyzingVariant') : v.needsSetup ? t('comparison.settingsRequired') : `⌘${i + 1}`})`}
+            title={v.isLoading ? t('comparison.analyzingVariant') : v.needsSetup ? t('comparison.settingsRequired') : `⌘${i + 1}`}
             className={`relative flex-shrink-0 px-3 py-1.5 text-xs rounded-lg transition-all flex items-center gap-1.5 ${
               copiedIndex === i
                 ? 'bg-accent-success/30 text-accent-success ring-1 ring-accent-success'
@@ -324,7 +363,7 @@ function PromptComparisonInner({
             {v.variant === 'cosp' && <Zap size={12} />}
             {!v.needsSetup && !v.isLoading && <span className="opacity-50 text-[10px]">⌘{i + 1}</span>}
             {v.variantLabel}
-            {v.isLoading && <span className="text-[10px] opacity-70">분석중</span>}
+            {v.isLoading && <span className="text-[10px] opacity-70">{t('comparison.analyzing')}</span>}
             {copiedIndex === i && (
               <span className="absolute -top-1 -right-1 w-3 h-3 flex items-center justify-center bg-accent-success rounded-full">
                 <Check size={8} className="text-white" />
@@ -338,7 +377,7 @@ function PromptComparisonInner({
       <div
         id="prompt-content-panel"
         role="tabpanel"
-        aria-label={showOriginal ? '원본 프롬프트' : '개선된 프롬프트'}
+        aria-label={showOriginal ? t('comparison.originalPrompt') : t('comparison.improvedPrompt')}
         className={`bg-dark-surface rounded-lg p-3 border ${
           showOriginal ? 'border-dark-border' : colors.border
         }`}
@@ -348,8 +387,8 @@ function PromptComparisonInner({
           {showOriginal ? (
             <>
               <FileText size={14} className="text-gray-500" />
-              <span className="text-xs text-gray-500 font-medium">원본 프롬프트</span>
-              <span className="text-[10px] text-gray-600 ml-auto">{originalPrompt.length}자</span>
+              <span className="text-xs text-gray-500 font-medium">{t('comparison.originalPrompt')}</span>
+              <span className="text-[10px] text-gray-600 ml-auto">{t('comparison.charCount', { count: originalPrompt.length })}</span>
             </>
           ) : (
             <>
@@ -364,7 +403,7 @@ function PromptComparisonInner({
               )}
               <span className={`text-xs font-medium ${colors.text}`}>
                 {currentVariant.variantLabel}
-                {currentVariant.isLoading && <span className="text-gray-500 ml-1">(분석중...)</span>}
+                {currentVariant.isLoading && <span className="text-gray-500 ml-1">({t('comparison.analyzingVariant')})</span>}
               </span>
               {currentVariant.isAiGenerated && !currentVariant.isLoading && (
                 <span className="flex items-center gap-1">
@@ -388,14 +427,14 @@ function PromptComparisonInner({
                         ? 'bg-cyan-500/20 text-cyan-400'
                         : 'bg-dark-hover text-gray-500 hover:text-gray-300'
                     }`}
-                    title={viewMode === 'diff' ? '개선된 텍스트만 보기' : '원본과 비교하기'}
+                    title={viewMode === 'diff' ? t('comparison.viewImprovedOnly') : t('comparison.compareWithOriginal')}
                   >
                     <GitCompare size={12} />
-                    {viewMode === 'diff' ? '차이' : '비교'}
+                    {viewMode === 'diff' ? t('comparison.diff') : t('comparison.compare')}
                   </button>
                 )}
                 {!currentVariant.needsSetup && !currentVariant.isLoading && (
-                  <span className="text-[10px] text-gray-600">{currentVariant.rewrittenPrompt.length}자</span>
+                  <span className="text-[10px] text-gray-600">{t('comparison.charCount', { count: currentVariant.rewrittenPrompt.length })}</span>
                 )}
               </div>
             </>
@@ -415,25 +454,24 @@ function PromptComparisonInner({
           // Phase 3.1: Loading state for async AI variant
           <div className="flex flex-col items-center justify-center py-6 text-center">
             <Loader2 size={32} className="text-amber-400 mb-3 animate-spin" />
-            <p className="text-gray-300 text-sm mb-1">AI가 프롬프트를 분석하고 있습니다</p>
+            <p className="text-gray-300 text-sm mb-1">{t('comparison.loading.title')}</p>
             <p className="text-xs text-gray-500 leading-relaxed">
-              잠시만 기다려주세요...<br/>
-              다른 탭을 먼저 확인할 수 있습니다
+              {t('comparison.loading.description')}<br/>
+              {t('comparison.loading.hint')}
             </p>
           </div>
         ) : currentVariant.needsSetup ? (
           <div className="flex flex-col items-center justify-center py-4 text-center">
             <Wand2 size={28} className="text-amber-400 mb-3" />
-            <p className="text-gray-300 text-sm mb-1">AI 프롬프트 개선 사용하기</p>
+            <p className="text-gray-300 text-sm mb-1">{t('comparison.setup.title')}</p>
             <p className="text-xs text-gray-500 mb-4 leading-relaxed">
-              Settings에서 Claude API 키를 설정하면<br/>
-              AI가 더 정확한 프롬프트 개선을 제안합니다
+              {t('comparison.setup.description')}
             </p>
             <button
               onClick={() => onOpenSettings?.()}
               className="px-4 py-2 bg-amber-500/20 text-amber-400 rounded-lg text-sm hover:bg-amber-500/30 transition-colors"
             >
-              설정하기
+              {t('comparison.setup.button')}
             </button>
           </div>
         ) : (
@@ -473,12 +511,12 @@ function PromptComparisonInner({
           {isExpanded ? (
             <>
               <ChevronUp size={14} />
-              접기
+              {t('comparison.collapse')}
             </>
           ) : (
             <>
               <ChevronDown size={14} />
-              전체 보기
+              {t('comparison.expand')}
             </>
           )}
         </button>
@@ -512,7 +550,7 @@ function PromptComparisonInner({
           ) : (
             <AlertCircle size={16} />
           )}
-          <span>{applyResult.message || (applyResult.success ? '적용됨!' : '적용 실패')}</span>
+          <span>{applyResult.message || (applyResult.success ? tc('applied') : tc('failed'))}</span>
         </div>
       )}
 
@@ -525,7 +563,7 @@ function PromptComparisonInner({
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
             >
               <Wand2 size={16} />
-              AI 개선 설정하기
+              {t('comparison.aiSetup')}
             </button>
           ) : (
             <>
@@ -533,10 +571,10 @@ function PromptComparisonInner({
               {!onApply && (
                 <div
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm text-gray-500 bg-dark-hover/50 cursor-not-allowed"
-                  title="이 앱에서는 자동 적용이 지원되지 않습니다. 복사 후 수동으로 붙여넣어주세요."
+                  title={t('comparison.pasteHint')}
                 >
                   <Play size={16} className="opacity-50" />
-                  <span className="opacity-70">적용 불가</span>
+                  <span className="opacity-70">{t('comparison.pasteAfterCopy')}</span>
                 </div>
               )}
               {onApply && (
@@ -553,12 +591,12 @@ function PromptComparisonInner({
                   {applying ? (
                     <>
                       <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />
-                      적용 중...
+                      {tc('applying')}
                     </>
                   ) : (
                     <>
                       <Play size={16} />
-                      적용
+                      {tc('apply')}
                     </>
                   )}
                 </button>
@@ -572,17 +610,17 @@ function PromptComparisonInner({
                     ? 'bg-accent-success/20 text-accent-success'
                     : 'bg-dark-hover hover:bg-dark-border text-gray-300'
                 }`}
-                title="복사"
+                title={tc('copy')}
               >
                 {copied ? (
                   <>
                     <Check size={16} />
-                    복사됨!
+                    {tc('copied')}
                   </>
                 ) : (
                   <>
                     <Copy size={16} />
-                    복사
+                    {tc('copy')}
                   </>
                 )}
               </button>
@@ -594,21 +632,26 @@ function PromptComparisonInner({
       {/* Shortcut Guide - only show for variants */}
       {!showOriginal && !currentVariant.needsSetup && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 pt-2 border-t border-dark-border/50 text-[10px] text-gray-500">
+          <span>
+            <kbd className="px-1 py-0.5 bg-dark-hover rounded">←</kbd>
+            <kbd className="px-1 py-0.5 bg-dark-hover rounded ml-0.5">→</kbd>
+            <span className="ml-1">{t('comparison.shortcuts.tabMove')}</span>
+          </span>
           {onApply && (
             <span>
               <kbd className="px-1 py-0.5 bg-dark-hover rounded">⌘</kbd>
               <kbd className="px-1 py-0.5 bg-dark-hover rounded ml-0.5">Enter</kbd>
-              <span className="ml-1">적용</span>
+              <span className="ml-1">{tc('apply')}</span>
             </span>
           )}
           <span>
             <kbd className="px-1 py-0.5 bg-dark-hover rounded">⌘</kbd>
             <kbd className="px-1 py-0.5 bg-dark-hover rounded ml-0.5">1-4</kbd>
-            <span className="ml-1">복사</span>
+            <span className="ml-1">{t('comparison.shortcuts.copy')}</span>
           </span>
           <span>
             <kbd className="px-1 py-0.5 bg-dark-hover rounded">Esc</kbd>
-            <span className="ml-1">닫기</span>
+            <span className="ml-1">{tc('close')}</span>
           </span>
         </div>
       )}

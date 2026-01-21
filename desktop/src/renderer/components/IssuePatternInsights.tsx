@@ -3,20 +3,16 @@
  * Phase 3: Visualize and analyze recurring issues with trend analysis
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AlertCircle, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronRight } from 'lucide-react';
 import type { IssuePattern } from '../electron.d';
 
-const DIMENSION_TIPS: Record<string, string> = {
-  'goal': '프롬프트의 목적을 명확히 하세요. "~를 해줘" 대신 "~를 위해 ~를 해줘"',
-  'output': '원하는 출력 형식을 구체적으로 명시하세요 (JSON, 마크다운, 단계별 등)',
-  'limits': '제약 조건을 명확히 하세요 (100줄 이내, ES6만 사용, 외부 라이브러리 없이)',
-  'data': '충분한 배경 정보를 제공하세요 (프로젝트 구조, 프레임워크, 관련 코드)',
-  'evaluation': '성공 기준을 명시하세요 (테스트 통과, API 호환성 유지 등)',
-  'next': '후속 작업을 명시하세요 (구현 후 테스트, 문서화 등)',
-};
+// Dimension keys for translation lookup
+const DIMENSION_KEYS = ['goal', 'output', 'limits', 'data', 'evaluation', 'next'] as const;
 
 export default function IssuePatternInsights() {
+  const { t } = useTranslation('analysis');
   const [patterns, setPatterns] = useState<IssuePattern[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedPattern, setExpandedPattern] = useState<string | null>(null);
@@ -48,16 +44,16 @@ export default function IssuePatternInsights() {
     }
   };
 
-  const getTrendText = (trend: IssuePattern['trend']) => {
+  const getTrendText = useCallback((trend: IssuePattern['trend']) => {
     switch (trend) {
       case 'improving':
-        return '개선 중';
+        return t('issuePatterns.trend.improving');
       case 'worsening':
-        return '악화 중';
+        return t('issuePatterns.trend.worsening');
       default:
-        return '유지 중';
+        return t('issuePatterns.trend.stable');
     }
-  };
+  }, [t]);
 
   const getSeverityColor = (severity: IssuePattern['severity']) => {
     switch (severity) {
@@ -70,36 +66,30 @@ export default function IssuePatternInsights() {
     }
   };
 
-  const getSeverityBadge = (severity: IssuePattern['severity']) => {
+  const getSeverityBadge = useCallback((severity: IssuePattern['severity']) => {
     const colors = {
       high: 'bg-red-500 text-white',
       medium: 'bg-yellow-500 text-black',
       low: 'bg-blue-500 text-white',
     };
 
-    const labels = {
-      high: '높음',
-      medium: '중간',
-      low: '낮음',
-    };
-
     return (
       <span className={`px-2 py-0.5 rounded text-xs font-medium ${colors[severity]}`}>
-        {labels[severity]}
+        {t(`issuePatterns.severity.${severity}`)}
       </span>
     );
-  };
+  }, [t]);
 
-  const getTipForCategory = (category: string): string | null => {
+  const getTipForCategory = useCallback((category: string): string | null => {
     // Try to match category to a GOLDEN dimension
     const categoryLower = category.toLowerCase();
-    for (const [key, tip] of Object.entries(DIMENSION_TIPS)) {
+    for (const key of DIMENSION_KEYS) {
       if (categoryLower.includes(key) || category.includes(key)) {
-        return tip;
+        return t(`issuePatterns.dimensionTips.${key}`);
       }
     }
     return null;
-  };
+  }, [t]);
 
   const toggleExpand = (category: string) => {
     setExpandedPattern(expandedPattern === category ? null : category);
@@ -117,8 +107,8 @@ export default function IssuePatternInsights() {
     return (
       <div className="flex flex-col items-center justify-center h-64 text-gray-400">
         <AlertCircle size={48} className="mb-4 opacity-50" />
-        <p>이슈 패턴 데이터가 충분하지 않습니다</p>
-        <p className="text-sm mt-2">더 많은 프롬프트를 분석하면 패턴이 나타납니다</p>
+        <p>{t('issuePatterns.empty')}</p>
+        <p className="text-sm mt-2">{t('issuePatterns.emptyHint')}</p>
       </div>
     );
   }
@@ -129,7 +119,7 @@ export default function IssuePatternInsights() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <AlertCircle size={20} className="text-accent-primary" />
-          <span className="font-medium">이슈 패턴 분석</span>
+          <span className="font-medium">{t('issuePatterns.title')}</span>
         </div>
         <div className="flex gap-1 p-1 bg-dark-surface rounded-lg text-xs">
           {[7, 14, 30, 60].map((d) => (
@@ -142,7 +132,7 @@ export default function IssuePatternInsights() {
                   : 'text-gray-400 hover:text-gray-200'
               }`}
             >
-              {d}일
+              {t('issuePatterns.days', { count: d })}
             </button>
           ))}
         </div>
@@ -154,19 +144,19 @@ export default function IssuePatternInsights() {
           <div className="text-2xl font-bold text-accent-error">
             {patterns.reduce((sum, p) => sum + p.count, 0)}
           </div>
-          <div className="text-xs text-gray-400">총 이슈</div>
+          <div className="text-xs text-gray-400">{t('issuePatterns.totalIssues')}</div>
         </div>
         <div className="bg-dark-surface rounded-lg p-3 text-center">
           <div className="text-2xl font-bold text-accent-warning">
             {patterns.length}
           </div>
-          <div className="text-xs text-gray-400">이슈 유형</div>
+          <div className="text-xs text-gray-400">{t('issuePatterns.issueTypes')}</div>
         </div>
         <div className="bg-dark-surface rounded-lg p-3 text-center">
           <div className="text-2xl font-bold text-accent-success">
             {patterns.filter(p => p.trend === 'improving').length}
           </div>
-          <div className="text-xs text-gray-400">개선 중</div>
+          <div className="text-xs text-gray-400">{t('issuePatterns.improving')}</div>
         </div>
       </div>
 
@@ -193,8 +183,8 @@ export default function IssuePatternInsights() {
                       {getSeverityBadge(pattern.severity)}
                     </div>
                     <div className="flex items-center gap-4 text-xs text-gray-400 ml-6">
-                      <span>{pattern.count}회 발생</span>
-                      <span>최근 {pattern.recentCount}회</span>
+                      <span>{t('issuePatterns.occurrences', { count: pattern.count })}</span>
+                      <span>{t('issuePatterns.recentOccurrences', { count: pattern.recentCount })}</span>
                       <div className="flex items-center gap-1">
                         {getTrendIcon(pattern.trend)}
                         <span>{getTrendText(pattern.trend)}</span>
@@ -208,7 +198,7 @@ export default function IssuePatternInsights() {
                 <div className="px-3 pb-3 border-t border-gray-700/30">
                   <div className="mt-3 p-3 bg-dark-surface rounded-lg">
                     <div className="text-xs font-medium text-accent-primary mb-1">
-                      💡 개선 팁
+                      {t('issuePatterns.improvementTip')}
                     </div>
                     <div className="text-xs text-gray-300">{tip}</div>
                   </div>
@@ -222,13 +212,13 @@ export default function IssuePatternInsights() {
       {/* Trends Summary */}
       {patterns.some(p => p.trend !== 'stable') && (
         <div className="bg-dark-surface rounded-lg p-4 border border-gray-700/30">
-          <div className="text-sm font-medium mb-2">트렌드 요약</div>
+          <div className="text-sm font-medium mb-2">{t('issuePatterns.trendSummary')}</div>
           <div className="space-y-1 text-xs">
             {patterns.filter(p => p.trend === 'improving').length > 0 && (
               <div className="flex items-center gap-2 text-green-400">
                 <TrendingUp size={14} />
                 <span>
-                  {patterns.filter(p => p.trend === 'improving').length}개 이슈가 개선되고 있습니다
+                  {t('issuePatterns.trendImproving', { count: patterns.filter(p => p.trend === 'improving').length })}
                 </span>
               </div>
             )}
@@ -236,7 +226,7 @@ export default function IssuePatternInsights() {
               <div className="flex items-center gap-2 text-red-400">
                 <TrendingDown size={14} />
                 <span>
-                  {patterns.filter(p => p.trend === 'worsening').length}개 이슈가 악화되고 있습니다 - 주의가 필요합니다
+                  {t('issuePatterns.trendWorsening', { count: patterns.filter(p => p.trend === 'worsening').length })}
                 </span>
               </div>
             )}

@@ -91,6 +91,11 @@ vi.mock('url', () => ({
   fileURLToPath: vi.fn(() => '/mock/path/dist/main/tray.js'),
 }));
 
+// Mock i18n module - return the key as-is for easier testing
+vi.mock('../i18n.js', () => ({
+  t: vi.fn((key: string) => key),
+}));
+
 // Store original platform
 const originalPlatform = process.platform;
 
@@ -147,7 +152,7 @@ describe('tray', () => {
         expect.stringContaining('trayTemplate.png')
       );
       expect(mockState.nativeImageInstance.setTemplateImage).toHaveBeenCalledWith(true);
-      expect(mockState.trayInstance.setToolTip).toHaveBeenCalledWith('PromptLint - 프롬프트 교정');
+      expect(mockState.trayInstance.setToolTip).toHaveBeenCalledWith('tray:tooltip');
     });
 
     it('should use fallback icon when file not found on macOS', () => {
@@ -184,11 +189,11 @@ describe('tray', () => {
 
       expect(Menu.buildFromTemplate).toHaveBeenCalledWith(
         expect.arrayContaining([
-          expect.objectContaining({ label: '분석 창 열기' }),
-          expect.objectContaining({ label: '최근 분석' }),
-          expect.objectContaining({ label: '통계 보기' }),
-          expect.objectContaining({ label: '설정' }),
-          expect.objectContaining({ label: '종료' }),
+          expect.objectContaining({ label: 'tray:show' }),
+          expect.objectContaining({ label: 'tray:recentAnalyses' }),
+          expect.objectContaining({ label: 'tray:stats.title' }),
+          expect.objectContaining({ label: 'tray:settings' }),
+          expect.objectContaining({ label: 'tray:quit' }),
         ])
       );
     });
@@ -301,32 +306,32 @@ describe('tray', () => {
   });
 
   describe('context menu actions', () => {
-    it('should show window when "분석 창 열기" clicked', () => {
+    it('should show window when "Show" clicked', () => {
       createTray(mockState.mainWindow as unknown as Electron.BrowserWindow);
 
       const template = (Menu.buildFromTemplate as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      const openItem = template.find((item: { label?: string }) => item.label === '분석 창 열기');
+      const openItem = template.find((item: { label?: string }) => item.label === 'tray:show');
       openItem.click();
 
       expect(mockState.mainWindow.show).toHaveBeenCalled();
       expect(mockState.mainWindow.focus).toHaveBeenCalled();
     });
 
-    it('should navigate to stats when "통계 보기" clicked', () => {
+    it('should navigate to stats when "Stats" clicked', () => {
       createTray(mockState.mainWindow as unknown as Electron.BrowserWindow);
 
       const template = (Menu.buildFromTemplate as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      const statsItem = template.find((item: { label?: string }) => item.label === '통계 보기');
+      const statsItem = template.find((item: { label?: string }) => item.label === 'tray:stats.title');
       statsItem.click();
 
       expect(mockState.mainWindow.webContents.send).toHaveBeenCalledWith('navigate', 'stats');
     });
 
-    it('should quit app when "종료" clicked', () => {
+    it('should quit app when "Quit" clicked', () => {
       createTray(mockState.mainWindow as unknown as Electron.BrowserWindow);
 
       const template = (Menu.buildFromTemplate as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      const quitItem = template.find((item: { label?: string }) => item.label === '종료');
+      const quitItem = template.find((item: { label?: string }) => item.label === 'tray:quit');
       quitItem.click();
 
       expect(app.quit).toHaveBeenCalled();
@@ -336,9 +341,9 @@ describe('tray', () => {
       createTray(mockState.mainWindow as unknown as Electron.BrowserWindow);
 
       const template = (Menu.buildFromTemplate as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      const settingsItem = template.find((item: { label?: string }) => item.label === '설정');
+      const settingsItem = template.find((item: { label?: string }) => item.label === 'tray:settings');
       const alwaysOnTopItem = settingsItem.submenu.find(
-        (item: { label?: string }) => item.label === '항상 위에 표시'
+        (item: { label?: string }) => item.label === 'common:alwaysOnTop'
       );
       alwaysOnTopItem.click({ checked: true });
 
@@ -349,9 +354,9 @@ describe('tray', () => {
       createTray(mockState.mainWindow as unknown as Electron.BrowserWindow);
 
       const template = (Menu.buildFromTemplate as ReturnType<typeof vi.fn>).mock.calls[0][0];
-      const settingsItem = template.find((item: { label?: string }) => item.label === '설정');
+      const settingsItem = template.find((item: { label?: string }) => item.label === 'tray:settings');
       const loginItem = settingsItem.submenu.find(
-        (item: { label?: string }) => item.label === '시작 시 실행'
+        (item: { label?: string }) => item.label === 'common:openAtLogin'
       );
       loginItem.click({ checked: true });
 
@@ -390,7 +395,7 @@ describe('tray', () => {
 
       expect(mockState.trayInstance.setTitle).toHaveBeenCalledWith('•');
       expect(mockState.trayInstance.setToolTip).toHaveBeenCalledWith(
-        'PromptLint - 새 프롬프트 감지됨!'
+        'tray:tooltipNewPrompt'
       );
     });
 
@@ -401,7 +406,7 @@ describe('tray', () => {
       setTrayBadge(false);
 
       expect(mockState.trayInstance.setTitle).toHaveBeenCalledWith('');
-      expect(mockState.trayInstance.setToolTip).toHaveBeenCalledWith('PromptLint - 프롬프트 교정');
+      expect(mockState.trayInstance.setToolTip).toHaveBeenCalledWith('tray:tooltipDefault');
     });
 
     it('should update tooltip only on non-macOS', () => {
@@ -413,7 +418,7 @@ describe('tray', () => {
 
       expect(mockState.trayInstance.setTitle).not.toHaveBeenCalled();
       expect(mockState.trayInstance.setToolTip).toHaveBeenCalledWith(
-        'PromptLint - 새 프롬프트 감지됨!'
+        'tray:tooltipNewPrompt'
       );
     });
   });
@@ -426,7 +431,7 @@ describe('tray', () => {
       clearTrayBadge();
 
       expect(mockState.trayInstance.setTitle).toHaveBeenCalledWith('');
-      expect(mockState.trayInstance.setToolTip).toHaveBeenCalledWith('PromptLint - 프롬프트 교정');
+      expect(mockState.trayInstance.setToolTip).toHaveBeenCalledWith('tray:tooltipDefault');
     });
   });
 });

@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Folder, GitBranch, Cpu, Clock, ChevronDown, ChevronUp, Zap, Monitor, MousePointer, MessageSquare, FileCode, Check, RefreshCw } from 'lucide-react';
 
 export interface SessionContextInfo {
@@ -47,10 +48,12 @@ interface ContextIndicatorProps {
  * With dropdown for project selection
  */
 export default function ContextIndicator({ context, onProjectSelect, onLoadProjects }: ContextIndicatorProps) {
+  const { t } = useTranslation('analysis');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [allProjects, setAllProjects] = useState<DetectedProject[]>([]);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const [focusedIndex, setFocusedIndex] = useState(-1); // -1 means "auto-detect" option
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Debug: Log context changes
@@ -65,9 +68,9 @@ export default function ContextIndicator({ context, onProjectSelect, onLoadProje
       ? new Date(context.lastActivity)
       : context.lastActivity;
     const recent = now - activity.getTime() < 60 * 60 * 1000; // Within 1 hour
-    const ago = formatTimeAgo(activity, now);
+    const ago = formatTimeAgo(activity, now, t);
     return { isRecent: recent, timeAgo: ago };
-  }, [context]);
+  }, [context, t]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -96,6 +99,60 @@ export default function ContextIndicator({ context, onProjectSelect, onLoadProje
     }
   }, [isDropdownOpen]);
 
+  // Handle project selection (useCallback for stable reference)
+  const handleProjectSelect = useCallback((projectPath: string | null) => {
+    onProjectSelect?.(projectPath);
+    setIsDropdownOpen(false);
+  }, [onProjectSelect]);
+
+  // Keyboard navigation for dropdown
+  useEffect(() => {
+    if (!isDropdownOpen || isLoadingProjects) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Total items = allProjects.length + 1 (for auto-detect option at index -1)
+      const maxIndex = allProjects.length - 1;
+      const minIndex = -1; // Auto-detect option
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setFocusedIndex((prev) => Math.min(prev + 1, maxIndex));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setFocusedIndex((prev) => Math.max(prev - 1, minIndex));
+          break;
+        case 'Enter':
+          e.preventDefault();
+          if (focusedIndex === -1) {
+            handleProjectSelect(null); // Auto-detect
+          } else if (focusedIndex >= 0 && focusedIndex < allProjects.length) {
+            handleProjectSelect(allProjects[focusedIndex].projectPath);
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          setIsDropdownOpen(false);
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isDropdownOpen, isLoadingProjects, allProjects, focusedIndex, handleProjectSelect]);
+
+  // Reset focused index when dropdown opens
+  useEffect(() => {
+    if (isDropdownOpen) {
+      // Find current selection index
+      const currentIndex = allProjects.findIndex(
+        (p) => p.projectPath === context?.projectPath
+      );
+      setFocusedIndex(context?.isManual ? currentIndex : -1);
+    }
+  }, [isDropdownOpen, allProjects, context?.projectPath, context?.isManual]);
+
   // Load projects when dropdown opens
   const handleDropdownToggle = async (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent event from bubbling to document
@@ -117,13 +174,8 @@ export default function ContextIndicator({ context, onProjectSelect, onLoadProje
     console.log('[ContextIndicator] isDropdownOpen set to:', !isDropdownOpen);
   };
 
-  const handleProjectSelect = (projectPath: string | null) => {
-    onProjectSelect?.(projectPath);
-    setIsDropdownOpen(false);
-  };
-
   // Extract project name from path (or use default)
-  const projectName = context?.projectPath.split('/').pop() || '프로젝트 미감지';
+  const projectName = context?.projectPath.split('/').pop() || t('context.noProject');
   const isManualMode = context?.isManual === true;
 
   // Compact tech stack display (first 2)
@@ -144,11 +196,11 @@ export default function ContextIndicator({ context, onProjectSelect, onLoadProje
         <div className="flex items-center gap-2 min-w-0 flex-1">
           {/* Source indicator */}
           {isManualMode ? (
-            <span className="relative flex h-2.5 w-2.5 flex-shrink-0" title="수동 선택됨">
+            <span className="relative flex h-2.5 w-2.5 flex-shrink-0" title={t('context.manuallySelected')}>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400"></span>
             </span>
           ) : context?.source === 'active-window' ? (
-            <span className="relative flex h-2.5 w-2.5 flex-shrink-0" title="활성 창에서 감지됨">
+            <span className="relative flex h-2.5 w-2.5 flex-shrink-0" title={t('context.detectedFrom', { ide: context.ideName || 'IDE' })}>
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-success opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent-success"></span>
             </span>
@@ -158,7 +210,7 @@ export default function ContextIndicator({ context, onProjectSelect, onLoadProje
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-accent-warning"></span>
             </span>
           ) : context ? null : (
-            <span className="relative flex h-2.5 w-2.5 flex-shrink-0" title="프로젝트 미감지">
+            <span className="relative flex h-2.5 w-2.5 flex-shrink-0" title={t('context.noProject')}>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-gray-600"></span>
             </span>
           )}
@@ -178,7 +230,7 @@ export default function ContextIndicator({ context, onProjectSelect, onLoadProje
                 ? 'bg-amber-500/20 text-amber-400'
                 : 'bg-accent-secondary/20 text-accent-secondary'
             }`}>
-              {isManualMode ? '수동' : context.ideName}
+              {isManualMode ? t('context.manual') : context.ideName}
             </span>
           )}
 
@@ -225,20 +277,25 @@ export default function ContextIndicator({ context, onProjectSelect, onLoadProje
           {isLoadingProjects ? (
             <div className="px-3 py-4 flex items-center justify-center text-sm text-gray-400">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-accent-primary mr-2"></div>
-              프로젝트 로딩 중...
+              {t('context.loadingProjects')}
             </div>
           ) : allProjects.length === 0 ? (
             <div className="px-3 py-4 text-sm text-gray-500 text-center">
-              열린 IDE 프로젝트가 없습니다
+              {t('context.noOpenProjects')}
             </div>
           ) : (
             <div className="max-h-[200px] overflow-y-auto">
-              {allProjects.map((project) => (
+              {allProjects.map((project, index) => (
                 <button
                   key={project.projectPath}
                   onClick={() => handleProjectSelect(project.projectPath)}
-                  className={`w-full px-3 py-2.5 flex items-center gap-2 hover:bg-dark-hover transition-colors text-left ${
-                    context?.projectPath === project.projectPath ? 'bg-dark-hover' : ''
+                  onMouseEnter={() => setFocusedIndex(index)}
+                  className={`w-full px-3 py-2.5 flex items-center gap-2 transition-colors text-left ${
+                    focusedIndex === index
+                      ? 'bg-accent-primary/20 border-l-2 border-accent-primary'
+                      : context?.projectPath === project.projectPath
+                        ? 'bg-dark-hover'
+                        : 'hover:bg-dark-hover'
                   }`}
                 >
                   {context?.projectPath === project.projectPath ? (
@@ -265,13 +322,18 @@ export default function ContextIndicator({ context, onProjectSelect, onLoadProje
           <div className="border-t border-dark-border">
             <button
               onClick={() => handleProjectSelect(null)}
-              className={`w-full px-3 py-2.5 flex items-center gap-2 hover:bg-dark-hover transition-colors text-left ${
-                !isManualMode ? 'bg-dark-hover' : ''
+              onMouseEnter={() => setFocusedIndex(-1)}
+              className={`w-full px-3 py-2.5 flex items-center gap-2 transition-colors text-left ${
+                focusedIndex === -1
+                  ? 'bg-accent-primary/20 border-l-2 border-accent-primary'
+                  : !isManualMode
+                    ? 'bg-dark-hover'
+                    : 'hover:bg-dark-hover'
               }`}
             >
               <RefreshCw size={14} className={!isManualMode ? 'text-accent-success' : 'text-gray-500'} />
               <span className={`text-sm ${!isManualMode ? 'text-accent-success' : 'text-gray-400'}`}>
-                자동 감지 (현재 활성 창)
+                {t('context.autoDetect')}
               </span>
               {!isManualMode && (
                 <Check size={14} className="text-accent-success ml-auto" />
@@ -287,7 +349,7 @@ export default function ContextIndicator({ context, onProjectSelect, onLoadProje
           onClick={() => setIsExpanded(!isExpanded)}
           className="w-full mt-1 px-2 py-1 text-xs text-gray-500 hover:text-gray-400 transition-colors flex items-center justify-center gap-1"
         >
-          <span>{isExpanded ? '상세 정보 접기' : '상세 정보 보기'}</span>
+          <span>{isExpanded ? t('context.hideDetails') : t('context.showDetails')}</span>
           {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         </button>
       )}
@@ -302,20 +364,20 @@ export default function ContextIndicator({ context, onProjectSelect, onLoadProje
               <span className="text-gray-500">
                 {isManualMode ? (
                   <>
-                    <span className="text-amber-400">●</span> 수동 선택됨
+                    <span className="text-amber-400">●</span> {t('context.manuallySelected')}
                   </>
                 ) : context.source === 'active-window' ? (
                   <>
-                    <span className="text-accent-success">●</span> {context.ideName || 'IDE'}에서 감지
+                    <span className="text-accent-success">●</span> {t('context.detectedFrom', { ide: context.ideName || 'IDE' })}
                     {context.confidence && (
                       <span className="ml-1 text-gray-600">
-                        ({context.confidence === 'high' ? '높은 신뢰도' : context.confidence === 'medium' ? '중간 신뢰도' : '낮은 신뢰도'})
+                        ({t(`context.confidence.${context.confidence}`)})
                       </span>
                     )}
                   </>
                 ) : (
                   <>
-                    <span className="text-accent-warning">●</span> 앱 경로에서 추정
+                    <span className="text-accent-warning">●</span> {t('context.inferredFromPath')}
                   </>
                 )}
               </span>
@@ -360,7 +422,7 @@ export default function ContextIndicator({ context, onProjectSelect, onLoadProje
             <div className="mt-2 pt-2 border-t border-dark-border/50 space-y-1.5">
               <div className="flex items-center gap-1.5 text-xs text-accent-primary">
                 <MessageSquare size={10} />
-                <span className="font-medium">직전 대화</span>
+                <span className="font-medium">{t('context.lastConversation')}</span>
               </div>
               {context.lastExchange.assistantSummary && (
                 <div className="text-xs text-gray-400 pl-4 line-clamp-2">
@@ -394,7 +456,7 @@ export default function ContextIndicator({ context, onProjectSelect, onLoadProje
           {!isRecent && (
             <div className="flex items-center gap-1.5 text-xs text-gray-600">
               <Clock size={10} />
-              <span>마지막 활동: {timeAgo}</span>
+              <span>{t('context.lastActivity')}: {timeAgo}</span>
             </div>
           )}
 
@@ -410,17 +472,18 @@ export default function ContextIndicator({ context, onProjectSelect, onLoadProje
 
 /**
  * Format time ago string (pure function - now passed as parameter)
+ * Uses i18n translation function
  */
-function formatTimeAgo(date: Date, now: number): string {
+function formatTimeAgo(date: Date, now: number, t: (key: string, options?: Record<string, unknown>) => string): string {
   const diff = now - date.getTime();
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const days = Math.floor(hours / 24);
 
   if (days > 0) {
-    return `${days}일 전`;
+    return t('context.daysAgo', { count: days });
   }
   if (hours > 0) {
-    return `${hours}시간 전`;
+    return t('context.hoursAgo', { count: hours });
   }
-  return '방금 전';
+  return t('context.recentActivity');
 }

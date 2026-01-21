@@ -1,0 +1,66 @@
+{
+  "general": {
+    "unknown": "An unknown error occurred",
+    "tryAgain": "Please try again",
+    "contactSupport": "If the problem persists, please contact support"
+  },
+  "analysis": {
+    "failed": "Analysis could not be completed",
+    "timeout": "Analysis timed out. Please try again.",
+    "noText": "No text to analyze. Please select or copy some text first.",
+    "tooShort": "Text is too short for meaningful analysis",
+    "tooLong": "Text is too long. Please select a shorter prompt."
+  },
+  "capture": {
+    "failed": "Failed to capture text",
+    "noSelection": "No text selected. Please select some text first.",
+    "clipboardEmpty": "Clipboard is empty",
+    "accessibilityRequired": "Accessibility permission required for text selection"
+  },
+  "ai": {
+    "connectionFailed": "Failed to connect to AI provider",
+    "invalidKey": "Invalid API key. Please check your settings.",
+    "rateLimited": "Rate limited. Please wait a moment and try again.",
+    "serverError": "AI provider server error. Please try again later.",
+    "timeout": "AI request timed out. Please try again."
+  },
+  "network": {
+    "offline": "No internet connection",
+    "failed": "Network request failed"
+  },
+  "storage": {
+    "saveFailed": "Failed to save data",
+    "loadFailed": "Failed to load data",
+    "databaseError": "Database error occurred"
+  },
+  "settings": {
+    "saveFailed": "Failed to save settings",
+    "loadFailed": "Failed to load settings",
+    "invalidValue": "Invalid setting value",
+    "saveError": "Failed to save setting: {{error}}",
+    "shortcutFailed": "Shortcut ({{shortcut}}) registration failed. Another app may be using it.",
+    "shortcutFailedLong": "Global shortcut ({{shortcut}}) registration failed. Another app may be using it. Double-click the tray icon or change the shortcut in settings."
+  },
+  "update": {
+    "checkFailed": "Failed to check for updates",
+    "downloadFailed": "Failed to download update",
+    "installFailed": "Failed to install update",
+    "availableTitle": "Update Available",
+    "availableMessage": "New version {{version}} is available.",
+    "availableDetail": "Would you like to download it now?",
+    "downloadButton": "Download",
+    "laterButton": "Later",
+    "readyTitle": "Update Ready",
+    "readyMessage": "Version {{version}} download complete",
+    "readyDetail": "The update will be installed when you restart the app.",
+    "restartNowButton": "Restart Now",
+    "noRelease": "No GitHub release found. You may be using the latest version.",
+    "networkError": "Please check your network connection.",
+    "authError": "GitHub access denied. A token is required for private repositories."
+  },
+  "permission": {
+    "accessibility": "Accessibility permission is required",
+    "accessibilityDesc": "Please grant accessibility access in System Settings > Privacy & Security > Accessibility",
+    "openSettings": "Open Settings"
+  }
+}

@@ -262,6 +262,29 @@ export function getLatestSession(projectId: string): string | null {
 /**
  * Parse JSONL file with size-aware handling
  */
+/**
+ * Type guard for ClaudeRecord - validates parsed JSON has expected structure
+ */
+function isValidClaudeRecord(obj: unknown): obj is ClaudeRecord {
+  if (typeof obj !== 'object' || obj === null) {
+    return false;
+  }
+  const record = obj as Record<string, unknown>;
+  // type is required and must be one of the expected values
+  if (typeof record.type !== 'string') {
+    return false;
+  }
+  const validTypes = ['user', 'assistant', 'summary', 'system'];
+  if (!validTypes.includes(record.type)) {
+    return false;
+  }
+  // timestamp is optional but if present must be string
+  if (record.timestamp !== undefined && typeof record.timestamp !== 'string') {
+    return false;
+  }
+  return true;
+}
+
 function parseJsonlFile(filePath: string): ClaudeRecord[] {
   const stats = fs.statSync(filePath);
   const content = fs.readFileSync(filePath, 'utf-8');
@@ -275,8 +298,11 @@ function parseJsonlFile(filePath: string): ClaudeRecord[] {
   const records: ClaudeRecord[] = [];
   for (const line of linesToParse) {
     try {
-      const record = JSON.parse(line) as ClaudeRecord;
-      records.push(record);
+      const parsed = JSON.parse(line);
+      // Validate structure before adding
+      if (isValidClaudeRecord(parsed)) {
+        records.push(parsed);
+      }
     } catch {
       continue; // Skip invalid lines
     }

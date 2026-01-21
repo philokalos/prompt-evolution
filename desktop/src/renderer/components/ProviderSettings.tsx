@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Key, Eye, EyeOff, Check, Plus, GripVertical, Trash2, ExternalLink, AlertCircle, Loader2 } from 'lucide-react';
 
 /**
@@ -15,24 +16,18 @@ interface ProviderConfig {
 }
 
 /**
- * Provider metadata for display
+ * Provider metadata for display (non-translatable data only)
  */
-const PROVIDER_INFO: Record<string, { name: string; description: string; docsUrl: string; keyPrefix: string }> = {
+const PROVIDER_INFO: Record<string, { docsUrl: string; keyPrefix: string }> = {
   claude: {
-    name: 'Claude (Anthropic)',
-    description: '고품질 프롬프트 개선, 뉘앙스 이해력 우수',
     docsUrl: 'https://console.anthropic.com/settings/keys',
     keyPrefix: 'sk-ant-',
   },
   openai: {
-    name: 'ChatGPT (OpenAI)',
-    description: '빠른 응답, 폭넓은 호환성',
     docsUrl: 'https://platform.openai.com/api-keys',
     keyPrefix: 'sk-',
   },
   gemini: {
-    name: 'Gemini (Google)',
-    description: '빠른 추론, 긴 컨텍스트 지원',
     docsUrl: 'https://aistudio.google.com/apikey',
     keyPrefix: 'AIza',
   },
@@ -43,12 +38,17 @@ interface ProviderSettingsProps {
 }
 
 export default function ProviderSettings({ onProvidersChanged }: ProviderSettingsProps) {
+  const { t } = useTranslation('settings');
   const [providers, setProviders] = useState<ProviderConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [showApiKeys, setShowApiKeys] = useState<Record<string, boolean>>({});
   const [validatingKey, setValidatingKey] = useState<string | null>(null);
   const [validationResults, setValidationResults] = useState<Record<string, { valid: boolean; error?: string }>>({});
   const [showAddProvider, setShowAddProvider] = useState(false);
+
+  // Helper to get translated provider info
+  const getProviderName = (type: string) => t(`providers.provider.${type}.name`, { defaultValue: type });
+  const getProviderDescription = (type: string) => t(`providers.provider.${type}.description`, { defaultValue: '' });
 
   // Load providers on mount
   useEffect(() => {
@@ -124,7 +124,7 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
     if (!apiKey || apiKey.trim() === '') {
       setValidationResults(prev => ({
         ...prev,
-        [providerType]: { valid: false, error: 'API 키를 입력해주세요' },
+        [providerType]: { valid: false, error: t('providers.enterApiKey') },
       }));
       return;
     }
@@ -139,12 +139,12 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
     } catch {
       setValidationResults(prev => ({
         ...prev,
-        [providerType]: { valid: false, error: '검증 중 오류가 발생했습니다' },
+        [providerType]: { valid: false, error: t('providers.validationError') },
       }));
     } finally {
       setValidatingKey(null);
     }
-  }, []);
+  }, [t]);
 
   const toggleShowApiKey = useCallback((type: string) => {
     setShowApiKeys(prev => ({ ...prev, [type]: !prev[type] }));
@@ -169,7 +169,7 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Key size={14} className="text-accent-primary" />
-          <span className="text-sm font-medium">AI 프로바이더</span>
+          <span className="text-sm font-medium">{t('providers.title')}</span>
         </div>
         {availableToAdd.length > 0 && (
           <button
@@ -177,7 +177,7 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
             className="flex items-center gap-1 px-2 py-1 text-xs text-accent-primary hover:bg-accent-primary/10 rounded transition-colors"
           >
             <Plus size={12} />
-            추가
+            {t('providers.add')}
           </button>
         )}
       </div>
@@ -185,14 +185,14 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
       {/* Add Provider Dropdown */}
       {showAddProvider && availableToAdd.length > 0 && (
         <div className="p-2 bg-dark-hover border border-dark-border rounded-lg space-y-1">
-          <p className="text-xs text-gray-400 mb-2">프로바이더 추가:</p>
+          <p className="text-xs text-gray-400 mb-2">{t('providers.addProvider')}</p>
           {availableToAdd.map((type) => (
             <button
               key={type}
               onClick={() => addProvider(type as 'claude' | 'openai' | 'gemini')}
               className="w-full flex items-center gap-2 px-2 py-1.5 text-sm text-gray-200 hover:bg-dark-surface rounded transition-colors"
             >
-              <span>{PROVIDER_INFO[type].name}</span>
+              <span>{getProviderName(type)}</span>
             </button>
           ))}
         </div>
@@ -201,8 +201,8 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
       {/* Provider List */}
       {providers.length === 0 ? (
         <div className="p-4 bg-dark-hover/50 border border-dark-border rounded-lg text-center">
-          <p className="text-sm text-gray-400">등록된 AI 프로바이더가 없습니다</p>
-          <p className="text-xs text-gray-500 mt-1">위의 + 추가 버튼을 눌러 프로바이더를 등록하세요</p>
+          <p className="text-sm text-gray-400">{t('providers.noProviders')}</p>
+          <p className="text-xs text-gray-500 mt-1">{t('providers.noProvidersHint')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -223,10 +223,10 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
                     <GripVertical size={14} className="text-gray-500" />
-                    <span className="text-sm font-medium text-gray-200">{info.name}</span>
+                    <span className="text-sm font-medium text-gray-200">{getProviderName(provider.provider)}</span>
                     {provider.isPrimary && (
                       <span className="px-1.5 py-0.5 bg-accent-primary/20 text-accent-primary text-[10px] rounded">
-                        기본
+                        {t('providers.primary')}
                       </span>
                     )}
                   </div>
@@ -256,7 +256,7 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
                 </div>
 
                 {/* Description */}
-                <p className="text-xs text-gray-500 mb-3">{info.description}</p>
+                <p className="text-xs text-gray-500 mb-3">{getProviderDescription(provider.provider)}</p>
 
                 {/* API Key Input */}
                 <div className="space-y-2">
@@ -291,7 +291,7 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
                             ? 'text-gray-500 cursor-not-allowed'
                             : 'text-gray-400 hover:text-accent-primary'
                         }`}
-                        title="키 검증"
+                        title={t('providers.validateKey')}
                       >
                         {isValidating ? (
                           <Loader2 size={14} className="animate-spin" />
@@ -312,12 +312,12 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
                       {validationResult.valid ? (
                         <>
                           <Check size={12} />
-                          <span>유효한 API 키입니다</span>
+                          <span>{t('providers.validKey')}</span>
                         </>
                       ) : (
                         <>
                           <AlertCircle size={12} />
-                          <span>{validationResult.error || 'API 키가 유효하지 않습니다'}</span>
+                          <span>{validationResult.error || t('providers.invalidKey')}</span>
                         </>
                       )}
                     </div>
@@ -335,7 +335,7 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
                         window.electronAPI.openExternal(info.docsUrl);
                       }}
                     >
-                      API 키 발급
+                      {t('providers.getApiKey')}
                       <ExternalLink size={10} />
                     </a>
                     {!provider.isPrimary && provider.isEnabled && (
@@ -343,7 +343,7 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
                         onClick={() => updateProvider(index, { isPrimary: true })}
                         className="text-xs text-gray-400 hover:text-accent-primary transition-colors"
                       >
-                        기본으로 설정
+                        {t('providers.setAsPrimary')}
                       </button>
                     )}
                   </div>
@@ -357,10 +357,10 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
       {/* Info */}
       <div className="p-2.5 bg-accent-primary/5 border border-accent-primary/20 rounded-lg">
         <p className="text-xs text-gray-300 leading-relaxed">
-          <strong className="text-accent-primary">Fallback 지원:</strong> 기본 프로바이더 실패 시 다음 프로바이더로 자동 전환됩니다.
+          <strong className="text-accent-primary">{t('providers.fallbackSupport')}</strong> {t('providers.fallbackDescription')}
         </p>
         <p className="text-xs text-gray-500 mt-1">
-          • 모든 API 키는 이 기기에만 저장됩니다 (서버 전송 없음)
+          • {t('providers.localStorageNote')}
         </p>
       </div>
     </div>

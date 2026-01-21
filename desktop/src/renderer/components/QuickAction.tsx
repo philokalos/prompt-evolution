@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Check, X, ArrowRight, Loader2 } from 'lucide-react';
 
 interface QuickActionProps {
@@ -31,6 +32,7 @@ export default function QuickAction({
   onCancel,
   autoHideSeconds = 0,
 }: QuickActionProps) {
+  const { t } = useTranslation('common');
   const [applying, setApplying] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message?: string } | null>(null);
   const [countdown, setCountdown] = useState(autoHideSeconds);
@@ -66,11 +68,11 @@ export default function QuickAction({
         setTimeout(onCancel, 500);
       }
     } catch {
-      setResult({ success: false, message: '적용 실패' });
+      setResult({ success: false, message: t('quickAction.applyFailed') });
     } finally {
       setApplying(false);
     }
-  }, [applying, onApply, onCancel]);
+  }, [applying, onApply, onCancel, t]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -124,7 +126,7 @@ export default function QuickAction({
         ) : (
           <Check size={14} />
         )}
-        적용
+        {t('apply')}
       </button>
 
       {/* Cancel Button */}

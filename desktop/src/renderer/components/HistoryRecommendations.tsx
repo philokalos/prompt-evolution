@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { AlertCircle, TrendingUp, TrendingDown, Lightbulb, BookOpen, Target } from 'lucide-react';
 import type { HistoryRecommendation } from '../electron.d';
 
@@ -14,6 +15,8 @@ export default function HistoryRecommendations({
   recommendations,
   comparisonWithHistory,
 }: HistoryRecommendationsProps) {
+  const { t } = useTranslation('analysis');
+
   if (recommendations.length === 0 && !comparisonWithHistory?.improvement) {
     return null;
   }
@@ -63,7 +66,7 @@ export default function HistoryRecommendations({
             {comparisonWithHistory.scoreDiff !== 0 && (
               <span className="text-gray-400 ml-1">
                 ({comparisonWithHistory.scoreDiff > 0 ? '+' : ''}
-                {comparisonWithHistory.scoreDiff}점)
+                {comparisonWithHistory.scoreDiff} {t('history.points')})
               </span>
             )}
           </span>
@@ -75,7 +78,7 @@ export default function HistoryRecommendations({
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Lightbulb size={16} className="text-accent-primary" />
-            <span>히스토리 기반 추천</span>
+            <span>{t('history.basedRecommendations')}</span>
           </div>
           <div className="space-y-2">
             {recommendations.slice(0, 3).map((rec, index) => (

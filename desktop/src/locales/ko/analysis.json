@@ -1,0 +1,391 @@
+{
+  "title": "분석",
+  "analyzing": "AI가 프롬프트를 분석하고 있어요...",
+  "complete": "분석 완료",
+  "noPrompt": "분석할 프롬프트가 없어요",
+  "captureHint": "{{shortcut}} 키를 눌러 텍스트를 캡처하세요",
+  "grade": {
+    "title": "품질 등급",
+    "excellent": "훌륭해요",
+    "good": "좋아요",
+    "fair": "괜찮아요",
+    "needsWork": "개선이 필요해요",
+    "poor": "많은 개선이 필요해요"
+  },
+  "score": {
+    "title": "품질 점수",
+    "overall": "종합 점수",
+    "improvement": "{{percent}}% 개선"
+  },
+  "golden": {
+    "title": "GOLDEN 분석",
+    "description": "프롬프트 품질의 6가지 핵심 차원",
+    "goal": "목표",
+    "goalDesc": "명확한 목적과 의도",
+    "output": "출력",
+    "outputDesc": "기대하는 형식과 구조",
+    "limits": "제한",
+    "limitsDesc": "제약 조건과 경계",
+    "data": "데이터",
+    "dataDesc": "제공된 맥락과 정보",
+    "evaluation": "평가",
+    "evaluationDesc": "성공 기준 정의",
+    "next": "다음",
+    "nextDesc": "후속 작업 명시"
+  },
+  "issues": {
+    "title": "발견된 문제",
+    "noIssues": "모두 잘 작성되었어요!",
+    "noIssuesDesc": "문제가 발견되지 않았어요. 훌륭한 프롬프트예요!",
+    "critical": "심각",
+    "warning": "경고",
+    "suggestion": "제안",
+    "fix": "수정하기",
+    "ignore": "무시"
+  },
+  "variants": {
+    "title": "개선된 버전",
+    "original": "원본",
+    "conservative": "보수적",
+    "conservativeDesc": "최소한의 변경, 빠른 수정",
+    "balanced": "균형",
+    "balancedDesc": "GOLDEN 차원으로 구조화",
+    "comprehensive": "종합",
+    "comprehensiveDesc": "전체 최적화",
+    "ai": "AI 강화",
+    "aiDesc": "AI 기반 재작성",
+    "copyOriginal": "원본 복사",
+    "copyVariant": "이 버전 복사",
+    "applyVariant": "이 버전 적용",
+    "confidence": "{{percent}}% 신뢰도",
+    "setupAi": "설정에서 AI 프로바이더를 등록하면 더 스마트한 개선을 받을 수 있어요"
+  },
+  "comparison": {
+    "title": "프롬프트 개선 비교",
+    "selectVariant": "프롬프트 변형 선택",
+    "original": "원본",
+    "originalPrompt": "원본 프롬프트",
+    "improvedPrompt": "개선된 프롬프트",
+    "analyzingVariant": "분석 중...",
+    "settingsRequired": "설정 필요",
+    "analyzing": "분석중",
+    "before": "이전",
+    "after": "이후",
+    "diff": "차이",
+    "compare": "비교",
+    "sideBySide": "나란히 보기",
+    "viewImprovedOnly": "개선된 텍스트만 보기",
+    "compareWithOriginal": "원본과 비교하기",
+    "pasteAfterCopy": "복사 후 붙여넣기",
+    "pasteHint": "이 앱에서는 자동 적용이 지원되지 않아요. 복사 후 직접 붙여넣어 주세요.",
+    "expand": "전체 보기",
+    "collapse": "접기",
+    "aiSetup": "AI 개선 설정하기",
+    "loading": {
+      "title": "AI가 프롬프트를 분석하고 있어요",
+      "description": "잠시만 기다려 주세요",
+      "hint": "다른 탭을 먼저 확인하셔도 돼요"
+    },
+    "setup": {
+      "title": "AI로 더 정확하게 개선하기",
+      "description": "설정에서 AI 프로바이더를 등록하면 더 정확한 개선안을 받아볼 수 있어요",
+      "button": "설정하기"
+    },
+    "shortcuts": {
+      "tabMove": "탭 이동",
+      "copy": "복사"
+    },
+    "charCount": "{{count}}자"
+  },
+  "context": {
+    "title": "컨텍스트",
+    "project": "프로젝트",
+    "branch": "브랜치",
+    "file": "파일",
+    "techStack": "기술 스택",
+    "noProject": "프로젝트가 감지되지 않았어요",
+    "detectingProject": "프로젝트 감지 중...",
+    "loadingProjects": "프로젝트 로딩 중...",
+    "noOpenProjects": "열린 IDE 프로젝트가 없습니다",
+    "autoDetect": "자동 감지 (현재 활성 창)",
+    "manual": "수동",
+    "manuallySelected": "수동 선택됨",
+    "detectedFrom": "{{ide}}에서 감지",
+    "inferredFromPath": "앱 경로에서 추정",
+    "confidence": {
+      "high": "높은 신뢰도",
+      "medium": "중간 신뢰도",
+      "low": "낮은 신뢰도"
+    },
+    "lastConversation": "직전 대화",
+    "lastActivity": "마지막 활동",
+    "recentActivity": "방금 전",
+    "hoursAgo": "{{count}}시간 전",
+    "daysAgo": "{{count}}일 전",
+    "showDetails": "상세 정보 보기",
+    "hideDetails": "상세 정보 접기"
+  },
+  "issues": {
+    "title": "발견된 문제",
+    "count": "발견된 문제 ({{count}})",
+    "noIssues": "모두 잘 작성되었어요!",
+    "noIssuesDesc": "프롬프트가 명확하고 완성도 높습니다.",
+    "critical": "심각",
+    "warning": "경고",
+    "suggestion": "제안",
+    "fix": "수정하기",
+    "ignore": "무시",
+    "severity": {
+      "high": "높음",
+      "medium": "중간",
+      "low": "낮음"
+    },
+    "categories": {
+      "vague-goal": "모호한 목표",
+      "missing-output": "출력 형식 미지정",
+      "no-constraints": "제약조건 없음",
+      "lacking-context": "컨텍스트 부족",
+      "no-criteria": "평가 기준 없음",
+      "unclear-next": "다음 단계 불분명",
+      "too-short": "프롬프트 너무 짧음",
+      "too-long": "프롬프트 너무 김",
+      "ambiguous": "모호한 표현",
+      "jargon": "전문 용어 과다",
+      "analysis": "분석 관련",
+      "default": "기타"
+    },
+    "suggestion": "제안",
+    "applySuggestion": "이 제안 적용하기",
+    "priorityTip": "💡 <strong>높음</strong> 문제를 먼저 해결하면 품질이 크게 좋아져요."
+  },
+  "progress": {
+    "title": "내 진행 상황",
+    "totalAnalyses": "총 분석",
+    "averageScore": "평균 점수",
+    "recentTrend": "최근 추세",
+    "trend": {
+      "improving": "향상 중",
+      "stable": "유지 중",
+      "declining": "하락 중"
+    },
+    "streak": "{{count}}일",
+    "streakLabel": "연속 사용",
+    "monthlyChange": "월간 변화",
+    "timeRange": {
+      "daily": "일별",
+      "weekly": "주별",
+      "monthly": "월별"
+    },
+    "chartTitle": {
+      "daily": "30일 점수 추이",
+      "weekly": "8주 점수 추이",
+      "monthly": "6개월 점수 추이"
+    },
+    "goldenAverage": "GOLDEN 차원별 평균",
+    "strength": "강점",
+    "needsImprovement": "💡 개선 필요: {{dimension}} 부분에 집중해보세요",
+    "milestones": "달성 기록",
+    "milestone": {
+      "first_a_grade": "첫 A등급 달성",
+      "highest_score": "최고 점수"
+    },
+    "gradeDistribution": "등급 분포",
+    "dimensions": {
+      "goal": "목표",
+      "output": "출력",
+      "limits": "제약",
+      "data": "데이터",
+      "evaluation": "평가",
+      "next": "다음"
+    }
+  },
+  "history": {
+    "title": "히스토리",
+    "recent": "최근 분석",
+    "viewAll": "전체 히스토리 보기",
+    "empty": "아직 히스토리가 없어요",
+    "emptyDesc": "분석 히스토리가 여기에 표시돼요",
+    "basedRecommendations": "히스토리 기반 추천",
+    "points": "점"
+  },
+  "onboarding": {
+    "title": "PromptLint에 오신 걸 환영해요!",
+    "subtitle": "더 나은 AI 상호작용을 위한 실시간 프롬프트 분석",
+    "step1": "아무 앱에서 {{shortcut}} 키를 누르세요",
+    "step2": "6가지 품질 차원에 대한 즉각적인 피드백을 받아보세요",
+    "step3": "클릭 한 번으로 개선된 버전을 적용하세요",
+    "getStarted": "시작하기"
+  },
+  "tips": {
+    "tabs": {
+      "tips": "기본 팁",
+      "issues": "이슈 패턴",
+      "improvements": "개선 효과",
+      "insights": "학습 분석"
+    },
+    "customTips": "맞춤 팁",
+    "frequentMisses": "자주 놓치는 부분",
+    "foundCount": "{{count}}회 발견",
+    "improvementTips": "실력 향상 팁",
+    "improvementTip1": "프롬프트를 작성하기 전에 목표를 명확히 정리하세요",
+    "improvementTip2": "예시를 포함하면 원하는 결과를 더 정확히 얻을 수 있어요",
+    "improvementTip3": "복잡한 작업은 단계별로 나누어 요청해보세요",
+    "viewGuide": "프롬프트 작성 가이드 보기",
+    "goldenTips": {
+      "goalClarity": {
+        "name": "목표 명확성",
+        "icon": "🎯",
+        "tips": [
+          "\"목표: [구체적인 목표]\"로 시작하세요",
+          "달성하고자 하는 결과를 명확히 명시하세요",
+          "성공 조건을 정의해보세요"
+        ]
+      },
+      "outputFormat": {
+        "name": "출력 형식",
+        "icon": "📋",
+        "tips": [
+          "원하는 출력 형식을 명시하세요 (JSON, 마크다운, 코드 등)",
+          "예시 출력을 포함하면 더 정확한 결과를 얻을 수 있어요",
+          "응답 길이나 상세도 수준을 지정해보세요"
+        ]
+      },
+      "constraints": {
+        "name": "제약 조건",
+        "icon": "🚧",
+        "tips": [
+          "하지 말아야 할 것을 명시하세요",
+          "범위나 한계를 정의해보세요",
+          "기술적 제약사항이 있다면 언급하세요"
+        ]
+      },
+      "dataContext": {
+        "name": "데이터/컨텍스트",
+        "icon": "📊",
+        "tips": [
+          "필요한 배경 정보를 제공하세요",
+          "관련 코드나 문서를 포함하세요",
+          "현재 상황이나 환경을 설명해보세요"
+        ]
+      },
+      "evaluationCriteria": {
+        "name": "평가 기준",
+        "icon": "✅",
+        "tips": [
+          "좋은 답변의 기준을 정의해보세요",
+          "우선순위가 있다면 언급하세요",
+          "품질 측정 방법을 제시해보세요"
+        ]
+      },
+      "nextSteps": {
+        "name": "다음 단계",
+        "icon": "➡️",
+        "tips": [
+          "후속 작업이 있다면 언급하세요",
+          "예상되는 다음 질문을 미리 고려해보세요",
+          "워크플로우의 일부라면 맥락을 제공하세요"
+        ]
+      }
+    }
+  },
+  "radar": {
+    "ariaLabel": "GOLDEN 점수 레이더 차트: Goal {{goal}}%, Output {{output}}%, Limits {{limits}}%, Data {{data}}%, Evaluation {{evaluation}}%, Next {{next}}%",
+    "helpTitle": "GOLDEN 평가 기준",
+    "helpDescription": "GOLDEN은 좋은 프롬프트의 6가지 핵심 요소를 평가합니다. 각 차원은 0-100 점으로 측정됩니다.",
+    "helpTip": "💡 팁: 차트의 각 라벨에 마우스를 올리면 해당 항목의 설명을 볼 수 있습니다.",
+    "closeAria": "닫기"
+  },
+  "improvement": {
+    "title": "개선 효과 분석",
+    "totalImprovements": "총 개선 횟수",
+    "scoreGain": "점수 향상",
+    "longestStreak": "최장 연속 개선",
+    "bestPerformance": "최고 성과",
+    "bestPerformanceDetail": "{{days}}일 동안 연속 {{count}}회 개선 · 총 +{{score}}점 향상 (평균 +{{avg}}점/일)",
+    "improvementHistory": "개선 기록",
+    "dateRange": "{{start}} ~ {{end}}",
+    "days": "({{count}}일)",
+    "consecutiveImprovements": "연속 {{count}}회 개선",
+    "points": "+{{count}}점",
+    "avgPerDay": "평균 +{{count}}점/일",
+    "insights": "인사이트",
+    "insightAverage": "최근 {{count}}번의 개선 기간 동안 평균 {{avg}}점씩 향상되었습니다.",
+    "insightBest": "{{date}}부터 {{days}}일간 꾸준히 개선하여 가장 좋은 성과를 냈습니다.",
+    "insightTip": "일관된 개선을 위해 매일 프롬프트 작성 팁을 확인하고 적용해보세요.",
+    "empty": "아직 개선 기록이 없습니다",
+    "emptyHint": "매일 프롬프트를 작성하면 성장 패턴을 볼 수 있습니다"
+  },
+  "issuePatterns": {
+    "title": "이슈 패턴 분석",
+    "days": "{{count}}일",
+    "totalIssues": "총 이슈",
+    "issueTypes": "이슈 유형",
+    "improving": "개선 중",
+    "occurrences": "{{count}}회 발생",
+    "recentOccurrences": "최근 {{count}}회",
+    "trend": {
+      "improving": "개선 중",
+      "worsening": "악화 중",
+      "stable": "유지 중"
+    },
+    "severity": {
+      "high": "높음",
+      "medium": "중간",
+      "low": "낮음"
+    },
+    "improvementTip": "💡 개선 팁",
+    "trendSummary": "트렌드 요약",
+    "trendImproving": "{{count}}개 이슈가 개선되고 있습니다",
+    "trendWorsening": "{{count}}개 이슈가 악화되고 있습니다 - 주의가 필요합니다",
+    "empty": "이슈 패턴 데이터가 충분하지 않습니다",
+    "emptyHint": "더 많은 프롬프트를 분석하면 패턴이 나타납니다",
+    "dimensionTips": {
+      "goal": "프롬프트의 목적을 명확히 하세요. \"~를 해줘\" 대신 \"~를 위해 ~를 해줘\"",
+      "output": "원하는 출력 형식을 구체적으로 명시하세요 (JSON, 마크다운, 단계별 등)",
+      "limits": "제약 조건을 명확히 하세요 (100줄 이내, ES6만 사용, 외부 라이브러리 없이)",
+      "data": "충분한 배경 정보를 제공하세요 (프로젝트 구조, 프레임워크, 관련 코드)",
+      "evaluation": "성공 기준을 명시하세요 (테스트 통과, API 호환성 유지 등)",
+      "next": "후속 작업을 명시하세요 (구현 후 테스트, 문서화 등)"
+    }
+  },
+  "learning": {
+    "title": "학습 인사이트",
+    "predictedScore": "다음 프롬프트 예상 점수",
+    "points": "점",
+    "confidence": "신뢰도: {{level}}",
+    "confidenceHigh": "높음",
+    "confidenceMedium": "중간",
+    "confidenceLow": "낮음",
+    "basedOn7Days": "최근 7일 데이터 기반 예측",
+    "strengths": "강점 영역",
+    "needsImprovement": "개선 필요",
+    "noneYet": "아직 없음",
+    "goodStatus": "좋은 상태입니다",
+    "moreItems": "+{{count}}개 더",
+    "improvingAreas": "개선 중인 영역",
+    "categoryPerformance": "카테고리별 성과",
+    "count": "({{count}}회)",
+    "bestScore": "최고: {{score}}점",
+    "weakness": "약점: {{area}}",
+    "headroom": "+{{count}}점 여유",
+    "learningPath": "추천 학습 경로",
+    "learningStep1": "{{category}} 작업에서 {{weakness}}를 집중적으로 연습해보세요",
+    "learningStep2": "{{category}}에서의 강점을 다른 영역에도 적용해보세요",
+    "learningStepDaily": "매일 일정한 시간에 프롬프트를 작성하면 꾸준한 성장을 이룰 수 있습니다",
+    "empty": "아직 학습 데이터가 충분하지 않습니다",
+    "emptyHint": "다양한 유형의 프롬프트를 작성해보세요",
+    "categories": {
+      "code-generation": "코드 생성",
+      "code-review": "코드 리뷰",
+      "bug-fix": "버그 수정",
+      "refactoring": "리팩토링",
+      "explanation": "설명/질문",
+      "documentation": "문서화",
+      "testing": "테스트",
+      "architecture": "아키텍처",
+      "deployment": "배포",
+      "data-analysis": "데이터 분석",
+      "general": "일반"
+    }
+  }
+}

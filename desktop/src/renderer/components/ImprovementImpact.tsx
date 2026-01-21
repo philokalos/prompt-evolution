@@ -3,11 +3,13 @@
  * Phase 3: Track and visualize improvement streaks and their impact
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { TrendingUp, Award, Calendar, BarChart2 } from 'lucide-react';
 import type { ConsecutiveImprovement } from '../electron.d';
 
 export default function ImprovementImpact() {
+  const { t, i18n } = useTranslation('analysis');
   const [improvements, setImprovements] = useState<ConsecutiveImprovement[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -27,10 +29,10 @@ export default function ImprovementImpact() {
     }
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = useCallback((dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' });
-  };
+    return date.toLocaleDateString(i18n.language === 'ko' ? 'ko-KR' : 'en-US', { month: 'short', day: 'numeric' });
+  }, [i18n.language]);
 
   const getDurationDays = (startDate: string, endDate: string) => {
     const start = new Date(startDate);
@@ -58,7 +60,7 @@ export default function ImprovementImpact() {
       {/* Header */}
       <div className="flex items-center gap-2">
         <TrendingUp size={20} className="text-accent-success" />
-        <span className="font-medium">개선 효과 분석</span>
+        <span className="font-medium">{t('improvement.title')}</span>
       </div>
 
       {/* Summary Cards */}
@@ -69,19 +71,19 @@ export default function ImprovementImpact() {
               <div className="text-2xl font-bold text-accent-success">
                 {totalImprovements}
               </div>
-              <div className="text-xs text-gray-400">총 개선 횟수</div>
+              <div className="text-xs text-gray-400">{t('improvement.totalImprovements')}</div>
             </div>
             <div className="bg-dark-surface rounded-lg p-3 text-center">
               <div className="text-2xl font-bold text-accent-primary">
                 +{totalGain}
               </div>
-              <div className="text-xs text-gray-400">점수 향상</div>
+              <div className="text-xs text-gray-400">{t('improvement.scoreGain')}</div>
             </div>
             <div className="bg-dark-surface rounded-lg p-3 text-center">
               <div className="text-2xl font-bold text-accent-warning">
                 {bestStreak?.improvementCount || 0}
               </div>
-              <div className="text-xs text-gray-400">최장 연속 개선</div>
+              <div className="text-xs text-gray-400">{t('improvement.longestStreak')}</div>
             </div>
           </div>
 
@@ -91,14 +93,17 @@ export default function ImprovementImpact() {
               <div className="flex items-start gap-3">
                 <Award size={24} className="text-green-400 flex-shrink-0 mt-1" />
                 <div className="flex-1">
-                  <div className="font-medium text-green-400 mb-1">최고 성과</div>
+                  <div className="font-medium text-green-400 mb-1">{t('improvement.bestPerformance')}</div>
                   <div className="text-sm text-gray-300">
-                    {formatDate(bestStreak.startDate)} ~ {formatDate(bestStreak.endDate)}
+                    {t('improvement.dateRange', { start: formatDate(bestStreak.startDate), end: formatDate(bestStreak.endDate) })}
                   </div>
                   <div className="text-xs text-gray-400 mt-1">
-                    {getDurationDays(bestStreak.startDate, bestStreak.endDate)}일 동안 연속{' '}
-                    {bestStreak.improvementCount}회 개선 · 총 +{bestStreak.scoreIncrease}점 향상
-                    (평균 +{bestStreak.averageGain}점/일)
+                    {t('improvement.bestPerformanceDetail', {
+                      days: getDurationDays(bestStreak.startDate, bestStreak.endDate),
+                      count: bestStreak.improvementCount,
+                      score: bestStreak.scoreIncrease,
+                      avg: bestStreak.averageGain
+                    })}
                   </div>
                 </div>
               </div>
@@ -109,7 +114,7 @@ export default function ImprovementImpact() {
           <div className="space-y-2">
             <div className="text-sm font-medium flex items-center gap-2 text-gray-400">
               <BarChart2 size={16} />
-              <span>개선 기록</span>
+              <span>{t('improvement.improvementHistory')}</span>
             </div>
             {improvements.map((imp, index) => {
               const duration = getDurationDays(imp.startDate, imp.endDate);
@@ -124,16 +129,16 @@ export default function ImprovementImpact() {
                       <div className="flex items-center gap-2 mb-1">
                         <Calendar size={14} className="text-gray-400" />
                         <span className="text-sm font-medium">
-                          {formatDate(imp.startDate)} ~ {formatDate(imp.endDate)}
+                          {t('improvement.dateRange', { start: formatDate(imp.startDate), end: formatDate(imp.endDate) })}
                         </span>
-                        <span className="text-xs text-gray-500">({duration}일)</span>
+                        <span className="text-xs text-gray-500">{t('improvement.days', { count: duration })}</span>
                       </div>
                       <div className="flex items-center gap-4 text-xs text-gray-400">
                         <span className="text-accent-success">
-                          연속 {imp.improvementCount}회 개선
+                          {t('improvement.consecutiveImprovements', { count: imp.improvementCount })}
                         </span>
-                        <span>+{imp.scoreIncrease}점</span>
-                        <span className="text-gray-500">평균 +{imp.averageGain}점/일</span>
+                        <span>{t('improvement.points', { count: imp.scoreIncrease })}</span>
+                        <span className="text-gray-500">{t('improvement.avgPerDay', { count: imp.averageGain })}</span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1 text-green-400">
@@ -155,13 +160,13 @@ export default function ImprovementImpact() {
 
           {/* Insights */}
           <div className="bg-dark-surface rounded-lg p-4 border border-gray-700/30">
-            <div className="text-sm font-medium mb-2">인사이트</div>
+            <div className="text-sm font-medium mb-2">{t('improvement.insights')}</div>
             <div className="space-y-2 text-xs text-gray-300">
               {improvements.length > 0 && (
                 <div className="flex items-start gap-2">
                   <span className="text-accent-primary">•</span>
                   <span>
-                    최근 {improvements.length}번의 개선 기간 동안 평균 {Math.round(totalGain / improvements.length)}점씩 향상되었습니다.
+                    {t('improvement.insightAverage', { count: improvements.length, avg: Math.round(totalGain / improvements.length) })}
                   </span>
                 </div>
               )}
@@ -169,15 +174,14 @@ export default function ImprovementImpact() {
                 <div className="flex items-start gap-2">
                   <span className="text-accent-success">•</span>
                   <span>
-                    {formatDate(bestStreak.startDate)}부터 {getDurationDays(bestStreak.startDate, bestStreak.endDate)}일간
-                    꾸준히 개선하여 가장 좋은 성과를 냈습니다.
+                    {t('improvement.insightBest', { date: formatDate(bestStreak.startDate), days: getDurationDays(bestStreak.startDate, bestStreak.endDate) })}
                   </span>
                 </div>
               )}
               <div className="flex items-start gap-2">
                 <span className="text-accent-warning">•</span>
                 <span>
-                  일관된 개선을 위해 매일 프롬프트 작성 팁을 확인하고 적용해보세요.
+                  {t('improvement.insightTip')}
                 </span>
               </div>
             </div>
@@ -186,8 +190,8 @@ export default function ImprovementImpact() {
       ) : (
         <div className="flex flex-col items-center justify-center h-64 text-gray-400">
           <TrendingUp size={48} className="mb-4 opacity-50" />
-          <p>아직 개선 기록이 없습니다</p>
-          <p className="text-sm mt-2">매일 프롬프트를 작성하면 성장 패턴을 볼 수 있습니다</p>
+          <p>{t('improvement.empty')}</p>
+          <p className="text-sm mt-2">{t('improvement.emptyHint')}</p>
         </div>
       )}
     </div>

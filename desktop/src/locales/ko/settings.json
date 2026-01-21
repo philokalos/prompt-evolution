@@ -1,0 +1,255 @@
+{
+  "title": "설정",
+  "saved": "저장됨",
+  "closeAria": "설정 닫기 (Escape)",
+  "closeHint": "Escape 키로도 닫을 수 있습니다",
+  "language": {
+    "title": "언어",
+    "description": "앱에서 사용할 언어를 선택하세요",
+    "auto": "시스템 언어 (자동)",
+    "en": "English",
+    "ko": "한국어"
+  },
+  "sections": {
+    "gettingStarted": {
+      "title": "시작하기",
+      "guide": {
+        "title": "간단 가이드",
+        "step1": "분석하고 싶은 프롬프트를 드래그하거나 복사합니다",
+        "step2": "아래 설정된 시작 키를 누릅니다",
+        "step3": "GOLDEN 점수와 개선된 프롬프트 3종을 확인합니다",
+        "step4": "마음에 드는 버전의 [복사] 또는 [적용] 버튼을 클릭합니다",
+        "trayTip": "트레이 더블클릭: 클립보드 내용 즉시 분석",
+        "cmdEnter": "= 현재 선택된 개선안 적용",
+        "cmd14": "= 개선안 복사"
+      }
+    },
+    "behavior": {
+      "title": "동작 설정",
+      "window": "창 동작",
+      "alwaysOnTop": "항상 위에 표시",
+      "alwaysOnTopDesc": "다른 창 위에 분석 창이 항상 보이도록 유지",
+      "hideOnCopy": "복사하면 자동으로 닫기",
+      "hideOnCopyDesc": "개선된 프롬프트를 복사하면 창이 자동으로 닫힘",
+      "conflictWarning": "\"항상 위에 표시\"와 \"복사하면 자동으로 닫기\"가 동시에 활성화되어 있습니다. 복사 후 창이 닫히면 다시 열 때까지 다른 앱 위에 표시되지 않습니다.",
+      "autoShowWindow": "분석 완료 시 자동으로 열기",
+      "autoShowWindowDesc": "분석이 끝나면 창을 자동으로 표시",
+      "notifications": "알림",
+      "showNotifications": "알림 받기",
+      "showNotificationsDesc": "분석 완료, 오류 등을 macOS 알림으로 안내"
+    },
+    "smart": {
+      "title": "똑똑한 기능",
+      "autoDetect": "자동 감지",
+      "clipboardWatch": "복사할 때 감지",
+      "clipboardWatchDesc": "프롬프트 복사 시 트레이에 • 표시",
+      "autoAnalyze": "자동으로 분석",
+      "autoAnalyzeDesc": "감지 즉시 자동 분석 (트레이 클릭 불필요)",
+      "aiContextPopup": "AI 앱에서 버튼 보기",
+      "aiContextPopupDesc": "Claude, ChatGPT 사용 시 플로팅 버튼",
+      "aiContextPopupWarning": "⚠️ 타이핑 중 방해될 수 있으니 필요시에만 활성화",
+      "autoApply": {
+        "title": "작업 자동 적용",
+        "description": "[적용] 버튼을 누르면 개선된 프롬프트가 원본 앱(Claude, ChatGPT 등)의 입력창에 자동으로 교체됩니다.",
+        "note": "※ VS Code, Cursor 등 일부 앱에서는 클립보드 복사 후 수동 붙여넣기 필요"
+      }
+    },
+    "projectTemplates": {
+      "title": "프로젝트 & 템플릿",
+      "projectTab": "프로젝트 설정",
+      "templatesTab": "템플릿 관리"
+    },
+    "advanced": {
+      "title": "고급 설정",
+      "quickAction": "빠른 작업 모드",
+      "quickActionDesc": "분석 결과 대신 미니 패널만 표시",
+      "experimental": "실험적"
+    }
+  },
+  "shortcut": {
+    "title": "시작 키",
+    "description": "변경 즉시 적용됩니다. 충돌 시 \"권장\" 단축키를 선택하세요.",
+    "recommended": "권장 (충돌 최소)",
+    "keepP": "P 유지",
+    "noConflict": "충돌 없음",
+    "current": "기존 (충돌 가능)"
+  },
+  "captureMode": {
+    "title": "텍스트 가져오기 방식",
+    "auto": "자동 (드래그 → 복사본)",
+    "autoDesc": "드래그한 텍스트를 우선 분석하고, 없으면 클립보드 내용 사용",
+    "selection": "드래그한 텍스트만",
+    "selectionDesc": "마우스로 선택한 텍스트만 분석 (Cmd+C 불필요)",
+    "clipboard": "복사한 내용만",
+    "clipboardDesc": "Cmd+C로 복사한 후 시작 키를 눌러야 합니다"
+  },
+  "aiProvider": {
+    "title": "AI 프로바이더",
+    "description": "향상된 분석을 위한 AI 서비스를 선택하세요",
+    "anthropic": "Anthropic (Claude)",
+    "openai": "OpenAI (GPT)",
+    "google": "Google (Gemini)",
+    "none": "사용 안 함 (규칙 기반만)",
+    "apiKey": "API 키",
+    "apiKeyPlaceholder": "API 키를 입력하세요",
+    "apiKeyHidden": "API 키가 설정되어 있어요",
+    "testConnection": "연결 테스트",
+    "connectionSuccess": "연결에 성공했어요!",
+    "connectionFailed": "연결에 실패했어요. API 키를 확인해 주세요."
+  },
+  "polling": {
+    "title": "활성 창 감지",
+    "description": "현재 작업 중인 프로젝트를 자동으로 감지해요",
+    "enabled": "폴링 사용",
+    "interval": "폴링 간격",
+    "seconds": "{{count}}초"
+  },
+  "updates": {
+    "title": "업데이트",
+    "autoCheck": "자동으로 업데이트 확인",
+    "checkNow": "지금 확인",
+    "upToDate": "최신 버전이에요!",
+    "updateAvailable": "업데이트 가능: v{{version}}",
+    "downloading": "업데이트 다운로드 중...",
+    "install": "설치 후 재시작"
+  },
+  "about": {
+    "title": "정보",
+    "version": "버전",
+    "checkUpdates": "업데이트 확인"
+  },
+  "providers": {
+    "title": "AI 프로바이더",
+    "add": "추가",
+    "addProvider": "프로바이더 추가:",
+    "noProviders": "등록된 AI 프로바이더가 없습니다",
+    "noProvidersHint": "위의 + 추가 버튼을 눌러 프로바이더를 등록하세요",
+    "primary": "기본",
+    "enable": "활성화",
+    "disable": "비활성화",
+    "remove": "삭제",
+    "setAsPrimary": "기본으로 설정",
+    "validateKey": "키 검증",
+    "getApiKey": "API 키 발급",
+    "validKey": "유효한 API 키입니다",
+    "invalidKey": "API 키가 유효하지 않습니다",
+    "enterApiKey": "API 키를 입력해주세요",
+    "validationError": "검증 중 오류가 발생했습니다",
+    "fallbackSupport": "Fallback 지원:",
+    "fallbackDescription": "기본 프로바이더 실패 시 다음 프로바이더로 자동 전환됩니다.",
+    "localStorageNote": "모든 API 키는 이 기기에만 저장됩니다 (서버 전송 없음)",
+    "provider": {
+      "claude": {
+        "name": "Claude (Anthropic)",
+        "description": "고품질 프롬프트 개선, 뉘앙스 이해력 우수"
+      },
+      "openai": {
+        "name": "ChatGPT (OpenAI)",
+        "description": "빠른 응답, 폭넓은 호환성"
+      },
+      "gemini": {
+        "name": "Gemini (Google)",
+        "description": "빠른 추론, 긴 컨텍스트 지원"
+      }
+    }
+  },
+  "project": {
+    "title": "프로젝트 설정",
+    "noProject": "프로젝트 경로가 설정되지 않았습니다",
+    "noProjectHint": "IDE 플러그인에서 프로젝트를 열어주세요",
+    "projectPath": "프로젝트 경로",
+    "projectName": "프로젝트 이름",
+    "projectNameOptional": "(선택)",
+    "projectNamePlaceholder": "예: PromptLint Desktop",
+    "ideType": "IDE 타입",
+    "ideTypeOptional": "(선택)",
+    "ideTypePlaceholder": "예: vscode, cursor, webstorm",
+    "ideTypeHint": "템플릿 추천 시 IDE별 맞춤 제안에 사용됩니다",
+    "improvementStyle": "개선 스타일",
+    "customConstraints": "커스텀 제약조건",
+    "customConstraintsOptional": "(선택)",
+    "customConstraintsPlaceholder": "프로젝트별 특수 제약사항을 입력하세요\\n예:\\n- 한글 주석 사용 금지\\n- 외부 라이브러리 사용 최소화\\n- 특정 디자인 패턴 준수",
+    "customConstraintsHint": "프롬프트 개선 시 이 제약조건을 고려합니다",
+    "autoInjectContext": "자동 컨텍스트 주입",
+    "autoInjectContextDesc": "프롬프트 분석 시 프로젝트 정보를 자동으로 포함합니다",
+    "resetSettings": "설정 초기화",
+    "resetConfirm": "프로젝트 설정을 초기화하시겠습니까?",
+    "resetSuccess": "프로젝트 설정이 초기화되었습니다.",
+    "loadError": "설정을 불러오는데 실패했습니다.",
+    "saveError": "설정 저장에 실패했습니다.",
+    "resetError": "설정 초기화에 실패했습니다.",
+    "saved": "설정이 저장되었습니다",
+    "saving": "저장 중...",
+    "save": "저장",
+    "variant": {
+      "conservative": "보수적",
+      "conservativeDesc": "핵심 개선만 제안 (안전)",
+      "balanced": "균형적",
+      "balancedDesc": "실용적인 개선 (추천)",
+      "comprehensive": "포괄적",
+      "comprehensiveDesc": "모든 개선 제안",
+      "ai": "AI 최적화",
+      "aiDesc": "LLM 기반 개선 (느림)"
+    },
+    "infoTips": [
+      "프로젝트별로 다른 개선 스타일을 설정할 수 있습니다",
+      "IDE 타입 설정 시 최적화된 템플릿을 추천받을 수 있습니다",
+      "커스텀 제약조건은 프롬프트 개선 시 반영됩니다"
+    ]
+  },
+  "templates": {
+    "title": "템플릿 관리",
+    "count": "({{count}}개)",
+    "newTemplate": "새 템플릿",
+    "editTemplate": "템플릿 수정",
+    "search": "템플릿 검색...",
+    "filter": "필터:",
+    "allIde": "모든 IDE",
+    "allCategory": "모든 카테고리",
+    "showInactive": "비활성 표시",
+    "clearFilters": "필터 초기화",
+    "noTemplates": "표시할 템플릿이 없습니다",
+    "noTemplatesHint": "새 템플릿을 추가하거나 필터를 조정해보세요",
+    "inactive": "비활성",
+    "ide": "IDE:",
+    "category": "카테고리:",
+    "usage": "사용: {{count}}회",
+    "copy": "복사",
+    "activate": "활성화",
+    "deactivate": "비활성화",
+    "edit": "수정",
+    "delete": "삭제",
+    "templateName": "템플릿 이름",
+    "templateNameRequired": "*",
+    "templateNamePlaceholder": "예: VS Code 컴포넌트 생성",
+    "ideTypeOptional": "IDE 타입 (선택)",
+    "categoryOptional": "카테고리 (선택)",
+    "categoryPlaceholder": "예: bug-fix, feature, refactor",
+    "descriptionOptional": "설명 (선택)",
+    "descriptionPlaceholder": "템플릿 설명",
+    "templateContent": "템플릿 내용",
+    "templateContentRequired": "*",
+    "templateContentPlaceholder": "프롬프트 템플릿을 입력하세요...",
+    "cancel": "취소",
+    "create": "생성",
+    "update": "수정",
+    "saving": "저장 중...",
+    "nameContentRequired": "템플릿 이름과 내용은 필수입니다",
+    "saveFailed": "템플릿 저장에 실패했습니다",
+    "deleteConfirm": "\"{{name}}\" 템플릿을 삭제하시겠습니까?",
+    "deleteFailed": "템플릿 삭제에 실패했습니다",
+    "toggleFailed": "템플릿 상태 변경에 실패했습니다"
+  },
+  "templateSelector": {
+    "title": "템플릿 선택",
+    "ide": "IDE:",
+    "category": "카테고리:",
+    "recommended": "추천 템플릿",
+    "usageCount": "사용 {{count}}회",
+    "otherTemplates": "다른 템플릿 ({{count}}개)",
+    "noTemplates": "사용 가능한 템플릿이 없습니다",
+    "noTemplatesHint": "설정에서 템플릿을 추가해보세요",
+    "cancel": "취소",
+    "selectHint": "템플릿을 클릭하여 적용하세요"
+  }
+}

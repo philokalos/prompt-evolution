@@ -1,0 +1,391 @@
+{
+  "title": "Analysis",
+  "analyzing": "AI is analyzing your prompt...",
+  "complete": "Analysis complete",
+  "noPrompt": "No prompt to analyze",
+  "captureHint": "Press {{shortcut}} to capture text",
+  "grade": {
+    "title": "Quality Grade",
+    "excellent": "Excellent",
+    "good": "Good",
+    "fair": "Fair",
+    "needsWork": "Needs Work",
+    "poor": "Poor"
+  },
+  "score": {
+    "title": "Quality Score",
+    "overall": "Overall Score",
+    "improvement": "{{percent}}% improvement"
+  },
+  "golden": {
+    "title": "GOLDEN Analysis",
+    "description": "6 key dimensions for prompt quality",
+    "goal": "Goal",
+    "goalDesc": "Clear objective and purpose",
+    "output": "Output",
+    "outputDesc": "Expected format and structure",
+    "limits": "Limits",
+    "limitsDesc": "Constraints and boundaries",
+    "data": "Data",
+    "dataDesc": "Context and information provided",
+    "evaluation": "Evaluation",
+    "evaluationDesc": "Success criteria defined",
+    "next": "Next",
+    "nextDesc": "Follow-up actions specified"
+  },
+  "issues": {
+    "title": "Issues Found",
+    "noIssues": "Well written!",
+    "noIssuesDesc": "No issues found. Great prompt!",
+    "critical": "Critical",
+    "warning": "Warning",
+    "suggestion": "Suggestion",
+    "fix": "Fix this",
+    "ignore": "Ignore"
+  },
+  "variants": {
+    "title": "Improved Versions",
+    "original": "Original",
+    "conservative": "Conservative",
+    "conservativeDesc": "Minimal changes, quick fixes",
+    "balanced": "Balanced",
+    "balancedDesc": "Structured with GOLDEN dimensions",
+    "comprehensive": "Comprehensive",
+    "comprehensiveDesc": "Full optimization",
+    "ai": "AI Enhanced",
+    "aiDesc": "AI-powered rewrite",
+    "copyOriginal": "Copy original",
+    "copyVariant": "Copy this version",
+    "applyVariant": "Apply this version",
+    "confidence": "{{percent}}% confidence",
+    "setupAi": "Set up AI provider in Settings for enhanced rewrites"
+  },
+  "comparison": {
+    "title": "Prompt Improvement Comparison",
+    "selectVariant": "Select prompt variant",
+    "original": "Original",
+    "originalPrompt": "Original prompt",
+    "improvedPrompt": "Improved prompt",
+    "analyzingVariant": "Analyzing...",
+    "settingsRequired": "Settings required",
+    "analyzing": "Analyzing",
+    "before": "Before",
+    "after": "After",
+    "diff": "Diff",
+    "compare": "Compare",
+    "sideBySide": "Side by side",
+    "viewImprovedOnly": "Show improved only",
+    "compareWithOriginal": "Compare with original",
+    "pasteAfterCopy": "Paste after copy",
+    "pasteHint": "Auto-apply is not supported in this app. Please paste after copying.",
+    "expand": "Show full",
+    "collapse": "Collapse",
+    "aiSetup": "Configure AI improvement",
+    "loading": {
+      "title": "AI is analyzing your prompt",
+      "description": "Please wait a moment",
+      "hint": "You can check other tabs first"
+    },
+    "setup": {
+      "title": "Improve more accurately with AI",
+      "description": "Register an AI provider in Settings to get more accurate improvements",
+      "button": "Configure"
+    },
+    "shortcuts": {
+      "tabMove": "Tab navigation",
+      "copy": "Copy"
+    },
+    "charCount": "{{count}} chars"
+  },
+  "context": {
+    "title": "Context",
+    "project": "Project",
+    "branch": "Branch",
+    "file": "File",
+    "techStack": "Tech Stack",
+    "noProject": "No project detected",
+    "detectingProject": "Detecting project...",
+    "loadingProjects": "Loading projects...",
+    "noOpenProjects": "No open IDE projects",
+    "autoDetect": "Auto-detect (active window)",
+    "manual": "Manual",
+    "manuallySelected": "Manually selected",
+    "detectedFrom": "Detected from {{ide}}",
+    "inferredFromPath": "Inferred from app path",
+    "confidence": {
+      "high": "high confidence",
+      "medium": "medium confidence",
+      "low": "low confidence"
+    },
+    "lastConversation": "Last conversation",
+    "lastActivity": "Last activity",
+    "recentActivity": "just now",
+    "hoursAgo": "{{count}} hour(s) ago",
+    "daysAgo": "{{count}} day(s) ago",
+    "showDetails": "Show details",
+    "hideDetails": "Hide details"
+  },
+  "issues": {
+    "title": "Issues Found",
+    "count": "Issues Found ({{count}})",
+    "noIssues": "Well written!",
+    "noIssuesDesc": "Your prompt is clear and complete.",
+    "critical": "Critical",
+    "warning": "Warning",
+    "suggestion": "Suggestion",
+    "fix": "Fix this",
+    "ignore": "Ignore",
+    "severity": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "categories": {
+      "vague-goal": "Vague goal",
+      "missing-output": "Missing output format",
+      "no-constraints": "No constraints",
+      "lacking-context": "Lacking context",
+      "no-criteria": "No criteria",
+      "unclear-next": "Unclear next steps",
+      "too-short": "Prompt too short",
+      "too-long": "Prompt too long",
+      "ambiguous": "Ambiguous expression",
+      "jargon": "Too much jargon",
+      "analysis": "Analysis related",
+      "default": "Other"
+    },
+    "suggestion": "Suggestion",
+    "applySuggestion": "Apply this suggestion",
+    "priorityTip": "💡 Fix <strong>High</strong> priority issues first for best improvement."
+  },
+  "progress": {
+    "title": "My Progress",
+    "totalAnalyses": "Total Analyses",
+    "averageScore": "Average Score",
+    "recentTrend": "Recent Trend",
+    "trend": {
+      "improving": "Improving",
+      "stable": "Stable",
+      "declining": "Declining"
+    },
+    "streak": "{{count}} day(s)",
+    "streakLabel": "Streak",
+    "monthlyChange": "Monthly Change",
+    "timeRange": {
+      "daily": "Daily",
+      "weekly": "Weekly",
+      "monthly": "Monthly"
+    },
+    "chartTitle": {
+      "daily": "30-day score trend",
+      "weekly": "8-week score trend",
+      "monthly": "6-month score trend"
+    },
+    "goldenAverage": "GOLDEN Dimension Averages",
+    "strength": "Strength",
+    "needsImprovement": "💡 Needs improvement: Focus on the {{dimension}} dimension",
+    "milestones": "Achievements",
+    "milestone": {
+      "first_a_grade": "First A grade",
+      "highest_score": "Highest score"
+    },
+    "gradeDistribution": "Grade Distribution",
+    "dimensions": {
+      "goal": "Goal",
+      "output": "Output",
+      "limits": "Limits",
+      "data": "Data",
+      "evaluation": "Evaluation",
+      "next": "Next"
+    }
+  },
+  "history": {
+    "title": "History",
+    "recent": "Recent Analyses",
+    "viewAll": "View all history",
+    "empty": "No history yet",
+    "emptyDesc": "Your analysis history will appear here",
+    "basedRecommendations": "History-based recommendations",
+    "points": "points"
+  },
+  "onboarding": {
+    "title": "Welcome to PromptLint!",
+    "subtitle": "Real-time prompt analysis for better AI interactions",
+    "step1": "Press {{shortcut}} from any app",
+    "step2": "Get instant feedback on 6 quality dimensions",
+    "step3": "Apply improved versions with one click",
+    "getStarted": "Get Started"
+  },
+  "tips": {
+    "tabs": {
+      "tips": "Basic Tips",
+      "issues": "Issue Patterns",
+      "improvements": "Impact",
+      "insights": "Learning"
+    },
+    "customTips": "Personalized Tips",
+    "frequentMisses": "Frequently Missed",
+    "foundCount": "{{count}} found",
+    "improvementTips": "Improvement Tips",
+    "improvementTip1": "Clarify your goals before writing prompts",
+    "improvementTip2": "Including examples helps get more accurate results",
+    "improvementTip3": "Break complex tasks into smaller steps",
+    "viewGuide": "View Prompt Writing Guide",
+    "goldenTips": {
+      "goalClarity": {
+        "name": "Goal Clarity",
+        "icon": "🎯",
+        "tips": [
+          "Start with \"Goal: [specific goal]\"",
+          "Clearly state what you want to achieve",
+          "Define success criteria"
+        ]
+      },
+      "outputFormat": {
+        "name": "Output Format",
+        "icon": "📋",
+        "tips": [
+          "Specify desired format (JSON, markdown, code, etc.)",
+          "Include example output for more accurate results",
+          "Specify response length or detail level"
+        ]
+      },
+      "constraints": {
+        "name": "Constraints",
+        "icon": "🚧",
+        "tips": [
+          "Specify what NOT to do",
+          "Define scope or limits",
+          "Mention technical constraints if any"
+        ]
+      },
+      "dataContext": {
+        "name": "Data/Context",
+        "icon": "📊",
+        "tips": [
+          "Provide necessary background info",
+          "Include relevant code or docs",
+          "Describe the current situation or environment"
+        ]
+      },
+      "evaluationCriteria": {
+        "name": "Evaluation Criteria",
+        "icon": "✅",
+        "tips": [
+          "Define what makes a good answer",
+          "Mention priorities if any",
+          "Suggest quality measurement methods"
+        ]
+      },
+      "nextSteps": {
+        "name": "Next Steps",
+        "icon": "➡️",
+        "tips": [
+          "Mention follow-up tasks if any",
+          "Consider anticipated next questions",
+          "Provide workflow context if part of one"
+        ]
+      }
+    }
+  },
+  "radar": {
+    "ariaLabel": "GOLDEN score radar chart: Goal {{goal}}%, Output {{output}}%, Limits {{limits}}%, Data {{data}}%, Evaluation {{evaluation}}%, Next {{next}}%",
+    "helpTitle": "GOLDEN Evaluation Criteria",
+    "helpDescription": "GOLDEN evaluates 6 key elements of a good prompt. Each dimension is scored 0-100.",
+    "helpTip": "💡 Tip: Hover over each label on the chart to see its description.",
+    "closeAria": "Close"
+  },
+  "improvement": {
+    "title": "Improvement Impact Analysis",
+    "totalImprovements": "Total Improvements",
+    "scoreGain": "Score Gain",
+    "longestStreak": "Longest Streak",
+    "bestPerformance": "Best Performance",
+    "bestPerformanceDetail": "{{days}} days of consecutive improvement: {{count}} improvements · Total +{{score}} points (avg +{{avg}}/day)",
+    "improvementHistory": "Improvement History",
+    "dateRange": "{{start}} ~ {{end}}",
+    "days": "({{count}} days)",
+    "consecutiveImprovements": "{{count}} consecutive improvements",
+    "points": "+{{count}} points",
+    "avgPerDay": "avg +{{count}}/day",
+    "insights": "Insights",
+    "insightAverage": "During the last {{count}} improvement periods, you improved an average of {{avg}} points.",
+    "insightBest": "Your best streak started on {{date}}, lasting {{days}} days with consistent improvement.",
+    "insightTip": "Check and apply daily prompt writing tips for consistent improvement.",
+    "empty": "No improvement records yet",
+    "emptyHint": "Write prompts daily to see growth patterns"
+  },
+  "issuePatterns": {
+    "title": "Issue Pattern Analysis",
+    "days": "{{count}} days",
+    "totalIssues": "Total Issues",
+    "issueTypes": "Issue Types",
+    "improving": "Improving",
+    "occurrences": "{{count}} occurrences",
+    "recentOccurrences": "Recent {{count}}",
+    "trend": {
+      "improving": "Improving",
+      "worsening": "Worsening",
+      "stable": "Stable"
+    },
+    "severity": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "improvementTip": "💡 Improvement Tip",
+    "trendSummary": "Trend Summary",
+    "trendImproving": "{{count}} issues are improving",
+    "trendWorsening": "{{count}} issues are worsening - attention needed",
+    "empty": "Not enough issue pattern data",
+    "emptyHint": "Analyze more prompts to see patterns",
+    "dimensionTips": {
+      "goal": "Clarify your prompt's purpose. Instead of \"do this\", use \"to achieve X, do Y\"",
+      "output": "Specify the desired output format (JSON, markdown, step-by-step, etc.)",
+      "limits": "Clarify constraints (under 100 lines, ES6 only, no external libraries)",
+      "data": "Provide sufficient background (project structure, framework, related code)",
+      "evaluation": "Specify success criteria (tests pass, API compatibility maintained, etc.)",
+      "next": "Specify follow-up tasks (implement then test, document, etc.)"
+    }
+  },
+  "learning": {
+    "title": "Learning Insights",
+    "predictedScore": "Predicted Next Score",
+    "points": "points",
+    "confidence": "Confidence: {{level}}",
+    "confidenceHigh": "High",
+    "confidenceMedium": "Medium",
+    "confidenceLow": "Low",
+    "basedOn7Days": "Based on last 7 days of data",
+    "strengths": "Strengths",
+    "needsImprovement": "Needs Improvement",
+    "noneYet": "None yet",
+    "goodStatus": "In good shape",
+    "moreItems": "+{{count}} more",
+    "improvingAreas": "Improving Areas",
+    "categoryPerformance": "Performance by Category",
+    "count": "({{count}} times)",
+    "bestScore": "Best: {{score}}",
+    "weakness": "Weakness: {{area}}",
+    "headroom": "+{{count}} headroom",
+    "learningPath": "Recommended Learning Path",
+    "learningStep1": "Practice {{weakness}} specifically when working on {{category}}",
+    "learningStep2": "Apply your {{category}} strengths to other areas",
+    "learningStepDaily": "Write prompts at a consistent time each day for steady growth",
+    "empty": "Not enough learning data yet",
+    "emptyHint": "Try writing various types of prompts",
+    "categories": {
+      "code-generation": "Code Generation",
+      "code-review": "Code Review",
+      "bug-fix": "Bug Fix",
+      "refactoring": "Refactoring",
+      "explanation": "Explanation/Questions",
+      "documentation": "Documentation",
+      "testing": "Testing",
+      "architecture": "Architecture",
+      "deployment": "Deployment",
+      "data-analysis": "Data Analysis",
+      "general": "General"
+    }
+  }
+}

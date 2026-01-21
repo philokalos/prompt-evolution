@@ -1,0 +1,107 @@
+{
+  "copy": "Copy",
+  "apply": "Apply",
+  "applying": "Applying...",
+  "cancel": "Cancel",
+  "close": "Close",
+  "save": "Save",
+  "loading": "Loading...",
+  "success": "Success",
+  "error": "Error",
+  "settings": "Settings",
+  "help": "Help",
+  "quit": "Quit",
+  "show": "Show",
+  "hide": "Hide",
+  "reset": "Reset",
+  "confirm": "Confirm",
+  "retry": "Retry",
+  "copied": "Copied!",
+  "applied": "Applied!",
+  "failed": "Failed",
+  "noData": "No data",
+  "viewAll": "View all",
+  "viewMore": "View more",
+  "learnMore": "Learn more",
+  "collapse": "Collapse",
+  "showDetails": "Show details",
+  "newAnalysis": "New analysis",
+  "betterThanAverage": "{{percent}}% better than your average",
+  "worseThanAverage": "{{percent}}% worse than your average",
+  "appName": "PromptLint",
+  "version": "Version {{version}}",
+  "copyright": "© {{year}} philokalos",
+  "alwaysOnTop": "Always on top",
+  "openAtLogin": "Open at login",
+  "devTools": "Developer Tools",
+  "navigation": {
+    "analysis": "PromptLint",
+    "progress": "My Progress",
+    "tips": "Personal Tips",
+    "help": "Feature Guide"
+  },
+  "quickAction": {
+    "pasteAfterCopy": "Paste after copy",
+    "variant": "variant",
+    "fullView": "Full analysis view",
+    "applyFailed": "Apply failed",
+    "shortcuts": {
+      "apply": "Apply",
+      "close": "Close"
+    }
+  },
+  "notifications": {
+    "copiedToClipboard": "Copied to clipboard - Paste with Cmd+V",
+    "promptApplied": "Prompt applied"
+  },
+  "emptyState": {
+    "blockedApp": {
+      "title": "Copy then analyze",
+      "description": "Please copy text first from",
+      "step1Title": "Copy text",
+      "step1Desc": "Copy with",
+      "step2Title": "Run analysis",
+      "step2Desc": "Press again",
+      "note": "ℹ️ Some apps (VS Code, Cursor) don't support auto-selection"
+    },
+    "noSelection": {
+      "title": "Please select text",
+      "description": "Select or copy the prompt you want to analyze",
+      "step1Title": "Select text",
+      "step1Desc": "Drag to select text or copy with Cmd+C",
+      "step2Title": "Run analysis",
+      "step2Desc": "Press"
+    },
+    "welcome": {
+      "title": "Improve prompt quality",
+      "step1Title": "Select prompt",
+      "step1Desc": "Drag to select the text you want to improve",
+      "step2Title": "Run analysis",
+      "step2Desc": "Press",
+      "step3Title": "Apply improvement",
+      "step3Desc": "button or",
+      "tip": "💡 Apply will automatically replace the original text with the improved prompt"
+    },
+    "onboarding": {
+      "title": "Welcome to PromptLint!",
+      "description": "We help make your AI prompts more effective.",
+      "subDescription": "Analyze and suggest improvements based on 6 criteria.",
+      "tags": {
+        "free": "✓ Free",
+        "offline": "✓ Offline",
+        "privacy": "✓ Privacy protected"
+      }
+    }
+  },
+  "directInput": {
+    "placeholder": "Enter the prompt to analyze... (Cmd+Enter to analyze)",
+    "charCount": "{{count}} characters",
+    "submitHint": "Cmd+Enter to analyze",
+    "button": "Analyze",
+    "toggle": "Direct input",
+    "toggleBack": "Use shortcut"
+  },
+  "footer": {
+    "viewProgress": "View my progress"
+  }
+}

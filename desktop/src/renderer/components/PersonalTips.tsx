@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Lightbulb, AlertCircle, TrendingUp, BookOpen, Brain, Target } from 'lucide-react';
 import IssuePatternInsights from './IssuePatternInsights';
 import ImprovementImpact from './ImprovementImpact';
@@ -22,59 +23,22 @@ interface PersonalTipsProps {
 
 type TabType = 'tips' | 'issues' | 'improvements' | 'insights';
 
-// GOLDEN dimension improvement suggestions
-const GOLDEN_TIPS: Record<string, { icon: string; tips: string[] }> = {
-  '목표 명확성': {
-    icon: '🎯',
-    tips: [
-      '"목표: [구체적인 목표]"로 시작하세요',
-      '달성하고자 하는 결과를 명확히 명시하세요',
-      '성공 조건을 정의해보세요',
-    ],
-  },
-  '출력 형식': {
-    icon: '📋',
-    tips: [
-      '원하는 출력 형식을 명시하세요 (JSON, 마크다운, 코드 등)',
-      '예시 출력을 포함하면 더 정확한 결과를 얻을 수 있어요',
-      '응답 길이나 상세도 수준을 지정해보세요',
-    ],
-  },
-  '제약 조건': {
-    icon: '🚧',
-    tips: [
-      '하지 말아야 할 것을 명시하세요',
-      '범위나 한계를 정의해보세요',
-      '기술적 제약사항이 있다면 언급하세요',
-    ],
-  },
-  '데이터/컨텍스트': {
-    icon: '📊',
-    tips: [
-      '필요한 배경 정보를 제공하세요',
-      '관련 코드나 문서를 포함하세요',
-      '현재 상황이나 환경을 설명해보세요',
-    ],
-  },
-  '평가 기준': {
-    icon: '✅',
-    tips: [
-      '좋은 답변의 기준을 정의해보세요',
-      '우선순위가 있다면 언급하세요',
-      '품질 측정 방법을 제시해보세요',
-    ],
-  },
-  '다음 단계': {
-    icon: '➡️',
-    tips: [
-      '후속 작업이 있다면 언급하세요',
-      '예상되는 다음 질문을 미리 고려해보세요',
-      '워크플로우의 일부라면 맥락을 제공하세요',
-    ],
-  },
+// GOLDEN dimension keys for translation lookup: 'goalClarity', 'outputFormat',
+// 'constraints', 'dataContext', 'evaluationCriteria', 'nextSteps'
+// - referenced via WEAKNESS_TO_KEY mapping below
+
+// Map weakness type (Korean) to translation key
+const WEAKNESS_TO_KEY: Record<string, string> = {
+  '목표 명확성': 'goalClarity',
+  '출력 형식': 'outputFormat',
+  '제약 조건': 'constraints',
+  '데이터/컨텍스트': 'dataContext',
+  '평가 기준': 'evaluationCriteria',
+  '다음 단계': 'nextSteps',
 };
 
 export default function PersonalTips({ currentTips, className = '' }: PersonalTipsProps) {
+  const { t } = useTranslation('analysis');
   const [weaknesses, setWeaknesses] = useState<Weakness[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabType>('tips');
@@ -94,12 +58,21 @@ export default function PersonalTips({ currentTips, className = '' }: PersonalTi
     }
   };
 
+  // Helper to get translated tips for a weakness
+  const getGoldenTip = (weaknessType: string) => {
+    const key = WEAKNESS_TO_KEY[weaknessType];
+    if (!key) return null;
+
+    const tipData = t(`tips.goldenTips.${key}`, { returnObjects: true }) as { name: string; icon: string; tips: string[] };
+    return tipData;
+  };
+
   // Tab configuration
   const tabs = [
-    { id: 'tips' as TabType, label: '기본 팁', icon: Lightbulb },
-    { id: 'issues' as TabType, label: '이슈 패턴', icon: AlertCircle },
-    { id: 'improvements' as TabType, label: '개선 효과', icon: TrendingUp },
-    { id: 'insights' as TabType, label: '학습 분석', icon: Brain },
+    { id: 'tips' as TabType, label: t('tips.tabs.tips'), icon: Lightbulb },
+    { id: 'issues' as TabType, label: t('tips.tabs.issues'), icon: AlertCircle },
+    { id: 'improvements' as TabType, label: t('tips.tabs.improvements'), icon: TrendingUp },
+    { id: 'insights' as TabType, label: t('tips.tabs.insights'), icon: Brain },
   ];
 
   const renderBasicTips = () => {
@@ -120,7 +93,7 @@ export default function PersonalTips({ currentTips, className = '' }: PersonalTi
 
     // Add tips based on weaknesses
     weaknesses.forEach((weakness) => {
-      const goldenTip = GOLDEN_TIPS[weakness.type];
+      const goldenTip = getGoldenTip(weakness.type);
       if (goldenTip && goldenTip.tips[0]) {
         allTips.push(`${goldenTip.icon} ${goldenTip.tips[0]}`);
       }
@@ -133,7 +106,7 @@ export default function PersonalTips({ currentTips, className = '' }: PersonalTi
           <div className="bg-dark-surface rounded-lg p-4">
             <div className="flex items-center gap-2 text-sm font-medium mb-3">
               <Lightbulb size={16} className="text-accent-primary" />
-              <span>맞춤 팁</span>
+              <span>{t('tips.customTips')}</span>
             </div>
             <div className="space-y-2">
               {allTips.slice(0, 4).map((tip, index) => (
@@ -151,19 +124,19 @@ export default function PersonalTips({ currentTips, className = '' }: PersonalTi
           <div className="bg-dark-surface rounded-lg p-4">
             <div className="flex items-center gap-2 text-sm font-medium mb-3">
               <Target size={16} className="text-accent-warning" />
-              <span>자주 놓치는 부분</span>
+              <span>{t('tips.frequentMisses')}</span>
             </div>
             <div className="space-y-3">
               {weaknesses.map((weakness, index) => {
-                const goldenTip = GOLDEN_TIPS[weakness.type];
+                const goldenTip = getGoldenTip(weakness.type);
                 return (
                   <div key={index} className="border-l-2 border-accent-warning/50 pl-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">
-                        {goldenTip?.icon || '📝'} {weakness.type}
+                        {goldenTip?.icon || '📝'} {goldenTip?.name || weakness.type}
                       </span>
                       <span className="text-xs text-gray-500">
-                        {weakness.frequency}회 발견
+                        {t('tips.foundCount', { count: weakness.frequency })}
                       </span>
                     </div>
                     {goldenTip && (
@@ -182,19 +155,19 @@ export default function PersonalTips({ currentTips, className = '' }: PersonalTi
         <div className="bg-gradient-to-br from-accent-primary/10 to-accent-secondary/10 rounded-lg p-4 border border-accent-primary/20">
           <div className="flex items-center gap-2 text-sm font-medium mb-2">
             <TrendingUp size={16} className="text-accent-success" />
-            <span>실력 향상 팁</span>
+            <span>{t('tips.improvementTips')}</span>
           </div>
           <div className="text-xs text-gray-400 space-y-1">
-            <p>• 프롬프트를 작성하기 전에 목표를 명확히 정리하세요</p>
-            <p>• 예시를 포함하면 원하는 결과를 더 정확히 얻을 수 있어요</p>
-            <p>• 복잡한 작업은 단계별로 나누어 요청해보세요</p>
+            <p>• {t('tips.improvementTip1')}</p>
+            <p>• {t('tips.improvementTip2')}</p>
+            <p>• {t('tips.improvementTip3')}</p>
           </div>
         </div>
 
         {/* Learning Resources */}
         <button className="w-full flex items-center justify-center gap-2 p-3 bg-dark-hover hover:bg-dark-border rounded-lg text-sm transition-colors">
           <BookOpen size={16} />
-          <span>프롬프트 작성 가이드 보기</span>
+          <span>{t('tips.viewGuide')}</span>
         </button>
       </div>
     );
