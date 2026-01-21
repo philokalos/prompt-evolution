@@ -140,6 +140,14 @@ function showNotification(title: string, body: string): void {
 }
 
 /**
+ * Check if mainWindow is valid and not destroyed
+ * Use this before any mainWindow operations to prevent crashes
+ */
+function isMainWindowValid(): boolean {
+  return mainWindow !== null && !mainWindow.isDestroyed();
+}
+
+/**
  * Show welcome message on first launch
  */
 async function showWelcomeMessage(): Promise<void> {
@@ -478,9 +486,9 @@ function createWindow(): void {
 
   // Hide instead of close (for quick access)
   mainWindow.on('close', (event) => {
-    if (!isQuitting) {
+    if (!isQuitting && isMainWindowValid()) {
       event.preventDefault();
-      mainWindow?.hide();
+      mainWindow!.hide();
     }
   });
 
@@ -967,7 +975,9 @@ ipcMain.handle('select-project', (_event, projectPath: unknown) => {
 });
 
 ipcMain.handle('hide-window', () => {
-  mainWindow?.hide();
+  if (isMainWindowValid()) {
+    mainWindow!.hide();
+  }
   return true;
 });
 
@@ -1147,11 +1157,12 @@ app.whenReady().then(async () => {
   if (mainWindow) {
     createTray(mainWindow, {
       onToggleWindow: () => {
-        if (mainWindow?.isVisible()) {
-          mainWindow.hide();
+        if (!isMainWindowValid()) return;
+        if (mainWindow!.isVisible()) {
+          mainWindow!.hide();
         } else {
-          mainWindow?.show();
-          mainWindow?.focus();
+          mainWindow!.show();
+          mainWindow!.focus();
         }
       },
       onDoubleClick: () => {
@@ -1207,8 +1218,8 @@ app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
       createWindow();
-    } else {
-      mainWindow?.show();
+    } else if (isMainWindowValid()) {
+      mainWindow!.show();
     }
   });
 });
