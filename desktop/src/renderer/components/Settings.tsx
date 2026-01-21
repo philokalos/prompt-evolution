@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, MousePointer2, Zap, Clipboard, Sparkles, ChevronDown, AlertTriangle } from 'lucide-react';
+import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, MousePointer2, Zap, Clipboard, Sparkles, ChevronDown, AlertTriangle, Globe } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import ProjectSettings from './ProjectSettings';
 import TemplateManager from './TemplateManager';
 import ProviderSettings from './ProviderSettings';
+import { changeLanguage } from '../../locales';
 
 interface AppSettings {
   shortcut: string;
@@ -21,7 +23,12 @@ interface AppSettings {
   enableAIContextPopup: boolean;
   autoAnalyzeOnCopy: boolean;
   autoShowWindow: boolean;
+  // Language preference
+  language: 'auto' | 'en' | 'ko';
 }
+
+// Language option values
+const LANGUAGE_VALUES = ['auto', 'en', 'ko'] as const;
 
 interface SettingsProps {
   isOpen: boolean;
@@ -29,19 +36,22 @@ interface SettingsProps {
 }
 
 // Available shortcuts (ordered by conflict likelihood: safest first)
+// descKey is the translation key suffix under settings:shortcut
 const AVAILABLE_SHORTCUTS = [
-  { value: 'CommandOrControl+Shift+;', label: '⌘⇧;', desc: '권장 (충돌 최소)' },
-  { value: 'Alt+CommandOrControl+P', label: '⌥⌘P', desc: 'P 유지' },
-  { value: 'CommandOrControl+Alt+Shift+L', label: 'Hyper+L', desc: '충돌 없음' },
-  { value: 'CommandOrControl+Alt+Shift+P', label: 'Hyper+P', desc: '충돌 없음' },
-  { value: 'CommandOrControl+Shift+P', label: '⌘⇧P', desc: '기존 (충돌 가능)' },
-  { value: 'CommandOrControl+Shift+L', label: '⌘⇧L', desc: '' },
-  { value: 'CommandOrControl+Shift+K', label: '⌘⇧K', desc: '' },
+  { value: 'CommandOrControl+Shift+;', label: '⌘⇧;', descKey: 'recommended' },
+  { value: 'Alt+CommandOrControl+P', label: '⌥⌘P', descKey: 'keepP' },
+  { value: 'CommandOrControl+Alt+Shift+L', label: 'Hyper+L', descKey: 'noConflict' },
+  { value: 'CommandOrControl+Alt+Shift+P', label: 'Hyper+P', descKey: 'noConflict' },
+  { value: 'CommandOrControl+Shift+P', label: '⌘⇧P', descKey: 'current' },
+  { value: 'CommandOrControl+Shift+L', label: '⌘⇧L', descKey: '' },
+  { value: 'CommandOrControl+Shift+K', label: '⌘⇧K', descKey: '' },
 ];
 
 export default function Settings({ isOpen, onClose }: SettingsProps) {
+  const { t } = useTranslation('settings');
+  const { t: tc } = useTranslation('common');
   const [settings, setSettings] = useState<AppSettings | null>(null);
-  const [, setSaving] = useState(false);
+  const [showSavedFeedback, setShowSavedFeedback] = useState(false);
   const [appVersion, setAppVersion] = useState<string>('');
 
   // Section collapse states
@@ -56,8 +66,32 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
   const [projectTemplatesTab, setProjectTemplatesTab] = useState<'project' | 'templates'>('project');
   const [currentProjectPath, setCurrentProjectPath] = useState<string | undefined>();
 
+  // Escape key handler
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Load settings and version on mount
   useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const loaded = await window.electronAPI.getSettings();
+        setSettings(loaded as unknown as AppSettings);
+      } catch (error) {
+        console.error('Failed to load settings:', error);
+      }
+    };
+
     if (isOpen) {
       loadSettings();
       // Load app version
@@ -71,22 +105,16 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
     }
   }, [isOpen]);
 
-  const loadSettings = async () => {
-    try {
-      const loaded = await window.electronAPI.getSettings();
-      setSettings(loaded as unknown as AppSettings);
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-    }
-  };
-
   const updateSetting = async <K extends keyof AppSettings>(key: K, value: AppSettings[K]) => {
     if (!settings) return;
 
-    setSaving(true);
     try {
       await window.electronAPI.setSetting(key, value);
       setSettings({ ...settings, [key]: value });
+
+      // Show saved feedback
+      setShowSavedFeedback(true);
+      setTimeout(() => setShowSavedFeedback(false), 2000);
 
       // Handle special cases
       if (key === 'quickActionMode') {
@@ -95,8 +123,28 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
       }
     } catch (error) {
       console.error('Failed to save setting:', error);
-    } finally {
-      setSaving(false);
+    }
+  };
+
+  // Language change handler
+  const handleLanguageChange = async (language: 'auto' | 'en' | 'ko') => {
+    if (!settings) return;
+
+    try {
+      const result = await window.electronAPI.setLanguage(language);
+      if (result.success && result.resolvedLanguage) {
+        // Update local state
+        setSettings({ ...settings, language });
+
+        // Update react-i18next
+        await changeLanguage(result.resolvedLanguage as 'en' | 'ko');
+
+        // Show saved feedback
+        setShowSavedFeedback(true);
+        setTimeout(() => setShowSavedFeedback(false), 2000);
+      }
+    } catch (error) {
+      console.error('Failed to change language:', error);
     }
   };
 
@@ -109,11 +157,19 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
         <div className="flex items-center justify-between px-4 py-3 border-b border-dark-border">
           <div className="flex items-center gap-2">
             <SettingsIcon size={18} className="text-accent-primary" />
-            <span className="font-medium">설정</span>
+            <span className="font-medium">{t('title')}</span>
+            {/* Saved feedback indicator */}
+            {showSavedFeedback && (
+              <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded-full animate-pulse">
+                {t('saved')}
+              </span>
+            )}
           </div>
           <button
             onClick={onClose}
             className="p-1 rounded hover:bg-dark-hover transition-colors"
+            aria-label={t('closeAria')}
+            title={t('closeHint')}
           >
             <X size={16} className="text-gray-400" />
           </button>
@@ -123,20 +179,20 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
         <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
           {settings ? (
             <>
-              {/* 🚀 시작하기 Section */}
+              {/* 🚀 Getting Started Section */}
               <Section
-                title="시작하기"
+                title={t('sections.gettingStarted.title')}
                 icon="🚀"
                 isOpen={showGettingStarted}
                 onToggle={() => setShowGettingStarted(!showGettingStarted)}
               >
-                {/* 간단 가이드 (Collapsible) */}
+                {/* Quick Guide (Collapsible) */}
                 <div className="mb-4">
                   <button
                     onClick={() => setShowGuide(!showGuide)}
                     className="flex items-center justify-between w-full p-2.5 bg-gradient-to-r from-accent-primary/10 to-purple-500/10 border border-accent-primary/20 rounded-lg hover:bg-accent-primary/5 transition-colors"
                   >
-                    <span className="text-sm font-semibold text-accent-primary">간단 가이드</span>
+                    <span className="text-sm font-semibold text-accent-primary">{t('sections.gettingStarted.guide.title')}</span>
                     <ChevronDown
                       size={16}
                       className={`text-accent-primary transition-transform ${showGuide ? 'rotate-180' : ''}`}
@@ -145,31 +201,53 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                   {showGuide && (
                     <div className="mt-2 p-3 bg-gradient-to-r from-accent-primary/5 to-purple-500/5 border border-accent-primary/10 rounded-lg space-y-2">
                       <ol className="text-xs text-gray-300 space-y-1.5 list-decimal list-inside">
-                        <li>분석하고 싶은 프롬프트를 <strong>드래그</strong>하거나 <strong>복사</strong>합니다</li>
-                        <li>아래 설정된 <strong>시작 키</strong>를 누릅니다</li>
-                        <li>GOLDEN 점수와 <strong>개선된 프롬프트 3종</strong>을 확인합니다</li>
-                        <li>마음에 드는 버전의 <strong>[복사]</strong> 또는 <strong>[적용]</strong> 버튼을 클릭합니다</li>
+                        <li>{t('sections.gettingStarted.guide.step1')}</li>
+                        <li>{t('sections.gettingStarted.guide.step2')}</li>
+                        <li>{t('sections.gettingStarted.guide.step3')}</li>
+                        <li>{t('sections.gettingStarted.guide.step4')}</li>
                       </ol>
                       <div className="pt-2 border-t border-accent-primary/10 space-y-1">
                         <p className="text-xs text-gray-300">
-                          <strong className="text-purple-400">트레이 더블클릭</strong>: 클립보드 내용 즉시 분석
+                          <strong className="text-purple-400">{t('sections.gettingStarted.guide.trayTip')}</strong>
                         </p>
                         <p className="text-xs text-gray-400">
-                          • <kbd className="px-1 bg-dark-hover rounded text-[10px]">⌘</kbd> + <kbd className="px-1 bg-dark-hover rounded text-[10px]">Enter</kbd> = 현재 선택된 개선안 적용
+                          • <kbd className="px-1 bg-dark-hover rounded text-[10px]">⌘</kbd> + <kbd className="px-1 bg-dark-hover rounded text-[10px]">Enter</kbd> {t('sections.gettingStarted.guide.cmdEnter')}
                         </p>
                         <p className="text-xs text-gray-400">
-                          • <kbd className="px-1 bg-dark-hover rounded text-[10px]">⌘</kbd> + <kbd className="px-1 bg-dark-hover rounded text-[10px]">1-4</kbd> = 개선안 복사
+                          • <kbd className="px-1 bg-dark-hover rounded text-[10px]">⌘</kbd> + <kbd className="px-1 bg-dark-hover rounded text-[10px]">1-4</kbd> {t('sections.gettingStarted.guide.cmd14')}
                         </p>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* 시작 키 */}
+                {/* Language */}
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
+                    <Globe size={14} />
+                    {t('language.title')}
+                  </label>
+                  <select
+                    value={settings.language || 'auto'}
+                    onChange={(e) => handleLanguageChange(e.target.value as 'auto' | 'en' | 'ko')}
+                    className="w-full px-3 py-2 bg-dark-hover border border-dark-border rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-accent-primary"
+                  >
+                    {LANGUAGE_VALUES.map((val) => (
+                      <option key={val} value={val}>
+                        {t(`language.${val}`)}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500">
+                    {t('language.description')}
+                  </p>
+                </div>
+
+                {/* Shortcut Key */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
                     <Keyboard size={14} />
-                    시작 키
+                    {t('shortcut.title')}
                     <span className="ml-auto px-2 py-0.5 bg-accent-primary/20 text-accent-primary text-xs rounded">
                       {AVAILABLE_SHORTCUTS.find(s => s.value === settings.shortcut)?.label}
                     </span>
@@ -181,56 +259,56 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                   >
                     {AVAILABLE_SHORTCUTS.map((s) => (
                       <option key={s.value} value={s.value}>
-                        {s.label}{s.desc ? ` - ${s.desc}` : ''}
+                        {s.label}{s.descKey ? ` - ${t(`shortcut.${s.descKey}`)}` : ''}
                       </option>
                     ))}
                   </select>
                   <p className="text-xs text-gray-500">
-                    변경 후 앱을 재시작해야 적용됩니다. 충돌 시 "권장" 단축키를 선택하세요.
+                    {t('shortcut.description')}
                   </p>
                 </div>
 
-                {/* 텍스트 가져오기 방식 */}
+                {/* Text Capture Mode */}
                 <div className="space-y-2">
                   <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
                     <MousePointer2 size={14} />
-                    텍스트 가져오기 방식
+                    {t('captureMode.title')}
                   </label>
                   <select
                     value={settings.captureMode}
                     onChange={(e) => updateSetting('captureMode', e.target.value as 'auto' | 'selection' | 'clipboard')}
                     className="w-full px-3 py-2 bg-dark-hover border border-dark-border rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-accent-primary"
                   >
-                    <option value="auto">자동 (드래그 → 복사본)</option>
-                    <option value="selection">드래그한 텍스트만</option>
-                    <option value="clipboard">복사한 내용만</option>
+                    <option value="auto">{t('captureMode.auto')}</option>
+                    <option value="selection">{t('captureMode.selection')}</option>
+                    <option value="clipboard">{t('captureMode.clipboard')}</option>
                   </select>
                   <div className="text-xs text-gray-500 space-y-1">
-                    <p><strong className="text-gray-400">자동:</strong> 드래그한 텍스트를 우선 분석하고, 없으면 클립보드 내용 사용</p>
-                    <p><strong className="text-gray-400">드래그만:</strong> 마우스로 선택한 텍스트만 분석 (Cmd+C 불필요)</p>
-                    <p><strong className="text-gray-400">복사만:</strong> Cmd+C로 복사한 후 시작 키를 눌러야 합니다</p>
+                    <p><strong className="text-gray-400">{t('captureMode.auto').split(' ')[0]}:</strong> {t('captureMode.autoDesc')}</p>
+                    <p><strong className="text-gray-400">{t('captureMode.selection').split(' ')[0]}:</strong> {t('captureMode.selectionDesc')}</p>
+                    <p><strong className="text-gray-400">{t('captureMode.clipboard').split(' ')[0]}:</strong> {t('captureMode.clipboardDesc')}</p>
                   </div>
                 </div>
               </Section>
 
-              {/* ⚙️ 동작 설정 Section */}
+              {/* ⚙️ Behavior Section */}
               <Section
-                title="동작 설정"
+                title={t('sections.behavior.title')}
                 icon="⚙️"
                 isOpen={showBehavior}
                 onToggle={() => setShowBehavior(!showBehavior)}
               >
-                {/* 창 동작 */}
+                {/* Window Behavior */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide">창 동작</h4>
+                  <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide">{t('sections.behavior.window')}</h4>
 
                   <div className="flex items-center justify-between py-2">
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <Eye size={14} className="text-gray-400" />
-                        <span className="text-sm">항상 위에 표시</span>
+                        <span className="text-sm">{t('sections.behavior.alwaysOnTop')}</span>
                       </div>
-                      <span className="text-xs text-gray-500">다른 창 위에 분석 창이 항상 보이도록 유지</span>
+                      <span className="text-xs text-gray-500">{t('sections.behavior.alwaysOnTopDesc')}</span>
                     </div>
                     <ToggleSwitch
                       checked={settings.alwaysOnTop}
@@ -242,9 +320,9 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <Eye size={14} className="text-gray-400" />
-                        <span className="text-sm">복사하면 자동으로 닫기</span>
+                        <span className="text-sm">{t('sections.behavior.hideOnCopy')}</span>
                       </div>
-                      <span className="text-xs text-gray-500">개선된 프롬프트를 복사하면 창이 자동으로 닫힘</span>
+                      <span className="text-xs text-gray-500">{t('sections.behavior.hideOnCopyDesc')}</span>
                     </div>
                     <ToggleSwitch
                       checked={settings.hideOnCopy}
@@ -252,13 +330,12 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                     />
                   </div>
 
-                  {/* 설정 충돌 경고 */}
+                  {/* Settings conflict warning */}
                   {settings.alwaysOnTop && settings.hideOnCopy && (
                     <div className="flex items-start gap-2 p-2 mt-1 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
                       <AlertTriangle size={14} className="text-yellow-500 mt-0.5 flex-shrink-0" />
                       <span className="text-xs text-yellow-500/90">
-                        &ldquo;항상 위에 표시&rdquo;와 &ldquo;복사하면 자동으로 닫기&rdquo;가 동시에 활성화되어 있습니다.
-                        복사 후 창이 닫히면 다시 열 때까지 다른 앱 위에 표시되지 않습니다.
+                        {t('sections.behavior.conflictWarning')}
                       </span>
                     </div>
                   )}
@@ -267,9 +344,9 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <Zap size={14} className="text-gray-400" />
-                        <span className="text-sm">분석 완료 시 자동으로 열기</span>
+                        <span className="text-sm">{t('sections.behavior.autoShowWindow')}</span>
                       </div>
-                      <span className="text-xs text-gray-500">분석이 끝나면 창을 자동으로 표시</span>
+                      <span className="text-xs text-gray-500">{t('sections.behavior.autoShowWindowDesc')}</span>
                     </div>
                     <ToggleSwitch
                       checked={settings.autoShowWindow ?? true}
@@ -278,15 +355,15 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                   </div>
                 </div>
 
-                {/* 알림 */}
+                {/* Notifications */}
                 <div className="pt-3 border-t border-dark-border">
                   <div className="flex items-center justify-between py-2">
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <Bell size={14} className="text-gray-400" />
-                        <span className="text-sm">알림 받기</span>
+                        <span className="text-sm">{t('sections.behavior.showNotifications')}</span>
                       </div>
-                      <span className="text-xs text-gray-500">분석 완료, 오류 등을 macOS 알림으로 안내</span>
+                      <span className="text-xs text-gray-500">{t('sections.behavior.showNotificationsDesc')}</span>
                     </div>
                     <ToggleSwitch
                       checked={settings.showNotifications}
@@ -296,9 +373,9 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                 </div>
               </Section>
 
-              {/* ✨ 똑똑한 기능 Section */}
+              {/* ✨ Smart Features Section */}
               <Section
-                title="똑똑한 기능"
+                title={t('sections.smart.title')}
                 icon="✨"
                 isOpen={showSmartFeatures}
                 onToggle={() => setShowSmartFeatures(!showSmartFeatures)}
@@ -306,17 +383,17 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                 {/* Multi-Provider AI Settings */}
                 <ProviderSettings />
 
-                {/* 자동 감지 */}
+                {/* Auto Detection */}
                 <div className="pt-3 border-t border-dark-border space-y-3">
-                  <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide">자동 감지</h4>
+                  <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide">{t('sections.smart.autoDetect')}</h4>
 
                   <div className="flex items-center justify-between py-2">
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <Clipboard size={14} className="text-gray-400" />
-                        <span className="text-sm">복사할 때 감지</span>
+                        <span className="text-sm">{t('sections.smart.clipboardWatch')}</span>
                       </div>
-                      <span className="text-xs text-gray-500">프롬프트 복사 시 트레이에 • 표시</span>
+                      <span className="text-xs text-gray-500">{t('sections.smart.clipboardWatchDesc')}</span>
                     </div>
                     <ToggleSwitch
                       checked={settings.enableClipboardWatch ?? false}
@@ -329,9 +406,9 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                       <div className="flex flex-col gap-0.5">
                         <div className="flex items-center gap-2">
                           <Zap size={14} className="text-gray-400" />
-                          <span className="text-sm">자동으로 분석</span>
+                          <span className="text-sm">{t('sections.smart.autoAnalyze')}</span>
                         </div>
-                        <span className="text-xs text-gray-500">감지 즉시 자동 분석 (트레이 클릭 불필요)</span>
+                        <span className="text-xs text-gray-500">{t('sections.smart.autoAnalyzeDesc')}</span>
                       </div>
                       <ToggleSwitch
                         checked={settings.autoAnalyzeOnCopy ?? false}
@@ -344,12 +421,12 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <Sparkles size={14} className="text-gray-400" />
-                        <span className="text-sm">AI 앱에서 버튼 보기</span>
+                        <span className="text-sm">{t('sections.smart.aiContextPopup')}</span>
                       </div>
-                      <span className="text-xs text-gray-500">Claude, ChatGPT 사용 시 플로팅 버튼</span>
+                      <span className="text-xs text-gray-500">{t('sections.smart.aiContextPopupDesc')}</span>
                       {settings.enableAIContextPopup && (
                         <div className="mt-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded text-[10px] text-amber-400">
-                          ⚠️ 타이핑 중 방해될 수 있으니 필요시에만 활성화
+                          {t('sections.smart.aiContextPopupWarning')}
                         </div>
                       )}
                     </div>
@@ -360,26 +437,26 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                   </div>
                 </div>
 
-                {/* 작업 자동 적용 (정보) */}
+                {/* Auto Apply (info) */}
                 <div className="pt-3 border-t border-dark-border">
                   <div className="p-3 bg-accent-primary/10 border border-accent-primary/20 rounded-lg space-y-2">
                     <div className="flex items-center gap-2">
                       <Zap size={14} className="text-accent-primary" />
-                      <h4 className="text-sm font-medium text-accent-primary">작업 자동 적용</h4>
+                      <h4 className="text-sm font-medium text-accent-primary">{t('sections.smart.autoApply.title')}</h4>
                     </div>
                     <p className="text-xs text-gray-300 leading-relaxed">
-                      <strong>[적용]</strong> 버튼을 누르면 개선된 프롬프트가 원본 앱(Claude, ChatGPT 등)의 입력창에 자동으로 교체됩니다.
+                      {t('sections.smart.autoApply.description')}
                     </p>
                     <p className="text-xs text-gray-500">
-                      ※ VS Code, Cursor 등 일부 앱에서는 클립보드 복사 후 수동 붙여넣기 필요
+                      {t('sections.smart.autoApply.note')}
                     </p>
                   </div>
                 </div>
               </Section>
 
-              {/* 📁 프로젝트 & 템플릿 Section (Phase 4) */}
+              {/* 📁 Projects & Templates Section (Phase 4) */}
               <Section
-                title="프로젝트 & 템플릿"
+                title={t('sections.projectTemplates.title')}
                 icon="📁"
                 isOpen={showProjectTemplates}
                 onToggle={() => setShowProjectTemplates(!showProjectTemplates)}
@@ -394,7 +471,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                         : 'bg-dark-hover text-gray-400 hover:text-gray-200'
                     }`}
                   >
-                    프로젝트 설정
+                    {t('sections.projectTemplates.projectTab')}
                   </button>
                   <button
                     onClick={() => setProjectTemplatesTab('templates')}
@@ -404,7 +481,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                         : 'bg-dark-hover text-gray-400 hover:text-gray-200'
                     }`}
                   >
-                    템플릿 관리
+                    {t('sections.projectTemplates.templatesTab')}
                   </button>
                 </div>
 
@@ -416,23 +493,23 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                 )}
               </Section>
 
-              {/* 🔧 고급 설정 Section */}
+              {/* 🔧 Advanced Section */}
               <Section
-                title="고급 설정"
+                title={t('sections.advanced.title')}
                 icon="🔧"
                 isOpen={showAdvanced}
                 onToggle={() => setShowAdvanced(!showAdvanced)}
               >
-                {/* 빠른 작업 모드 */}
+                {/* Quick Action Mode */}
                 <div className="space-y-3">
                   <div className="flex items-center justify-between py-2">
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <Zap size={14} className="text-gray-400" />
-                        <span className="text-sm">빠른 작업 모드</span>
-                        <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] rounded uppercase font-medium">실험적</span>
+                        <span className="text-sm">{t('sections.advanced.quickAction')}</span>
+                        <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] rounded uppercase font-medium">{t('sections.advanced.experimental')}</span>
                       </div>
-                      <span className="text-xs text-gray-500">분석 결과 대신 미니 패널만 표시</span>
+                      <span className="text-xs text-gray-500">{t('sections.advanced.quickActionDesc')}</span>
                     </div>
                     <ToggleSwitch
                       checked={settings.quickActionMode ?? false}
@@ -442,11 +519,11 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                 </div>
               </Section>
 
-              {/* ℹ️ 앱 정보 */}
+              {/* ℹ️ App Info */}
               <div className="pt-4 border-t border-dark-border">
                 <div className="text-xs text-gray-500 space-y-1">
                   <p>PromptLint v{appVersion || '...'}</p>
-                  <p>© 2025 philokalos</p>
+                  <p>{tc('copyright', { year: new Date().getFullYear() })}</p>
                 </div>
               </div>
             </>
@@ -463,7 +540,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
             onClick={onClose}
             className="w-full px-4 py-2 bg-dark-surface hover:bg-dark-border rounded-lg text-sm transition-colors"
           >
-            닫기
+            {tc('close')}
           </button>
         </div>
       </div>

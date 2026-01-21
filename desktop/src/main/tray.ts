@@ -1,8 +1,10 @@
 import { app, Tray, Menu, nativeImage, BrowserWindow } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
+import { t } from './i18n.js';
 
 let tray: Tray | null = null;
+let mainWindowRef: BrowserWindow | null = null;
 
 // Double-click detection state
 let lastClickTime = 0;
@@ -38,6 +40,9 @@ function getAssetsPath(): string {
 }
 
 export function createTray(mainWindow: BrowserWindow, callbacks?: TrayCallbacks): Tray {
+  // Store reference for menu rebuilding
+  mainWindowRef = mainWindow;
+
   // Store callbacks for use in event handlers
   trayCallbacks = callbacks || {
     onToggleWindow: () => {
@@ -88,84 +93,11 @@ export function createTray(mainWindow: BrowserWindow, callbacks?: TrayCallbacks)
 
   // Create tray
   tray = new Tray(trayIcon);
-  tray.setToolTip('PromptLint - 프롬프트 교정');
+  tray.setToolTip(t('tray:tooltip', { shortcut: '⌘⇧P' }));
   console.log('[Tray] Tray created successfully');
 
-  const contextMenu = Menu.buildFromTemplate([
-    {
-      label: '분석 창 열기',
-      accelerator: 'CommandOrControl+Shift+P',
-      click: () => {
-        mainWindow.show();
-        mainWindow.focus();
-      },
-    },
-    { type: 'separator' },
-    {
-      label: '최근 분석',
-      submenu: [
-        { label: '분석 기록 없음', enabled: false },
-      ],
-    },
-    {
-      label: '통계 보기',
-      click: () => {
-        mainWindow.show();
-        mainWindow.focus();
-        mainWindow.webContents.send('navigate', 'stats');
-      },
-    },
-    {
-      label: '기능 안내',
-      click: () => {
-        mainWindow.show();
-        mainWindow.focus();
-        mainWindow.webContents.send('navigate', 'help');
-      },
-    },
-    { type: 'separator' },
-    {
-      label: '설정',
-      submenu: [
-        {
-          label: '항상 위에 표시',
-          type: 'checkbox',
-          checked: mainWindow.isAlwaysOnTop(),
-          click: (menuItem) => {
-            mainWindow.setAlwaysOnTop(menuItem.checked);
-          },
-        },
-        {
-          label: '시작 시 실행',
-          type: 'checkbox',
-          checked: app.getLoginItemSettings().openAtLogin,
-          click: (menuItem) => {
-            app.setLoginItemSettings({
-              openAtLogin: menuItem.checked,
-            });
-          },
-        },
-        { type: 'separator' },
-        {
-          label: '개발자 도구',
-          click: () => {
-            if (mainWindow) {
-              mainWindow.webContents.openDevTools({ mode: 'detach' });
-            }
-          },
-        },
-      ],
-    },
-    { type: 'separator' },
-    {
-      label: '종료',
-      click: () => {
-        app.quit();
-      },
-    },
-  ]);
-
-  tray.setContextMenu(contextMenu);
+  // Build and set context menu
+  buildTrayMenu(mainWindow);
 
   // Click on tray icon with double-click detection
   tray.on('click', () => {
@@ -244,11 +176,115 @@ function createTemplateIcon(): Electron.NativeImage {
   return image;
 }
 
+/**
+ * Build the tray context menu with i18n labels
+ */
+function buildTrayMenu(mainWindow: BrowserWindow): void {
+  if (!tray) return;
+
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: t('tray:show'),
+      accelerator: 'CommandOrControl+Shift+P',
+      click: () => {
+        mainWindow.show();
+        mainWindow.focus();
+      },
+    },
+    { type: 'separator' },
+    {
+      label: t('tray:recentAnalyses'),
+      submenu: [
+        { label: t('tray:noRecentAnalyses'), enabled: false },
+      ],
+    },
+    {
+      label: t('tray:stats.title'),
+      click: () => {
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.webContents.send('navigate', 'stats');
+      },
+    },
+    {
+      label: t('tray:help'),
+      click: () => {
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.webContents.send('navigate', 'help');
+      },
+    },
+    { type: 'separator' },
+    {
+      label: t('tray:settings'),
+      submenu: [
+        {
+          label: t('common:alwaysOnTop'),
+          type: 'checkbox',
+          checked: mainWindow.isAlwaysOnTop(),
+          click: (menuItem) => {
+            mainWindow.setAlwaysOnTop(menuItem.checked);
+          },
+        },
+        {
+          label: t('common:openAtLogin'),
+          type: 'checkbox',
+          checked: app.getLoginItemSettings().openAtLogin,
+          click: (menuItem) => {
+            app.setLoginItemSettings({
+              openAtLogin: menuItem.checked,
+            });
+          },
+        },
+        { type: 'separator' },
+        {
+          label: t('common:devTools'),
+          click: () => {
+            if (mainWindow) {
+              mainWindow.webContents.openDevTools({ mode: 'detach' });
+            }
+          },
+        },
+      ],
+    },
+    { type: 'separator' },
+    {
+      label: t('tray:quit'),
+      click: () => {
+        app.quit();
+      },
+    },
+  ]);
+
+  tray.setContextMenu(contextMenu);
+}
+
+/**
+ * Rebuild tray menu with updated language labels
+ * Call this after language change
+ */
+export function rebuildTrayMenu(): void {
+  if (!tray || !mainWindowRef) return;
+
+  console.log('[Tray] Rebuilding menu with new language');
+  buildTrayMenu(mainWindowRef);
+
+  // Also update tooltip
+  tray.setToolTip(t('tray:tooltip', { shortcut: '⌘⇧P' }));
+}
+
 export function destroyTray(): void {
+  // 대기 중인 클릭 타이머 정리
+  if (pendingClickTimeout) {
+    clearTimeout(pendingClickTimeout);
+    pendingClickTimeout = null;
+  }
   if (tray) {
     tray.destroy();
     tray = null;
   }
+  trayCallbacks = null;
+  mainWindowRef = null;
 }
 
 export function updateTrayMenu(_recentAnalyses: Array<{ text: string; score: number }>): void {
@@ -271,9 +307,9 @@ export function setTrayBadge(show: boolean): void {
   // On Windows/Linux, we could use a different icon or tooltip
   // For now, just update tooltip
   if (show) {
-    tray.setToolTip('PromptLint - 새 프롬프트 감지됨!');
+    tray.setToolTip(t('tray:tooltipNewPrompt'));
   } else {
-    tray.setToolTip('PromptLint - 프롬프트 교정');
+    tray.setToolTip(t('tray:tooltipDefault'));
   }
 }
 

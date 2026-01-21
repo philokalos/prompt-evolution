@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   TrendingUp,
   TrendingDown,
@@ -47,16 +48,8 @@ interface Stats {
 
 type TimeRange = 'daily' | 'weekly' | 'monthly';
 
-const DIMENSION_LABELS: Record<string, string> = {
-  goal: '목표',
-  output: '출력',
-  limits: '제약',
-  data: '데이터',
-  evaluation: '평가',
-  next: '다음',
-};
-
 export default function ProgressTracker() {
+  const { t } = useTranslation('analysis');
   const [stats, setStats] = useState<Stats | null>(null);
   const [trend, setTrend] = useState<ScoreTrendPoint[]>([]);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStatPoint[]>([]);
@@ -152,23 +145,23 @@ export default function ProgressTracker() {
   const getTrendText = () => {
     switch (stats?.recentTrend) {
       case 'improving':
-        return '향상 중';
+        return t('progress.trend.improving');
       case 'declining':
-        return '하락 중';
+        return t('progress.trend.declining');
       default:
-        return '유지 중';
+        return t('progress.trend.stable');
     }
   };
 
   const formatMilestone = (type: string): string => {
-    switch (type) {
-      case 'first_a_grade':
-        return '첫 A등급 달성';
-      case 'highest_score':
-        return '최고 점수';
-      default:
-        return type;
-    }
+    const key = `progress.milestone.${type}`;
+    const translated = t(key);
+    // Return the type itself if no translation found
+    return translated === key ? type : translated;
+  };
+
+  const getDimensionLabel = (key: string): string => {
+    return t(`progress.dimensions.${key}`, { defaultValue: key });
   };
 
   if (loading) {
@@ -184,7 +177,7 @@ export default function ProgressTracker() {
       {/* Header */}
       <div className="flex items-center gap-2">
         <BarChart3 size={20} className="text-accent-primary" />
-        <span className="font-medium">내 진행 상황</span>
+        <span className="font-medium">{t('progress.title')}</span>
       </div>
 
       {/* Summary Stats */}
@@ -193,18 +186,18 @@ export default function ProgressTracker() {
           <div className="text-2xl font-bold text-accent-primary">
             {stats?.totalAnalyses || 0}
           </div>
-          <div className="text-xs text-gray-400">총 분석</div>
+          <div className="text-xs text-gray-400">{t('progress.totalAnalyses')}</div>
         </div>
         <div className="bg-dark-surface rounded-lg p-3 text-center">
           <div className="text-2xl font-bold">{stats?.averageScore || 0}%</div>
-          <div className="text-xs text-gray-400">평균 점수</div>
+          <div className="text-xs text-gray-400">{t('progress.averageScore')}</div>
         </div>
         <div className="bg-dark-surface rounded-lg p-3 text-center">
           <div className="flex items-center justify-center gap-1">
             {getTrendIcon()}
             <span className="text-sm font-medium">{getTrendText()}</span>
           </div>
-          <div className="text-xs text-gray-400">최근 추세</div>
+          <div className="text-xs text-gray-400">{t('progress.recentTrend')}</div>
         </div>
       </div>
 
@@ -215,8 +208,8 @@ export default function ProgressTracker() {
             <div className="bg-dark-surface rounded-lg p-3 flex items-center gap-3">
               <Flame size={24} className="text-orange-400" />
               <div>
-                <div className="text-lg font-bold">{improvement.streak}일</div>
-                <div className="text-xs text-gray-400">연속 사용</div>
+                <div className="text-lg font-bold">{t('progress.streak', { count: improvement.streak })}</div>
+                <div className="text-xs text-gray-400">{t('progress.streakLabel')}</div>
               </div>
             </div>
           )}
@@ -232,7 +225,7 @@ export default function ProgressTracker() {
                   {improvement.overallImprovement > 0 ? '+' : ''}
                   {improvement.overallImprovement}%
                 </div>
-                <div className="text-xs text-gray-400">월간 변화</div>
+                <div className="text-xs text-gray-400">{t('progress.monthlyChange')}</div>
               </div>
             </div>
           )}
@@ -251,7 +244,7 @@ export default function ProgressTracker() {
                 : 'text-gray-400 hover:text-gray-200'
             }`}
           >
-            {range === 'daily' ? '일별' : range === 'weekly' ? '주별' : '월별'}
+            {t(`progress.timeRange.${range}`)}
           </button>
         ))}
       </div>
@@ -261,13 +254,7 @@ export default function ProgressTracker() {
         <div className="bg-dark-surface rounded-lg p-4">
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
             <Calendar size={16} />
-            <span>
-              {timeRange === 'daily'
-                ? '30일 점수 추이'
-                : timeRange === 'weekly'
-                ? '8주 점수 추이'
-                : '6개월 점수 추이'}
-            </span>
+            <span>{t(`progress.chartTitle.${timeRange}`)}</span>
           </div>
           <svg
             width={chartWidth}
@@ -348,12 +335,12 @@ export default function ProgressTracker() {
       <div className="bg-dark-surface rounded-lg p-4">
         <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
           <Target size={16} />
-          <span>GOLDEN 차원별 평균</span>
+          <span>{t('progress.goldenAverage')}</span>
           {improvement && (
             <span className="ml-auto text-xs">
-              강점:{' '}
+              {t('progress.strength')}:{' '}
               <span className="text-accent-success">
-                {DIMENSION_LABELS[improvement.bestDimension] || improvement.bestDimension}
+                {getDimensionLabel(improvement.bestDimension)}
               </span>
             </span>
           )}
@@ -362,7 +349,7 @@ export default function ProgressTracker() {
           {Object.entries(goldenAverages).map(([key, value]) => (
             <div key={key} className="flex items-center gap-2">
               <div className="w-16 text-xs text-gray-400">
-                {DIMENSION_LABELS[key] || key}
+                {getDimensionLabel(key)}
               </div>
               <div className="flex-1 h-2 bg-dark-hover rounded-full overflow-hidden">
                 <div
@@ -382,9 +369,7 @@ export default function ProgressTracker() {
         </div>
         {improvement?.worstDimension && (
           <div className="mt-3 p-2 bg-accent-warning/10 rounded text-xs text-accent-warning">
-            💡 개선 필요:{' '}
-            {DIMENSION_LABELS[improvement.worstDimension] || improvement.worstDimension} 부분에
-            집중해보세요
+            {t('progress.needsImprovement', { dimension: getDimensionLabel(improvement.worstDimension) })}
           </div>
         )}
       </div>
@@ -394,7 +379,7 @@ export default function ProgressTracker() {
         <div className="bg-dark-surface rounded-lg p-4">
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
             <Award size={16} />
-            <span>달성 기록</span>
+            <span>{t('progress.milestones')}</span>
           </div>
           <div className="space-y-2">
             {improvement.milestones.map((milestone, i) => (
@@ -415,7 +400,7 @@ export default function ProgressTracker() {
       {/* Grade Distribution */}
       {stats?.gradeDistribution && Object.keys(stats.gradeDistribution).length > 0 && (
         <div className="bg-dark-surface rounded-lg p-4">
-          <div className="text-sm text-gray-400 mb-3">등급 분포</div>
+          <div className="text-sm text-gray-400 mb-3">{t('progress.gradeDistribution')}</div>
           <div className="flex justify-between items-end h-16">
             {['A', 'B', 'C', 'D', 'F'].map((grade) => {
               const count = stats.gradeDistribution[grade] || 0;

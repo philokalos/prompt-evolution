@@ -1,0 +1,24 @@
+{
+  "show": "Show PromptLint",
+  "hide": "Hide",
+  "settings": "Settings",
+  "help": "Help",
+  "checkUpdates": "Check for Updates",
+  "quit": "Quit",
+  "recentAnalyses": "Recent Analyses",
+  "noRecentAnalyses": "No recent analyses",
+  "stats": {
+    "title": "Statistics",
+    "todayCount": "Today: {{count}} analyses",
+    "weekCount": "This week: {{count}} analyses",
+    "avgScore": "Average score: {{score}}%"
+  },
+  "status": {
+    "ready": "Ready",
+    "analyzing": "Analyzing...",
+    "idle": "Idle"
+  },
+  "tooltip": "PromptLint - Press {{shortcut}} to analyze",
+  "tooltipDefault": "PromptLint - Prompt correction",
+  "tooltipNewPrompt": "PromptLint - New prompt detected!"
+}

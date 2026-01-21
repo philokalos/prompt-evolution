@@ -76,6 +76,11 @@ vi.mock('electron-log', () => ({
   },
 }));
 
+// Mock i18n module - return the key as-is for easier testing
+vi.mock('../i18n.js', () => ({
+  t: vi.fn((key: string) => key),
+}));
+
 // Import after mocking
 import { initAutoUpdater, checkForUpdates } from '../auto-updater.js';
 import { app, dialog } from 'electron';
@@ -290,7 +295,7 @@ describe('auto-updater', () => {
         expect.objectContaining({
           checking: false,
           downloading: false,
-          error: expect.stringContaining('릴리스가 없습니다'),
+          error: 'errors:update.noRelease',
         })
       );
     });
@@ -303,7 +308,7 @@ describe('auto-updater', () => {
       expect(mockState.mainWindowWebContents.send).toHaveBeenCalledWith(
         'update-status',
         expect.objectContaining({
-          error: expect.stringContaining('네트워크 연결'),
+          error: 'errors:update.networkError',
         })
       );
     });
@@ -316,7 +321,7 @@ describe('auto-updater', () => {
       expect(mockState.mainWindowWebContents.send).toHaveBeenCalledWith(
         'update-status',
         expect.objectContaining({
-          error: expect.stringContaining('GitHub 접근 권한'),
+          error: 'errors:update.authError',
         })
       );
     });

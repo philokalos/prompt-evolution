@@ -151,7 +151,9 @@ export async function getActiveWindowInfo(): Promise<ActiveWindowInfo | null> {
   `;
 
   try {
-    const { stdout } = await execAsync(`osascript -e '${script.replace(/'/g, "'\"'\"'")}'`);
+    // Escape single quotes and backticks to prevent command injection
+    const escapedScript = script.replace(/'/g, "'\"'\"'").replace(/`/g, '\\`');
+    const { stdout } = await execAsync(`osascript -e '${escapedScript}'`);
     const [appName, windowTitle] = stdout.trim().split('|DELIMITER|');
 
     if (!appName) {
@@ -187,9 +189,18 @@ export async function getActiveWindowInfo(): Promise<ActiveWindowInfo | null> {
  * - "file.ts — project-name (Workspace) — VS Code" (Workspace)
  * - "[WSL: distro] file.ts — project — VS Code" (WSL)
  */
+// Maximum window title length to prevent ReDoS attacks
+const MAX_WINDOW_TITLE_LENGTH = 1000;
+
 function parseVSCodeWindowTitle(windowTitle: string, appName: string): DetectedProject | null {
   // 창 제목이 없거나 너무 짧으면 무시
   if (!windowTitle || windowTitle.length < 3) {
+    return null;
+  }
+
+  // Length limit to prevent ReDoS attacks from maliciously long titles
+  if (windowTitle.length > MAX_WINDOW_TITLE_LENGTH) {
+    console.warn(`[ActiveWindow] Window title too long (${windowTitle.length} chars), skipping`);
     return null;
   }
 

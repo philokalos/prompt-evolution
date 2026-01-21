@@ -207,6 +207,89 @@ SQLite queries for personalization:
 - High-scoring example prompts for reference
 - Improvement tracking ("12% better than your average")
 
+## Internationalization (i18n)
+
+The app supports English and Korean with automatic system language detection.
+
+### Translation Files
+
+```
+src/locales/
+├── en/                    # English translations
+│   ├── common.json        # Shared UI elements
+│   ├── settings.json      # Settings page
+│   ├── analysis.json      # Analysis UI, tips, learning
+│   ├── help.json          # Help page, GOLDEN explanations
+│   ├── errors.json        # Error messages, update dialogs
+│   └── tray.json          # System tray menu
+├── ko/                    # Korean translations (same structure)
+├── index.ts               # Renderer i18n initialization
+└── types.ts               # TypeScript types for translations
+```
+
+### Usage in Renderer (React)
+
+```typescript
+import { useTranslation } from 'react-i18next';
+
+function MyComponent() {
+  const { t } = useTranslation('analysis');  // Load 'analysis' namespace
+
+  return (
+    <div>
+      <h1>{t('title')}</h1>                           {/* Simple key */}
+      <p>{t('score', { value: 85 })}</p>              {/* With interpolation */}
+      <span>{t('common:appName')}</span>              {/* Cross-namespace */}
+    </div>
+  );
+}
+
+// Multiple namespaces
+const { t } = useTranslation(['analysis', 'common']);
+```
+
+### Usage in Main Process (Node.js)
+
+```typescript
+import { t } from './i18n.js';
+
+// Simple translation
+const message = t('tray:show');
+
+// With interpolation
+const tooltip = t('tray:tooltip', { shortcut: '⌘⇧P' });
+
+// Cross-namespace
+const error = t('errors:update.networkError');
+```
+
+### Adding New Translation Keys
+
+1. Add key to both `en/*.json` and `ko/*.json`
+2. Use consistent naming: `section.subsection.key`
+3. For arrays, use `returnObjects: true`:
+   ```typescript
+   const tips = t('tips.list', { returnObjects: true }) as string[];
+   ```
+
+### Language Switching
+
+- **Auto-detect**: System language on first launch
+- **Manual**: Settings → Language selector (Auto/English/한국어)
+- **Persistence**: Saved to electron-store, restored on restart
+- **IPC**: `set-language`, `get-language`, `onLanguageChanged` event
+
+### Key i18n Patterns
+
+| Pattern | Example |
+|---------|---------|
+| Simple key | `t('title')` |
+| Interpolation | `t('count', { n: 5 })` → "5 items" |
+| Pluralization | `t('items', { count: n })` |
+| Nested key | `t('settings.language.label')` |
+| Cross-namespace | `t('common:save')` |
+| Object return | `t('list', { returnObjects: true })` |
+
 ## IPC Handlers
 
 | Handler | Purpose |
@@ -219,6 +302,7 @@ SQLite queries for personalization:
 | `renderer-ready` | Fixes IPC race condition |
 | `get-clipboard`, `set-clipboard` | Clipboard operations |
 | `hide-window`, `minimize-window` | Window controls |
+| `get-language`, `set-language` | i18n language preference |
 
 ## Data Storage
 
@@ -252,3 +336,10 @@ Schema migrations tracked in `schema_version` table.
    - **Primary access**: Use global shortcut `Cmd+Shift+;` instead of tray icon
    - **Diagnosis**: If tray icon appears after enabling another app's menu bar item, this confirms it's a space issue, not an Electron bug
    - **Testing**: Tested with both Electron 37.7.0 and 39.2.7 - both work correctly when space is available
+
+11. **i18n: Main process vs Renderer**: The main process uses a custom `t()` function from `src/main/i18n.ts` that loads JSON files directly. The renderer uses `react-i18next` with `useTranslation()` hook. Both share the same translation files in `src/locales/`. When language changes, main process rebuilds tray menu via `rebuildTrayMenu()` and emits `language-changed` event to renderer.
+
+12. **i18n: useCallback dependencies**: When using `t()` inside `useCallback`, always include `t` in the dependency array. Otherwise, memoized functions will use stale translations after language switch:
+    ```typescript
+    const getLabel = useCallback((key: string) => t(`labels.${key}`), [t]);
+    ```

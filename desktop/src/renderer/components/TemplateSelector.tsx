@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { FileText, Star, Copy, Check, X } from 'lucide-react';
 import type { PromptTemplate, TemplateContext } from '../electron.d';
 
@@ -14,6 +15,7 @@ interface TemplateSelectorProps {
 }
 
 export default function TemplateSelector({ context, onSelect, onClose }: TemplateSelectorProps) {
+  const { t } = useTranslation('settings');
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [recommended, setRecommended] = useState<PromptTemplate | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -92,7 +94,7 @@ export default function TemplateSelector({ context, onSelect, onClose }: Templat
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <FileText size={20} className="text-accent-primary" />
-            <h2 className="text-lg font-medium">템플릿 선택</h2>
+            <h2 className="text-lg font-medium">{t('templateSelector.title')}</h2>
           </div>
           <button
             onClick={onClose}
@@ -107,12 +109,12 @@ export default function TemplateSelector({ context, onSelect, onClose }: Templat
           <div className="flex items-center gap-4 text-gray-400">
             {context.ideType && (
               <span>
-                IDE: <span className="text-gray-200">{context.ideType}</span>
+                {t('templateSelector.ide')} <span className="text-gray-200">{context.ideType}</span>
               </span>
             )}
             {context.category && (
               <span>
-                카테고리: <span className="text-gray-200">{context.category}</span>
+                {t('templateSelector.category')} <span className="text-gray-200">{context.category}</span>
               </span>
             )}
           </div>
@@ -123,7 +125,7 @@ export default function TemplateSelector({ context, onSelect, onClose }: Templat
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-2 text-sm font-medium text-accent-primary">
               <Star size={16} className="fill-current" />
-              <span>추천 템플릿</span>
+              <span>{t('templateSelector.recommended')}</span>
             </div>
             <div
               className={`p-4 bg-gradient-to-br from-accent-primary/10 to-accent-secondary/10 border rounded-lg cursor-pointer transition-all ${
@@ -157,7 +159,7 @@ export default function TemplateSelector({ context, onSelect, onClose }: Templat
                 </button>
               </div>
               <div className="text-xs text-gray-400">
-                사용 {recommended.usageCount || 0}회
+                {t('templateSelector.usageCount', { count: recommended.usageCount || 0 })}
               </div>
             </div>
           </div>
@@ -167,7 +169,7 @@ export default function TemplateSelector({ context, onSelect, onClose }: Templat
         {templates.length > 0 && (
           <div>
             <div className="text-sm font-medium mb-2 text-gray-400">
-              다른 템플릿 ({templates.length}개)
+              {t('templateSelector.otherTemplates', { count: templates.length })}
             </div>
             <div className="space-y-2">
               {templates.map((template) => {
@@ -193,9 +195,9 @@ export default function TemplateSelector({ context, onSelect, onClose }: Templat
                           </div>
                         )}
                         <div className="flex items-center gap-3 mt-2 text-xs text-gray-500">
-                          {template.ideType && <span>IDE: {template.ideType}</span>}
-                          {template.category && <span>카테고리: {template.category}</span>}
-                          <span>사용 {template.usageCount || 0}회</span>
+                          {template.ideType && <span>{t('templateSelector.ide')} {template.ideType}</span>}
+                          {template.category && <span>{t('templateSelector.category')} {template.category}</span>}
+                          <span>{t('templateSelector.usageCount', { count: template.usageCount || 0 })}</span>
                         </div>
                       </div>
                       <button
@@ -223,8 +225,8 @@ export default function TemplateSelector({ context, onSelect, onClose }: Templat
         {templates.length === 0 && !recommended && (
           <div className="text-center py-8 text-gray-400">
             <FileText size={48} className="mx-auto mb-4 opacity-50" />
-            <p>사용 가능한 템플릿이 없습니다</p>
-            <p className="text-sm mt-2">설정에서 템플릿을 추가해보세요</p>
+            <p>{t('templateSelector.noTemplates')}</p>
+            <p className="text-sm mt-2">{t('templateSelector.noTemplatesHint')}</p>
           </div>
         )}
 
@@ -234,10 +236,10 @@ export default function TemplateSelector({ context, onSelect, onClose }: Templat
             onClick={onClose}
             className="px-4 py-2 text-sm text-gray-400 hover:text-gray-200 transition-colors"
           >
-            취소
+            {t('templateSelector.cancel')}
           </button>
           <div className="text-xs text-gray-500">
-            템플릿을 클릭하여 적용하세요
+            {t('templateSelector.selectHint')}
           </div>
         </div>
       </div>

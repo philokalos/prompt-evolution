@@ -231,6 +231,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   send: (channel: string, ...args: unknown[]): void => {
     ipcRenderer.send(channel, ...args);
   },
+
+  // i18n Language support
+  getLanguage: (): Promise<{ preference: string; resolved: string; systemLanguage: string }> =>
+    ipcRenderer.invoke('get-language'),
+  setLanguage: (language: string): Promise<{ success: boolean; resolvedLanguage?: string; error?: string }> =>
+    ipcRenderer.invoke('set-language', language),
+  onLanguageChanged: (callback: (data: { language: string; source: string }) => void): void => {
+    ipcRenderer.removeAllListeners('language-changed');
+    ipcRenderer.on('language-changed', (_event, data) => callback(data));
+  },
+  removeLanguageChangedListener: (): void => {
+    ipcRenderer.removeAllListeners('language-changed');
+  },
 });
 
 // Type definitions for TypeScript
@@ -355,6 +368,11 @@ declare global {
       openExternal: (url: string) => Promise<void>;
       // Send one-way message
       send: (channel: string, ...args: unknown[]) => void;
+      // i18n Language support
+      getLanguage: () => Promise<{ preference: string; resolved: string; systemLanguage: string }>;
+      setLanguage: (language: string) => Promise<{ success: boolean; resolvedLanguage?: string; error?: string }>;
+      onLanguageChanged: (callback: (data: { language: string; source: string }) => void) => void;
+      removeLanguageChangedListener: () => void;
     };
   }
 }

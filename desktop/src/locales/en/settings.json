@@ -1,0 +1,255 @@
+{
+  "title": "Settings",
+  "saved": "Saved",
+  "closeAria": "Close settings (Escape)",
+  "closeHint": "Press Escape to close",
+  "language": {
+    "title": "Language",
+    "description": "Choose your preferred language",
+    "auto": "System language (Auto)",
+    "en": "English",
+    "ko": "한국어"
+  },
+  "sections": {
+    "gettingStarted": {
+      "title": "Getting Started",
+      "guide": {
+        "title": "Quick Guide",
+        "step1": "Select or copy the prompt you want to analyze",
+        "step2": "Press the shortcut key below",
+        "step3": "Review the GOLDEN score and 3 improved versions",
+        "step4": "Click [Copy] or [Apply] on your favorite version",
+        "trayTip": "Double-click tray: Instantly analyze clipboard content",
+        "cmdEnter": "= Apply selected improvement",
+        "cmd14": "= Copy improvement"
+      }
+    },
+    "behavior": {
+      "title": "Behavior",
+      "window": "Window Behavior",
+      "alwaysOnTop": "Always on top",
+      "alwaysOnTopDesc": "Keep analysis window above other windows",
+      "hideOnCopy": "Hide after copy",
+      "hideOnCopyDesc": "Automatically close window after copying improved prompt",
+      "conflictWarning": "\"Always on top\" and \"Hide after copy\" are both enabled. Window won't be on top after reopening.",
+      "autoShowWindow": "Auto-show on complete",
+      "autoShowWindowDesc": "Automatically show window when analysis completes",
+      "notifications": "Notifications",
+      "showNotifications": "Show notifications",
+      "showNotificationsDesc": "Get macOS notifications for analysis completion, errors, etc."
+    },
+    "smart": {
+      "title": "Smart Features",
+      "autoDetect": "Auto Detection",
+      "clipboardWatch": "Detect on copy",
+      "clipboardWatchDesc": "Show • indicator in tray when prompt is copied",
+      "autoAnalyze": "Auto analyze",
+      "autoAnalyzeDesc": "Analyze immediately on detection (no tray click needed)",
+      "aiContextPopup": "Show button in AI apps",
+      "aiContextPopupDesc": "Floating button when using Claude, ChatGPT",
+      "aiContextPopupWarning": "⚠️ May interfere while typing - enable only when needed",
+      "autoApply": {
+        "title": "Auto Apply",
+        "description": "Click [Apply] to automatically replace the original text in the source app (Claude, ChatGPT, etc.).",
+        "note": "※ Some apps (VS Code, Cursor) require manual paste after copy"
+      }
+    },
+    "projectTemplates": {
+      "title": "Projects & Templates",
+      "projectTab": "Project Settings",
+      "templatesTab": "Template Manager"
+    },
+    "advanced": {
+      "title": "Advanced",
+      "quickAction": "Quick Action Mode",
+      "quickActionDesc": "Show mini panel instead of full analysis",
+      "experimental": "Experimental"
+    }
+  },
+  "shortcut": {
+    "title": "Shortcut Key",
+    "description": "Changes apply immediately. Try the recommended shortcut if there's a conflict.",
+    "recommended": "Recommended (minimal conflicts)",
+    "keepP": "Keep P",
+    "noConflict": "No conflicts",
+    "current": "Current (may conflict)"
+  },
+  "captureMode": {
+    "title": "Text Capture Mode",
+    "auto": "Auto (Selection → Clipboard)",
+    "autoDesc": "Try selected text first, fall back to clipboard",
+    "selection": "Selection only",
+    "selectionDesc": "Only analyze mouse-selected text (no Cmd+C needed)",
+    "clipboard": "Clipboard only",
+    "clipboardDesc": "Must copy with Cmd+C before pressing shortcut"
+  },
+  "aiProvider": {
+    "title": "AI Provider",
+    "description": "Select your AI service for enhanced analysis",
+    "anthropic": "Anthropic (Claude)",
+    "openai": "OpenAI (GPT)",
+    "google": "Google (Gemini)",
+    "none": "None (Rule-based only)",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Enter your API key",
+    "apiKeyHidden": "API key is set",
+    "testConnection": "Test Connection",
+    "connectionSuccess": "Connection successful!",
+    "connectionFailed": "Connection failed. Please check your API key."
+  },
+  "polling": {
+    "title": "Active Window Detection",
+    "description": "Automatically detect your current project",
+    "enabled": "Enable polling",
+    "interval": "Polling interval",
+    "seconds": "{{count}} seconds"
+  },
+  "updates": {
+    "title": "Updates",
+    "autoCheck": "Check for updates automatically",
+    "checkNow": "Check Now",
+    "upToDate": "You're up to date!",
+    "updateAvailable": "Update available: v{{version}}",
+    "downloading": "Downloading update...",
+    "install": "Install and Restart"
+  },
+  "about": {
+    "title": "About",
+    "version": "Version",
+    "checkUpdates": "Check for Updates"
+  },
+  "providers": {
+    "title": "AI Providers",
+    "add": "Add",
+    "addProvider": "Add provider:",
+    "noProviders": "No AI providers registered",
+    "noProvidersHint": "Click + Add above to register a provider",
+    "primary": "Primary",
+    "enable": "Enable",
+    "disable": "Disable",
+    "remove": "Remove",
+    "setAsPrimary": "Set as primary",
+    "validateKey": "Validate key",
+    "getApiKey": "Get API key",
+    "validKey": "Valid API key",
+    "invalidKey": "Invalid API key",
+    "enterApiKey": "Please enter API key",
+    "validationError": "Validation error occurred",
+    "fallbackSupport": "Fallback support:",
+    "fallbackDescription": "If primary provider fails, automatically switch to next provider.",
+    "localStorageNote": "All API keys are stored locally only (no server transmission)",
+    "provider": {
+      "claude": {
+        "name": "Claude (Anthropic)",
+        "description": "High-quality prompt improvement, excellent nuance understanding"
+      },
+      "openai": {
+        "name": "ChatGPT (OpenAI)",
+        "description": "Fast responses, broad compatibility"
+      },
+      "gemini": {
+        "name": "Gemini (Google)",
+        "description": "Fast inference, long context support"
+      }
+    }
+  },
+  "project": {
+    "title": "Project Settings",
+    "noProject": "No project path set",
+    "noProjectHint": "Please open a project in your IDE plugin",
+    "projectPath": "Project path",
+    "projectName": "Project name",
+    "projectNameOptional": "(optional)",
+    "projectNamePlaceholder": "e.g.: PromptLint Desktop",
+    "ideType": "IDE type",
+    "ideTypeOptional": "(optional)",
+    "ideTypePlaceholder": "e.g.: vscode, cursor, webstorm",
+    "ideTypeHint": "Used for IDE-specific template recommendations",
+    "improvementStyle": "Improvement style",
+    "customConstraints": "Custom constraints",
+    "customConstraintsOptional": "(optional)",
+    "customConstraintsPlaceholder": "Enter project-specific constraints\\ne.g.:\\n- No Korean comments\\n- Minimize external libraries\\n- Follow specific design patterns",
+    "customConstraintsHint": "These constraints will be considered when improving prompts",
+    "autoInjectContext": "Auto-inject context",
+    "autoInjectContextDesc": "Automatically include project info when analyzing prompts",
+    "resetSettings": "Reset settings",
+    "resetConfirm": "Reset project settings?",
+    "resetSuccess": "Project settings have been reset.",
+    "loadError": "Failed to load settings.",
+    "saveError": "Failed to save settings.",
+    "resetError": "Failed to reset settings.",
+    "saved": "Settings saved",
+    "saving": "Saving...",
+    "save": "Save",
+    "variant": {
+      "conservative": "Conservative",
+      "conservativeDesc": "Core improvements only (safe)",
+      "balanced": "Balanced",
+      "balancedDesc": "Practical improvements (recommended)",
+      "comprehensive": "Comprehensive",
+      "comprehensiveDesc": "All improvement suggestions",
+      "ai": "AI Optimized",
+      "aiDesc": "LLM-based improvements (slower)"
+    },
+    "infoTips": [
+      "You can set different improvement styles for each project",
+      "Setting IDE type provides optimized template recommendations",
+      "Custom constraints are applied when improving prompts"
+    ]
+  },
+  "templates": {
+    "title": "Template Manager",
+    "count": "({{count}} items)",
+    "newTemplate": "New Template",
+    "editTemplate": "Edit Template",
+    "search": "Search templates...",
+    "filter": "Filter:",
+    "allIde": "All IDE",
+    "allCategory": "All categories",
+    "showInactive": "Show inactive",
+    "clearFilters": "Clear filters",
+    "noTemplates": "No templates to display",
+    "noTemplatesHint": "Add a new template or adjust filters",
+    "inactive": "Inactive",
+    "ide": "IDE:",
+    "category": "Category:",
+    "usage": "Used: {{count}} times",
+    "copy": "Copy",
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "edit": "Edit",
+    "delete": "Delete",
+    "templateName": "Template name",
+    "templateNameRequired": "*",
+    "templateNamePlaceholder": "e.g.: VS Code Component Create",
+    "ideTypeOptional": "IDE type (optional)",
+    "categoryOptional": "Category (optional)",
+    "categoryPlaceholder": "e.g.: bug-fix, feature, refactor",
+    "descriptionOptional": "Description (optional)",
+    "descriptionPlaceholder": "Template description",
+    "templateContent": "Template content",
+    "templateContentRequired": "*",
+    "templateContentPlaceholder": "Enter prompt template...",
+    "cancel": "Cancel",
+    "create": "Create",
+    "update": "Update",
+    "saving": "Saving...",
+    "nameContentRequired": "Template name and content are required",
+    "saveFailed": "Failed to save template",
+    "deleteConfirm": "Delete \"{{name}}\" template?",
+    "deleteFailed": "Failed to delete template",
+    "toggleFailed": "Failed to change template status"
+  },
+  "templateSelector": {
+    "title": "Select Template",
+    "ide": "IDE:",
+    "category": "Category:",
+    "recommended": "Recommended Template",
+    "usageCount": "Used {{count}} times",
+    "otherTemplates": "Other Templates ({{count}})",
+    "noTemplates": "No templates available",
+    "noTemplatesHint": "Add templates in Settings",
+    "cancel": "Cancel",
+    "selectHint": "Click a template to apply"
+  }
+}

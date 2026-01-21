@@ -1,0 +1,283 @@
+{
+  "title": "Help",
+  "headerTitle": "Feature Guide",
+  "headerDesc": "Learn about PromptLint's key features and how to use them",
+  "badges": {
+    "essential": "Essential",
+    "optional": "Optional",
+    "advanced": "Advanced"
+  },
+  "sections": {
+    "hotkey": {
+      "title": "Global Hotkey",
+      "description": "Analyze prompts with a single shortcut from anywhere",
+      "howToUse": [
+        "Select (drag) the text you want to analyze",
+        "Press {{shortcut}}",
+        "Selected text is analyzed automatically"
+      ],
+      "tips": [
+        "Shortcut can be changed in Settings (⌥⌘P, Hyper+L, etc.)",
+        "Some apps may require ⌘C copy after text selection"
+      ],
+      "shortcuts": {
+        "analyze": "Run analysis",
+        "close": "Close window"
+      }
+    },
+    "tray": {
+      "title": "System Tray",
+      "description": "Quick access to the app from the menu bar",
+      "howToUse": [
+        "Look for the PromptLint icon in the menu bar",
+        "Click to open/close the analysis window",
+        "Right-click to show menu (Settings, Quit, etc.)"
+      ],
+      "tips": [
+        "Double-click to instantly analyze clipboard content",
+        "• indicator shows when a prompt is detected",
+        "App continues running in tray even when window is closed"
+      ]
+    },
+    "clipboard": {
+      "title": "Clipboard Watch",
+      "description": "Automatically detect prompts in copied text",
+      "howToUse": [
+        "Enable 'Clipboard Watch' in Settings",
+        "Copy any text - prompts are automatically detected",
+        "Tray icon shows notification when a prompt is found"
+      ],
+      "tips": [
+        "Automatically recognizes questions, commands, AI-related patterns",
+        "Sensitive info like passwords, API keys are auto-blocked",
+        "Press hotkey to analyze the detected prompt immediately"
+      ]
+    },
+    "aibutton": {
+      "title": "AI Context Button",
+      "description": "Show analysis button when using AI apps",
+      "howToUse": [
+        "Enable 'AI Context Popup' in Settings",
+        "Open ChatGPT, Claude, etc. - button appears at bottom right",
+        "Click button to instantly analyze clipboard content"
+      ],
+      "tips": [
+        "Button only shows while AI app is active",
+        "Useful if you don't remember the hotkey",
+        "Button expands when hovered"
+      ]
+    },
+    "capture": {
+      "title": "Text Capture Mode",
+      "description": "Choose how to capture text",
+      "howToUse": [
+        "Select capture mode in Settings:",
+        "• Auto: Try selection first, fall back to clipboard",
+        "• Selection: Use only selected text",
+        "• Clipboard: Use only copied content"
+      ],
+      "tips": [
+        "VS Code, Cursor, etc. automatically use clipboard mode",
+        "Some apps may require accessibility permission",
+        "If problems occur, use 'Clipboard' mode"
+      ]
+    },
+    "variants": {
+      "title": "Prompt Improvements",
+      "description": "Get 3 styles of improved prompts",
+      "howToUse": [
+        "Check improvements at bottom of analysis results",
+        "Choose between Conservative/Balanced/Comprehensive",
+        "Use [Apply] button to apply directly to source app"
+      ],
+      "tips": [
+        "AI-powered improvements available with API key",
+        "Conservative: Minimal changes only",
+        "Balanced: Structured with GOLDEN checklist",
+        "Comprehensive: Full restructure for best quality"
+      ],
+      "shortcuts": {
+        "apply": "Apply selected improvement",
+        "copy1": "Copy Conservative version",
+        "copy2": "Copy Balanced version",
+        "copy3": "Copy Comprehensive version",
+        "copy4": "Copy AI version"
+      }
+    },
+    "ide": {
+      "title": "IDE Project Detection",
+      "description": "Automatically recognize your current project",
+      "howToUse": [
+        "Auto-detected when using VS Code, Cursor, JetBrains IDEs",
+        "Current project info shown at top of analysis window",
+        "Project-specific tips and pattern analysis provided"
+      ],
+      "tips": [
+        "Enable 'Project Detection Polling' in Settings",
+        "Session context is also used when using Claude Code",
+        "Shows tech stack, recent files, Git branch info"
+      ]
+    },
+    "progress": {
+      "title": "Progress Tracking",
+      "description": "Track your prompt quality improvement over time",
+      "howToUse": [
+        "Click 'View my progress' at bottom of analysis window",
+        "Check daily/weekly/monthly score trends",
+        "Identify frequently missed GOLDEN items"
+      ],
+      "tips": [
+        "Compare current analysis to your average score",
+        "Focus on improving weak dimensions (Goal, Output, etc.)",
+        "View grade distribution (A/B/C/D/F) at a glance"
+      ]
+    }
+  },
+  "quickRef": {
+    "title": "Quick Reference",
+    "analyze": "Analyze",
+    "apply": "Apply",
+    "close": "Close",
+    "copy": "Copy"
+  },
+  "goldenExplain": {
+    "title": "What is GOLDEN Checklist?",
+    "description": "6 quality indicators based on Anthropic's official prompt writing guidelines."
+  },
+  "appCompat": {
+    "title": "App Compatibility",
+    "fullSupport": "Full Support",
+    "clipboardOnly": "Clipboard Only",
+    "clipboardNote": "(⌘C copy then shortcut)",
+    "explanation": "Some apps (Cursor, VS Code, Terminal, etc.) don't support text selection capture due to AppleScript limitations. Select text, copy with ⌘C, then press shortcut."
+  },
+  "footer": {
+    "viewDocs": "View detailed documentation"
+  },
+  "quickStart": {
+    "title": "Quick Start",
+    "step1Title": "Capture Text",
+    "step1Desc": "Select text and press {{shortcut}}, or copy to clipboard first",
+    "step2Title": "View Analysis",
+    "step2Desc": "See your prompt score and improvement suggestions",
+    "step3Title": "Apply Improvements",
+    "step3Desc": "Copy or apply the improved version to your clipboard"
+  },
+  "hotkey": {
+    "title": "Keyboard Shortcuts",
+    "globalShortcut": "Global Shortcut",
+    "globalShortcutDesc": "Capture text and open PromptLint",
+    "escape": "Escape",
+    "escapeDesc": "Close window",
+    "cmdC": "{{modifier}}+C",
+    "cmdCDesc": "Copy selected variant"
+  },
+  "golden": {
+    "title": "Understanding GOLDEN",
+    "intro": "GOLDEN is a framework for evaluating prompt quality across 6 dimensions:",
+    "goal": {
+      "title": "Goal",
+      "short": "What you want to achieve",
+      "desc": "Is the objective clear? What do you want to achieve?",
+      "detail": "Clear goal setting is key. Instead of 'do this', write specifically like 'write code to do X for Y'.",
+      "examples": ["Bug fix", "Feature addition", "Refactoring", "Performance optimization"],
+      "improvement": "Specify your goal clearly. Including background on why this work is needed helps."
+    },
+    "output": {
+      "title": "Output",
+      "short": "What form of result you want",
+      "desc": "Have you specified the expected format and structure?",
+      "detail": "Clearly specify the desired output format. Tell whether you want code, explanation, list, table, etc.",
+      "examples": ["TypeScript function", "JSON format", "Markdown table", "Step-by-step explanation"],
+      "improvement": "Specify the format, language, and style of the result. e.g., 'Please write in TypeScript'"
+    },
+    "limits": {
+      "title": "Limits",
+      "short": "Constraints and boundaries",
+      "desc": "Are there constraints like length, style, or scope?",
+      "detail": "Specify constraints to follow. Libraries to use/avoid, compatibility requirements, etc.",
+      "examples": ["Without external libraries", "Using ES6+ syntax", "Under 100 lines", "IE11 support"],
+      "improvement": "Add constraints: version, performance requirements, restrictions, etc."
+    },
+    "data": {
+      "title": "Data",
+      "short": "Necessary context and data",
+      "desc": "Have you provided necessary context and information?",
+      "detail": "Provide background info, example data, current code state needed for the task.",
+      "examples": ["Current code", "Error message", "Input examples", "API response sample"],
+      "improvement": "Include relevant code, error logs, example data. More context is better."
+    },
+    "evaluation": {
+      "title": "Evaluation",
+      "short": "Success criteria and verification",
+      "desc": "How will you measure success?",
+      "detail": "Provide criteria to judge if the result is successful. Test cases, performance goals, etc.",
+      "examples": ["Tests pass", "No type errors", "Response under 100ms", "All edge cases handled"],
+      "improvement": "Add success criteria: tests, performance goals, quality standards, etc."
+    },
+    "next": {
+      "title": "Next",
+      "short": "Follow-up steps and context",
+      "desc": "Are follow-up steps or iterations specified?",
+      "detail": "Share your plans after this task or overall context. AI can suggest more appropriate solutions.",
+      "examples": ["Next step plans", "Overall architecture explanation", "Usage scenarios", "Future expansion plans"],
+      "improvement": "Share the context of this work and next steps. You can get more suitable solution suggestions."
+    }
+  },
+  "tray": {
+    "title": "System Tray",
+    "description": "PromptLint runs in your menu bar for quick access",
+    "singleClick": "Single click: Show/hide window",
+    "rightClick": "Right click: Context menu",
+    "badge": "Dot indicator shows when analysis is ready"
+  },
+  "capture": {
+    "title": "Text Capture Modes",
+    "auto": {
+      "title": "Auto (Default)",
+      "desc": "Tries selection first, falls back to clipboard"
+    },
+    "selection": {
+      "title": "Selection",
+      "desc": "Captures currently selected text"
+    },
+    "clipboard": {
+      "title": "Clipboard",
+      "desc": "Uses existing clipboard content"
+    },
+    "note": "Some apps (VS Code, Cursor, terminals) automatically use clipboard mode for compatibility."
+  },
+  "ai": {
+    "title": "AI Enhancement",
+    "intro": "Connect an AI provider for enhanced analysis:",
+    "benefits": {
+      "title": "Benefits",
+      "item1": "Smarter, context-aware rewrites",
+      "item2": "Multiple variant candidates",
+      "item3": "Higher quality improvements"
+    },
+    "providers": {
+      "title": "Supported Providers",
+      "anthropic": "Anthropic (Claude) - Recommended",
+      "openai": "OpenAI (GPT-4)",
+      "google": "Google (Gemini)"
+    },
+    "setup": "Go to Settings to add your API key"
+  },
+  "faq": {
+    "title": "FAQ",
+    "q1": "Why doesn't text selection work in some apps?",
+    "a1": "Some apps block simulated keystrokes for security. Use clipboard mode instead.",
+    "q2": "Is my data sent anywhere?",
+    "a2": "Analysis is local. AI features only send prompts to your configured provider.",
+    "q3": "How do I change the shortcut?",
+    "a3": "Go to Settings and select a new shortcut from the dropdown."
+  },
+  "support": {
+    "title": "Support",
+    "docs": "Documentation",
+    "github": "GitHub Repository",
+    "issues": "Report an Issue",
+    "feedback": "Send Feedback"
+  }
+}

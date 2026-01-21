@@ -108,6 +108,32 @@ export interface ElectronAPI {
 
   // App version
   getAppVersion: () => Promise<string>;
+
+  // i18n Language support
+  getLanguage: () => Promise<LanguageResult>;
+  setLanguage: (lang: LanguageCode) => Promise<SetLanguageResult>;
+  onLanguageChanged: (callback: (data: LanguageChangedEvent) => void) => void;
+  removeLanguageChangedListener: () => void;
+}
+
+// i18n Language types
+export type LanguageCode = 'auto' | 'en' | 'ko';
+
+export interface LanguageResult {
+  preference: string;
+  resolved: string;
+  systemLanguage: string;
+}
+
+export interface SetLanguageResult {
+  success: boolean;
+  resolvedLanguage?: string;
+  error?: string;
+}
+
+export interface LanguageChangedEvent {
+  language: string;
+  source: string;
 }
 
 export interface DetectedProject {

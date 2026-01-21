@@ -1,0 +1,66 @@
+{
+  "general": {
+    "unknown": "알 수 없는 오류가 발생했어요",
+    "tryAgain": "다시 시도해 주세요",
+    "contactSupport": "문제가 계속되면 지원팀에 문의해 주세요"
+  },
+  "analysis": {
+    "failed": "분석을 완료하지 못했어요",
+    "timeout": "분석 시간이 초과되었어요. 다시 시도해 주세요.",
+    "noText": "분석할 텍스트가 없어요. 먼저 텍스트를 선택하거나 복사해 주세요.",
+    "tooShort": "텍스트가 너무 짧아 의미 있는 분석이 어려워요",
+    "tooLong": "텍스트가 너무 길어요. 더 짧은 프롬프트를 선택해 주세요."
+  },
+  "capture": {
+    "failed": "텍스트 캡처에 실패했어요",
+    "noSelection": "선택된 텍스트가 없어요. 먼저 텍스트를 선택해 주세요.",
+    "clipboardEmpty": "클립보드가 비어 있어요",
+    "accessibilityRequired": "텍스트 선택을 위해 손쉬운 사용 권한이 필요해요"
+  },
+  "ai": {
+    "connectionFailed": "AI 프로바이더에 연결하지 못했어요",
+    "invalidKey": "API 키가 올바르지 않아요. 설정을 확인해 주세요.",
+    "rateLimited": "요청 한도에 도달했어요. 잠시 후 다시 시도해 주세요.",
+    "serverError": "AI 프로바이더 서버 오류예요. 나중에 다시 시도해 주세요.",
+    "timeout": "AI 요청 시간이 초과되었어요. 다시 시도해 주세요."
+  },
+  "network": {
+    "offline": "인터넷에 연결되어 있지 않아요",
+    "failed": "네트워크 요청에 실패했어요"
+  },
+  "storage": {
+    "saveFailed": "데이터 저장에 실패했어요",
+    "loadFailed": "데이터 로드에 실패했어요",
+    "databaseError": "데이터베이스 오류가 발생했어요"
+  },
+  "settings": {
+    "saveFailed": "설정 저장에 실패했어요",
+    "loadFailed": "설정 로드에 실패했어요",
+    "invalidValue": "잘못된 설정 값이에요",
+    "saveError": "설정 저장 실패: {{error}}",
+    "shortcutFailed": "단축키 ({{shortcut}}) 등록 실패. 다른 앱이 사용 중입니다.",
+    "shortcutFailedLong": "글로벌 단축키 ({{shortcut}}) 등록 실패. 다른 앱이 사용 중일 수 있습니다. 트레이 아이콘을 더블클릭하거나 설정에서 단축키를 변경해 주세요."
+  },
+  "update": {
+    "checkFailed": "업데이트 확인에 실패했어요",
+    "downloadFailed": "업데이트 다운로드에 실패했어요",
+    "installFailed": "업데이트 설치에 실패했어요",
+    "availableTitle": "업데이트 가능",
+    "availableMessage": "새 버전 {{version}}이 있습니다.",
+    "availableDetail": "지금 다운로드하시겠습니까?",
+    "downloadButton": "다운로드",
+    "laterButton": "나중에",
+    "readyTitle": "업데이트 준비 완료",
+    "readyMessage": "버전 {{version}} 다운로드 완료",
+    "readyDetail": "앱을 재시작하면 업데이트가 설치됩니다.",
+    "restartNowButton": "지금 재시작",
+    "noRelease": "GitHub에 릴리스가 없습니다. 최신 버전을 사용 중일 수 있습니다.",
+    "networkError": "네트워크 연결을 확인해주세요.",
+    "authError": "GitHub 접근 권한이 없습니다. Private repository인 경우 토큰이 필요합니다."
+  },
+  "permission": {
+    "accessibility": "손쉬운 사용 권한이 필요해요",
+    "accessibilityDesc": "시스템 설정 > 개인정보 보호 및 보안 > 손쉬운 사용에서 권한을 부여해 주세요",
+    "openSettings": "설정 열기"
+  }
+}

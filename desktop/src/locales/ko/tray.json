@@ -1,0 +1,24 @@
+{
+  "show": "PromptLint 보기",
+  "hide": "숨기기",
+  "settings": "설정",
+  "help": "도움말",
+  "checkUpdates": "업데이트 확인",
+  "quit": "종료",
+  "recentAnalyses": "최근 분석",
+  "noRecentAnalyses": "최근 분석 없음",
+  "stats": {
+    "title": "통계",
+    "todayCount": "오늘: {{count}}개 분석",
+    "weekCount": "이번 주: {{count}}개 분석",
+    "avgScore": "평균 점수: {{score}}%"
+  },
+  "status": {
+    "ready": "준비됨",
+    "analyzing": "분석 중...",
+    "idle": "대기 중"
+  },
+  "tooltip": "PromptLint - {{shortcut}} 키로 분석하세요",
+  "tooltipDefault": "PromptLint - 프롬프트 교정",
+  "tooltipNewPrompt": "PromptLint - 새 프롬프트 감지됨!"
+}

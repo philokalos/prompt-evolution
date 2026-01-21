@@ -4,6 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Settings, Save, FolderOpen, AlertCircle, Check, X } from 'lucide-react';
 import type { ProjectSettings } from '../electron.d';
 
@@ -12,30 +13,11 @@ interface ProjectSettingsProps {
   onClose?: () => void;
 }
 
-const VARIANT_OPTIONS = [
-  {
-    value: 'conservative',
-    label: '보수적',
-    description: '핵심 개선만 제안 (안전)',
-  },
-  {
-    value: 'balanced',
-    label: '균형적',
-    description: '실용적인 개선 (추천)',
-  },
-  {
-    value: 'comprehensive',
-    label: '포괄적',
-    description: '모든 개선 제안',
-  },
-  {
-    value: 'ai',
-    label: 'AI 최적화',
-    description: 'LLM 기반 개선 (느림)',
-  },
-] as const;
+// Variant option keys (values are translation keys)
+const VARIANT_KEYS = ['conservative', 'balanced', 'comprehensive', 'ai'] as const;
 
 export default function ProjectSettings({ projectPath, onClose }: ProjectSettingsProps) {
+  const { t } = useTranslation('settings');
   const [settings, setSettings] = useState<ProjectSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,13 +51,13 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
         }
       } catch (err) {
         console.error('Failed to load project settings:', err);
-        setError('설정을 불러오는데 실패했습니다.');
+        setError(t('project.loadError'));
       } finally {
         setLoading(false);
       }
     };
     loadSettings();
-  }, [projectPath]);
+  }, [projectPath, t]);
 
   const handleSave = async () => {
     if (!projectPath) return;
@@ -102,14 +84,14 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
       setTimeout(() => setSaveSuccess(false), 2000);
     } catch (err) {
       console.error('Failed to save project settings:', err);
-      setError('설정 저장에 실패했습니다.');
+      setError(t('project.saveError'));
     } finally {
       setSaving(false);
     }
   };
 
   const handleReset = async () => {
-    if (!projectPath || !confirm('프로젝트 설정을 초기화하시겠습니까?')) return;
+    if (!projectPath || !confirm(t('project.resetConfirm'))) return;
 
     try {
       await window.electronAPI.deleteProjectSettings(projectPath);
@@ -122,10 +104,10 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
       setAutoInjectContext(true);
       setSettings(null);
 
-      alert('프로젝트 설정이 초기화되었습니다.');
+      alert(t('project.resetSuccess'));
     } catch (err) {
       console.error('Failed to delete project settings:', err);
-      setError('설정 초기화에 실패했습니다.');
+      setError(t('project.resetError'));
     }
   };
 
@@ -146,8 +128,8 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
     return (
       <div className="text-center py-8 text-gray-400">
         <FolderOpen size={48} className="mx-auto mb-4 opacity-50" />
-        <p>프로젝트 경로가 설정되지 않았습니다</p>
-        <p className="text-sm mt-2">IDE 플러그인에서 프로젝트를 열어주세요</p>
+        <p>{t('project.noProject')}</p>
+        <p className="text-sm mt-2">{t('project.noProjectHint')}</p>
       </div>
     );
   }
@@ -158,7 +140,7 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Settings size={20} className="text-accent-primary" />
-          <h3 className="text-lg font-medium">프로젝트 설정</h3>
+          <h3 className="text-lg font-medium">{t('project.title')}</h3>
         </div>
         {onClose && (
           <button
@@ -172,7 +154,7 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
 
       {/* Project Path Display */}
       <div className="bg-dark-surface rounded-lg p-3">
-        <div className="text-xs text-gray-500 mb-1">프로젝트 경로</div>
+        <div className="text-xs text-gray-500 mb-1">{t('project.projectPath')}</div>
         <div className="text-sm text-gray-300 font-mono break-all">{projectPath}</div>
       </div>
 
@@ -188,7 +170,7 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
       {saveSuccess && (
         <div className="flex items-center gap-2 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400 text-sm">
           <Check size={16} />
-          <span>설정이 저장되었습니다</span>
+          <span>{t('project.saved')}</span>
         </div>
       )}
 
@@ -197,13 +179,13 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
         {/* Project Name */}
         <div>
           <label className="block text-sm font-medium mb-2">
-            프로젝트 이름 <span className="text-gray-500">(선택)</span>
+            {t('project.projectName')} <span className="text-gray-500">{t('project.projectNameOptional')}</span>
           </label>
           <input
             type="text"
             value={projectName}
             onChange={(e) => setProjectName(e.target.value)}
-            placeholder="예: PromptLint Desktop"
+            placeholder={t('project.projectNamePlaceholder')}
             className="w-full px-3 py-2 bg-dark-surface border border-gray-700/30 rounded-lg focus:outline-none focus:border-accent-primary transition-colors"
           />
         </div>
@@ -211,38 +193,38 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
         {/* IDE Type */}
         <div>
           <label className="block text-sm font-medium mb-2">
-            IDE 타입 <span className="text-gray-500">(선택)</span>
+            {t('project.ideType')} <span className="text-gray-500">{t('project.ideTypeOptional')}</span>
           </label>
           <input
             type="text"
             value={ideType}
             onChange={(e) => setIdeType(e.target.value)}
-            placeholder="예: vscode, cursor, webstorm"
+            placeholder={t('project.ideTypePlaceholder')}
             className="w-full px-3 py-2 bg-dark-surface border border-gray-700/30 rounded-lg focus:outline-none focus:border-accent-primary transition-colors"
           />
           <p className="text-xs text-gray-500 mt-1">
-            템플릿 추천 시 IDE별 맞춤 제안에 사용됩니다
+            {t('project.ideTypeHint')}
           </p>
         </div>
 
         {/* Preferred Variant */}
         <div>
           <label className="block text-sm font-medium mb-2">
-            개선 스타일
+            {t('project.improvementStyle')}
           </label>
           <div className="grid grid-cols-2 gap-2">
-            {VARIANT_OPTIONS.map((option) => (
+            {VARIANT_KEYS.map((key) => (
               <button
-                key={option.value}
-                onClick={() => setPreferredVariant(option.value)}
+                key={key}
+                onClick={() => setPreferredVariant(key)}
                 className={`p-3 rounded-lg border transition-all text-left ${
-                  preferredVariant === option.value
+                  preferredVariant === key
                     ? 'border-accent-primary bg-accent-primary/10'
                     : 'border-gray-700/30 hover:border-gray-600 bg-dark-surface'
                 }`}
               >
-                <div className="font-medium text-sm mb-1">{option.label}</div>
-                <div className="text-xs text-gray-400">{option.description}</div>
+                <div className="font-medium text-sm mb-1">{t(`project.variant.${key}`)}</div>
+                <div className="text-xs text-gray-400">{t(`project.variant.${key}Desc`)}</div>
               </button>
             ))}
           </div>
@@ -251,17 +233,17 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
         {/* Custom Constraints */}
         <div>
           <label className="block text-sm font-medium mb-2">
-            커스텀 제약조건 <span className="text-gray-500">(선택)</span>
+            {t('project.customConstraints')} <span className="text-gray-500">{t('project.customConstraintsOptional')}</span>
           </label>
           <textarea
             value={customConstraints}
             onChange={(e) => setCustomConstraints(e.target.value)}
-            placeholder="프로젝트별 특수 제약사항을 입력하세요&#10;예:&#10;- 한글 주석 사용 금지&#10;- 외부 라이브러리 사용 최소화&#10;- 특정 디자인 패턴 준수"
+            placeholder={t('project.customConstraintsPlaceholder')}
             rows={4}
             className="w-full px-3 py-2 bg-dark-surface border border-gray-700/30 rounded-lg focus:outline-none focus:border-accent-primary transition-colors resize-none"
           />
           <p className="text-xs text-gray-500 mt-1">
-            프롬프트 개선 시 이 제약조건을 고려합니다
+            {t('project.customConstraintsHint')}
           </p>
         </div>
 
@@ -275,9 +257,9 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
             className="mt-1"
           />
           <label htmlFor="auto-inject" className="flex-1 cursor-pointer">
-            <div className="text-sm font-medium mb-1">자동 컨텍스트 주입</div>
+            <div className="text-sm font-medium mb-1">{t('project.autoInjectContext')}</div>
             <div className="text-xs text-gray-400">
-              프롬프트 분석 시 프로젝트 정보를 자동으로 포함합니다
+              {t('project.autoInjectContextDesc')}
             </div>
           </label>
         </div>
@@ -290,7 +272,7 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
           disabled={!settings}
           className="px-4 py-2 text-sm text-gray-400 hover:text-red-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          설정 초기화
+          {t('project.resetSettings')}
         </button>
         <button
           onClick={handleSave}
@@ -300,12 +282,12 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
           {saving ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-              <span>저장 중...</span>
+              <span>{t('project.saving')}</span>
             </>
           ) : (
             <>
               <Save size={16} />
-              <span>저장</span>
+              <span>{t('project.save')}</span>
             </>
           )}
         </button>
@@ -316,9 +298,9 @@ export default function ProjectSettings({ projectPath, onClose }: ProjectSetting
         <div className="flex items-start gap-2">
           <AlertCircle size={16} className="text-accent-primary mt-0.5 flex-shrink-0" />
           <div className="text-xs text-gray-300 space-y-1">
-            <p>• 프로젝트별로 다른 개선 스타일을 설정할 수 있습니다</p>
-            <p>• IDE 타입 설정 시 최적화된 템플릿을 추천받을 수 있습니다</p>
-            <p>• 커스텀 제약조건은 프롬프트 개선 시 반영됩니다</p>
+            {(t('project.infoTips', { returnObjects: true }) as string[]).map((tip, index) => (
+              <p key={index}>• {tip}</p>
+            ))}
           </div>
         </div>
       </div>

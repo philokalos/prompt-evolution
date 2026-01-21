@@ -2,7 +2,7 @@ import { app, BrowserWindow, globalShortcut, clipboard, ipcMain, screen, Notific
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import Store from 'electron-store';
-import { createTray, destroyTray, clearTrayBadge, setTrayBadge } from './tray.js';
+import { createTray, destroyTray, clearTrayBadge, setTrayBadge, rebuildTrayMenu } from './tray.js';
 import { getClipboardWatcher, destroyClipboardWatcher, type DetectedPrompt } from './clipboard-watcher.js';
 import { registerLearningEngineHandlers } from './learning-engine.js';
 import {
@@ -28,7 +28,8 @@ import {
   type ActiveWindowInfo,
   type DetectedAIApp,
 } from './active-window-detector.js';
-import { initAutoUpdater } from './auto-updater.js';
+import { initAutoUpdater, cleanupAutoUpdater } from './auto-updater.js';
+import { closeDatabase } from './db/connection.js';
 import {
   showAIContextButton,
   hideAIContextButton,
@@ -43,21 +44,30 @@ import {
 } from './settings-migration.js';
 import type { ProviderConfig } from './providers/types.js';
 import { validateProviderKey as validateProviderKeyFn, hasAnyProvider } from './providers/provider-manager.js';
+import {
+  initMainI18n,
+  setLanguage,
+  getLanguageInfo,
+  getSystemLocale,
+  resolveLanguage,
+  t,
+  type UserLanguagePreference,
+} from './i18n.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Disable console.log in packaged production builds (keep electron-log for file logging)
-// TEMPORARILY DISABLED FOR DEBUGGING
-// if (app.isPackaged) {
-//   // Packaged app = production, suppress console output for performance
-//   const noop = () => {};
-//   console.log = noop;
-//   console.debug = noop;
-//   console.info = noop;
-//   // Keep console.warn and console.error for critical issues
-// }
+// This prevents sensitive data from being logged and improves performance
+if (app.isPackaged) {
+  // Packaged app = production, suppress console output
+  const noop = (): void => { /* no-op */ };
+  console.log = noop;
+  console.debug = noop;
+  console.info = noop;
+  // Keep console.warn and console.error for critical issues
+}
 
 // Settings schema
 interface AppSettings {
@@ -83,6 +93,8 @@ interface AppSettings {
   // First launch flags
   hasSeenWelcome: boolean; // Whether user has seen the welcome/onboarding message
   hasSeenAccessibilityDialog: boolean; // Whether user has seen the accessibility permission dialog
+  // Language preference
+  language: UserLanguagePreference; // 'auto' | 'en' | 'ko'
 }
 
 // Initialize settings store with explicit name to ensure consistency across dev/prod
@@ -111,6 +123,8 @@ const store = new Store<AppSettings>({
     // First launch flags
     hasSeenWelcome: false, // Show welcome message on first launch
     hasSeenAccessibilityDialog: false, // Show accessibility dialog on first launch
+    // Language preference - default to auto (system language)
+    language: 'auto' as UserLanguagePreference,
   },
 });
 
@@ -356,6 +370,13 @@ function positionWindowNearCursor(): void {
 }
 
 function createWindow(): void {
+  // Reset state when creating a new window (prevents stale data from previous session)
+  isRendererReady = false;
+  pendingText = null;
+  lastFrontmostApp = null;
+  lastCapturedContext = null;
+  _lastAnalyzedText = '';
+
   // Check for screenshot mode environment variables
   const screenshotMode = process.env.SCREENSHOT_MODE === 'true';
   const defaultBounds = store.get('windowBounds') as { width: number; height: number };
@@ -671,6 +692,8 @@ function initClipboardWatch(): void {
   const enabled = store.get('enableClipboardWatch') as boolean;
   const watcher = getClipboardWatcher();
 
+  // Stop existing polling first to prevent race conditions
+  watcher.stop();
   // Remove existing listeners to avoid duplicates
   watcher.removeAllListeners('prompt-detected');
 
@@ -783,7 +806,7 @@ ipcMain.handle('set-setting', (_event, key: string, value: unknown): { success: 
       if (!success && mainWindow) {
         mainWindow.webContents.send('shortcut-failed', {
           shortcut: value as string,
-          message: `단축키 (${value}) 등록 실패. 다른 앱이 사용 중입니다.`,
+          message: t('errors:settings.shortcutFailed', { shortcut: value as string }),
         });
       }
       return { success };
@@ -808,7 +831,7 @@ ipcMain.handle('set-setting', (_event, key: string, value: unknown): { success: 
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[Settings] Failed to save setting:', key, errorMessage);
-    return { success: false, error: `설정 저장 실패: ${errorMessage}` };
+    return { success: false, error: t('errors:settings.saveError', { error: errorMessage }) };
   }
 });
 
@@ -838,6 +861,50 @@ ipcMain.handle('get-primary-provider', () => {
 
 ipcMain.handle('has-any-provider', () => {
   return hasAnyAIProvider();
+});
+
+// IPC Handlers: Language/i18n support
+ipcMain.handle('get-language', () => {
+  const preference = store.get('language') as UserLanguagePreference;
+  return getLanguageInfo(preference);
+});
+
+ipcMain.handle('set-language', (_event, language: UserLanguagePreference) => {
+  try {
+    // Validate input
+    if (!['auto', 'en', 'ko'].includes(language)) {
+      return { success: false, error: 'Invalid language code' };
+    }
+
+    // Save preference
+    store.set('language', language);
+
+    // Resolve actual language
+    const resolved = resolveLanguage(language, getSystemLocale());
+
+    // Update main process i18n
+    setLanguage(resolved);
+
+    // Notify renderer of language change
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('language-changed', {
+        language: resolved,
+        source: 'user',
+      });
+    }
+
+    // Rebuild tray menu with new language
+    if (mainWindow) {
+      rebuildTrayMenu();
+    }
+
+    console.log(`[Main] Language changed: ${language} → ${resolved}`);
+    return { success: true, resolvedLanguage: resolved };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('[Main] Failed to set language:', errorMessage);
+    return { success: false, error: errorMessage };
+  }
 });
 
 // IPC Handler: Get current detected project
@@ -871,12 +938,32 @@ ipcMain.handle('get-all-open-projects', async () => {
   return projects;
 });
 
-// IPC Handler: Select a project (persisted to store)
-ipcMain.handle('select-project', (_event, projectPath: string | null) => {
-  selectedProjectPath = projectPath;
+// IPC Handler: Select a project (persisted to store, with validation)
+ipcMain.handle('select-project', (_event, projectPath: unknown) => {
+  // Validate input type
+  if (projectPath !== null && typeof projectPath !== 'string') {
+    console.warn('[Main] select-project: Invalid path type');
+    return { success: false, error: 'Invalid path type' };
+  }
+
+  // Validate path if provided
+  if (typeof projectPath === 'string') {
+    // Length limit
+    if (projectPath.length > 500) {
+      console.warn('[Main] select-project: Path too long');
+      return { success: false, error: 'Path too long' };
+    }
+    // Basic path character validation (alphanumeric, slashes, dashes, dots, underscores, spaces)
+    if (!/^[\w\s./-]+$/.test(projectPath)) {
+      console.warn('[Main] select-project: Invalid path characters');
+      return { success: false, error: 'Invalid characters in path' };
+    }
+  }
+
+  selectedProjectPath = projectPath as string | null;
   store.set('manualProjectPath', projectPath || '');
   console.log(`[Main] Project ${projectPath ? 'selected: ' + projectPath : 'reset to auto-detect'}`);
-  return true;
+  return { success: true };
 });
 
 ipcMain.handle('hide-window', () => {
@@ -889,11 +976,12 @@ ipcMain.handle('apply-improved-prompt', async (_event, text: string): Promise<Ap
   if (!lastFrontmostApp) {
     // No source app tracked, just copy to clipboard
     clipboard.writeText(text);
-    showNotification('PromptLint', '클립보드에 복사됨 - Cmd+V로 붙여넣기 해주세요');
+    const clipboardMessage = t('common:notifications.copiedToClipboard');
+    showNotification('PromptLint', clipboardMessage);
     return {
       success: false,
       fallback: 'clipboard',
-      message: '클립보드에 복사됨 - Cmd+V로 붙여넣기 해주세요',
+      message: clipboardMessage,
     };
   }
 
@@ -902,10 +990,13 @@ ipcMain.handle('apply-improved-prompt', async (_event, text: string): Promise<Ap
 
   // Show notification based on result
   if (result.success) {
-    showNotification('PromptLint', '프롬프트가 적용되었습니다');
-    mainWindow?.hide();
+    showNotification('PromptLint', t('common:notifications.promptApplied'));
+    // Safe window hide with destroyed check
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.hide();
+    }
   } else if (result.fallback === 'clipboard') {
-    showNotification('PromptLint', result.message || '클립보드에 복사됨');
+    showNotification('PromptLint', result.message || t('common:notifications.copiedToClipboard'));
   }
 
   return result;
@@ -938,10 +1029,29 @@ ipcMain.handle('set-window-compact', (_event, compact: boolean) => {
   return true;
 });
 
-// IPC Handler: Open external URL
-ipcMain.handle('open-external', async (_event, url: string) => {
-  const { shell } = await import('electron');
-  await shell.openExternal(url);
+// IPC Handler: Open external URL (with security validation)
+ipcMain.handle('open-external', async (_event, url: unknown) => {
+  // Validate URL type and format
+  if (typeof url !== 'string') {
+    console.warn('[Main] open-external: Invalid URL type');
+    return { success: false, error: 'Invalid URL type' };
+  }
+
+  try {
+    const parsed = new URL(url);
+    // Only allow http and https protocols for security
+    if (!['http:', 'https:'].includes(parsed.protocol)) {
+      console.warn(`[Main] open-external: Blocked protocol ${parsed.protocol}`);
+      return { success: false, error: `Protocol ${parsed.protocol} not allowed` };
+    }
+
+    const { shell } = await import('electron');
+    await shell.openExternal(url);
+    return { success: true };
+  } catch {
+    console.warn('[Main] open-external: Invalid URL', url);
+    return { success: false, error: 'Invalid URL format' };
+  }
 });
 
 // IPC Handler: Renderer ready signal (fixes race condition)
@@ -956,10 +1066,10 @@ ipcMain.handle('renderer-ready', () => {
     pendingText = null;
   }
 
-  // Screenshot mode: Auto-inject test data
+  // Screenshot mode: Auto-inject test data using pendingText queue for safety
   const screenshotMode = process.env.SCREENSHOT_MODE === 'true';
   if (screenshotMode && mainWindow && !pendingText) {
-    console.log('[Main] 📸 Screenshot mode: Injecting test prompt');
+    console.log('[Main] 📸 Screenshot mode: Preparing test prompt');
     const testPrompt = `Create a React component that displays user profile information with the following features:
 
 1. Display user avatar image
@@ -975,28 +1085,27 @@ ipcMain.handle('renderer-ready', () => {
 
 The component should follow React best practices and be reusable across the application.`;
 
-    setTimeout(() => {
-      if (mainWindow && isRendererReady) {
-        const mockContext: CapturedContext = {
-          windowInfo: {
-            appName: 'Code',
-            windowTitle: 'UserProfile.tsx — my-app — Visual Studio Code',
-            isIDE: true,
-            ideName: 'Code',
-          },
-          project: {
-            projectPath: '/Users/developer/projects/my-app',
-            projectName: 'my-app',
-            ideName: 'Code',
-            currentFile: 'src/components/UserProfile.tsx',
-            confidence: 'high',
-          },
-          timestamp: new Date(),
-        };
-        sendTextToRenderer(testPrompt, mockContext);
-        console.log('[Main] 📸 Test prompt injected successfully');
-      }
-    }, 1000); // 1초 대기 후 전송 (UI 렌더링 완료 대기)
+    const mockContext: CapturedContext = {
+      windowInfo: {
+        appName: 'Code',
+        windowTitle: 'UserProfile.tsx — my-app — Visual Studio Code',
+        isIDE: true,
+        ideName: 'Code',
+      },
+      project: {
+        projectPath: '/Users/developer/projects/my-app',
+        projectName: 'my-app',
+        ideName: 'Code',
+        currentFile: 'src/components/UserProfile.tsx',
+        confidence: 'high',
+      },
+      timestamp: new Date(),
+    };
+
+    // Queue the test data - sendTextToRenderer will handle it whether renderer is ready or not
+    lastCapturedContext = mockContext;
+    sendTextToRenderer(testPrompt, mockContext);
+    console.log('[Main] 📸 Test prompt queued for injection');
   }
 
   return true;
@@ -1009,6 +1118,11 @@ app.whenReady().then(async () => {
     migrateToProviders(store as unknown as Store<Record<string, unknown>>);
   }
 
+  // Initialize i18n for main process
+  const languagePreference = store.get('language') as UserLanguagePreference;
+  const resolvedLanguage = initMainI18n(languagePreference);
+  console.log(`[Main] i18n initialized: preference=${languagePreference}, resolved=${resolvedLanguage}`);
+
   createWindow();
   const shortcutRegistered = registerShortcut();
 
@@ -1019,7 +1133,7 @@ app.whenReady().then(async () => {
         const shortcut = store.get('shortcut') as string;
         mainWindow.webContents.send('shortcut-failed', {
           shortcut,
-          message: `글로벌 단축키 (${shortcut}) 등록 실패. 다른 앱이 사용 중일 수 있습니다. 트레이 아이콘을 더블클릭하거나 설정에서 단축키를 변경해 주세요.`,
+          message: t('errors:settings.shortcutFailedLong', { shortcut }),
         });
       } else {
         // Retry after renderer is ready
@@ -1119,6 +1233,8 @@ app.on('will-quit', () => {
   destroyClipboardWatcher();
   destroyAIContextButton();
   destroyTray();
+  cleanupAutoUpdater();
+  closeDatabase();
 });
 
 // Prevent multiple instances
