@@ -270,6 +270,469 @@ export interface RewriteResult {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 카테고리별 템플릿 시스템 (개선안 품질 향상)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * 템플릿 생성 컨텍스트
+ */
+interface TemplateContext {
+  original: string;
+  coreRequest: string;
+  category: string;
+  evaluation: GuidelineEvaluation;
+  sessionContext?: SessionContext;
+  extractedCode?: string | null;
+  extractedError?: string | null;
+  techStack: string[];
+  complexity: PromptComplexity;
+}
+
+/**
+ * 섹션 생성기 타입
+ */
+type SectionGenerator = (ctx: TemplateContext) => string | null;
+
+/**
+ * 카테고리별 템플릿 인터페이스
+ * 각 카테고리에 최적화된 프롬프트 구조 정의
+ */
+interface CategoryTemplate {
+  /** 필수 섹션들 (순서대로 출력) */
+  requiredSections: Array<{
+    tag: string;
+    generator: SectionGenerator;
+  }>;
+  /** 기본 Think mode (카테고리 특성 반영) */
+  defaultThinkMode: 'think' | 'think hard' | 'think harder' | null;
+  /** 카테고리별 품질 체크포인트 */
+  qualityFactors: string[];
+  /** Few-shot 예시 (AI 리라이트용) */
+  example: {
+    before: string;
+    after: string;
+    improvement: string;
+  };
+}
+
+/**
+ * 카테고리별 템플릿 정의
+ */
+const CATEGORY_TEMPLATES: Record<string, CategoryTemplate> = {
+  'bug-fix': {
+    requiredSections: [
+      {
+        tag: 'error_context',
+        generator: (ctx) => {
+          const lines: string[] = [];
+          if (ctx.extractedError) {
+            lines.push(`에러 메시지: ${ctx.extractedError}`);
+          }
+          if (ctx.sessionContext?.recentFiles.length) {
+            const file = ctx.sessionContext.recentFiles[0].split('/').pop();
+            lines.push(`발생 위치: ${file}`);
+          }
+          if (ctx.extractedCode) {
+            lines.push(`관련 코드:\n${ctx.extractedCode}`);
+          }
+          return lines.length > 0 ? lines.join('\n') : null;
+        },
+      },
+      {
+        tag: 'task',
+        generator: (ctx) => ctx.coreRequest,
+      },
+      {
+        tag: 'expected_behavior',
+        generator: (ctx) => {
+          // 원본에서 기대 동작 추출 시도
+          const expectedMatch = ctx.original.match(/(?:원래|기대|expected|should|해야|되어야)[^.。]*[.。]/i);
+          return expectedMatch ? expectedMatch[0].trim() : '정상 동작';
+        },
+      },
+      {
+        tag: 'constraints',
+        generator: (ctx) => {
+          const constraints = ['- 부작용 최소화', '- 기존 동작 유지'];
+          if (ctx.techStack.includes('TypeScript')) {
+            constraints.push('- 타입 안전성 유지');
+          }
+          return constraints.join('\n');
+        },
+      },
+      {
+        tag: 'output_format',
+        generator: () => '- 에러 원인 분석\n- 수정된 코드\n- 재발 방지 방법',
+      },
+      {
+        tag: 'success_criteria',
+        generator: () => '- 에러 해결됨\n- 재현 테스트 통과\n- 기존 기능 정상 동작',
+      },
+    ],
+    defaultThinkMode: 'think hard',
+    qualityFactors: ['에러 메시지 포함', '재현 조건 명시', '기대 동작 설명'],
+    example: {
+      before: 'TypeError 나는데 고쳐줘',
+      after: `<error_context>
+에러 메시지: TypeError: Cannot read property 'map' of undefined
+발생 위치: UserList.tsx
+</error_context>
+
+<task>
+사용자 목록 렌더링 시 발생하는 TypeError 수정
+</task>
+
+<expected_behavior>
+users 배열이 비어있거나 undefined일 때도 정상 렌더링
+</expected_behavior>
+
+<constraints>
+- 부작용 최소화
+- 기존 동작 유지
+- 타입 안전성 유지
+</constraints>
+
+<success_criteria>
+- 에러 해결됨
+- 빈 배열/undefined 케이스 테스트 통과
+</success_criteria>`,
+      improvement: '에러 컨텍스트 구조화, 기대 동작 명시, 성공 기준 추가',
+    },
+  },
+
+  'code-generation': {
+    requiredSections: [
+      {
+        tag: 'context',
+        generator: (ctx) => {
+          const lines: string[] = [];
+          if (ctx.sessionContext) {
+            const projectName = ctx.sessionContext.projectPath.split('/').pop();
+            if (ctx.techStack.length > 0) {
+              lines.push(`프로젝트: ${projectName} (${ctx.techStack.join(', ')})`);
+            } else {
+              lines.push(`프로젝트: ${projectName}`);
+            }
+            if (ctx.sessionContext.currentTask && ctx.sessionContext.currentTask !== '작업 진행 중') {
+              lines.push(`현재 작업: ${ctx.sessionContext.currentTask.slice(0, 60)}`);
+            }
+            // Git 브랜치 (main/master가 아닌 경우)
+            if (ctx.sessionContext.gitBranch && !['main', 'master'].includes(ctx.sessionContext.gitBranch)) {
+              lines.push(`브랜치: ${ctx.sessionContext.gitBranch}`);
+            }
+          }
+          return lines.length > 0 ? lines.join('\n') : null;
+        },
+      },
+      {
+        tag: 'task',
+        generator: (ctx) => ctx.coreRequest,
+      },
+      {
+        tag: 'requirements',
+        generator: (ctx) => {
+          // 원본에서 요구사항 추출 또는 기본 생성
+          const requirements: string[] = [];
+          if (/컴포넌트|component/i.test(ctx.original)) {
+            requirements.push('- 재사용 가능한 컴포넌트 구조');
+          }
+          if (/api|엔드포인트/i.test(ctx.original)) {
+            requirements.push('- 에러 핸들링 포함');
+          }
+          if (ctx.techStack.includes('TypeScript')) {
+            requirements.push('- 타입 정의 포함');
+          }
+          if (requirements.length === 0) {
+            requirements.push('- 기존 코드 스타일 준수');
+          }
+          return requirements.join('\n');
+        },
+      },
+      {
+        tag: 'constraints',
+        generator: (ctx) => {
+          const constraints: string[] = [];
+          // 기술 스택별 제약조건
+          if (ctx.techStack.includes('TypeScript')) {
+            constraints.push('- 타입 안전성 유지');
+          }
+          if (ctx.techStack.includes('React')) {
+            constraints.push('- 함수형 컴포넌트, hooks 패턴 사용');
+          }
+          if (ctx.techStack.includes('Vue')) {
+            constraints.push('- Composition API 스타일');
+          }
+          if (ctx.techStack.includes('Next.js')) {
+            constraints.push('- App Router 호환, SSR 고려');
+          }
+          if (ctx.techStack.includes('Firebase')) {
+            constraints.push('- 보안 규칙 준수, 비용 최적화');
+          }
+          if (ctx.techStack.includes('Electron')) {
+            constraints.push('- main/renderer 분리');
+          }
+          if (ctx.techStack.includes('Node.js')) {
+            constraints.push('- async/await 패턴');
+          }
+          if (constraints.length === 0) {
+            constraints.push('- 기존 코드 스타일 준수');
+          }
+          return constraints.join('\n');
+        },
+      },
+      {
+        tag: 'output_format',
+        generator: (ctx) => {
+          const formats = ['- 전체 구현 코드 (import 포함)'];
+          if (ctx.complexity !== 'simple') {
+            formats.push('- 주요 로직 설명');
+          }
+          if (ctx.techStack.includes('TypeScript')) {
+            formats.push('- 인터페이스/타입 정의');
+          }
+          return formats.join('\n');
+        },
+      },
+    ],
+    defaultThinkMode: 'think',
+    qualityFactors: ['기술 스택 명시', '요구사항 구체화', '출력 형식 지정'],
+    example: {
+      before: '로그인 기능 만들어줘',
+      after: `<context>
+프로젝트: my-app (React, TypeScript, Firebase)
+현재 작업: 인증 시스템 구현
+</context>
+
+<task>
+Firebase Authentication을 사용한 이메일/비밀번호 로그인 기능 구현
+</task>
+
+<requirements>
+- 로그인 폼 컴포넌트 (이메일, 비밀번호 입력)
+- 유효성 검사 (이메일 형식, 비밀번호 최소 길이)
+- 에러 상태 표시 (잘못된 인증 정보 등)
+- 로그인 성공 시 리다이렉트
+</requirements>
+
+<output_format>
+- 전체 구현 코드 (import 포함)
+- 인터페이스/타입 정의
+- 사용 예시
+</output_format>`,
+      improvement: '프로젝트 컨텍스트 추가, 요구사항 구체화, 출력 형식 명시',
+    },
+  },
+
+  'refactoring': {
+    requiredSections: [
+      {
+        tag: 'current_code',
+        generator: (ctx) => ctx.extractedCode || '(리팩토링 대상 코드를 붙여넣어 주세요)',
+      },
+      {
+        tag: 'task',
+        generator: (ctx) => ctx.coreRequest,
+      },
+      {
+        tag: 'refactoring_goals',
+        generator: (ctx) => {
+          const goals: string[] = [];
+          if (/성능|최적화|performance/i.test(ctx.original)) {
+            goals.push('- 성능 개선');
+          }
+          if (/가독성|readable|clean/i.test(ctx.original)) {
+            goals.push('- 가독성 향상');
+          }
+          if (/중복|duplicate|dry/i.test(ctx.original)) {
+            goals.push('- 중복 제거');
+          }
+          if (/테스트|test/i.test(ctx.original)) {
+            goals.push('- 테스트 용이성 향상');
+          }
+          if (goals.length === 0) {
+            goals.push('- 코드 품질 향상');
+            goals.push('- 유지보수성 개선');
+          }
+          return goals.join('\n');
+        },
+      },
+      {
+        tag: 'constraints',
+        generator: (ctx) => {
+          const constraints = ['- 기존 기능 100% 유지', '- 외부 인터페이스 변경 없음'];
+          if (ctx.techStack.includes('TypeScript')) {
+            constraints.push('- 타입 호환성 유지');
+          }
+          return constraints.join('\n');
+        },
+      },
+      {
+        tag: 'output_format',
+        generator: () => '- 리팩토링된 코드\n- 변경 사항 설명\n- (선택) 단계별 적용 가이드',
+      },
+    ],
+    defaultThinkMode: 'think harder',
+    qualityFactors: ['기존 코드 포함', '리팩토링 목표 명시', '기능 유지 제약'],
+    example: {
+      before: '이 함수 정리해줘',
+      after: `think harder
+
+<current_code>
+\`\`\`typescript
+function processData(data) {
+  // ... 리팩토링 대상 코드
+}
+\`\`\`
+</current_code>
+
+<task>
+processData 함수의 가독성 및 유지보수성 개선
+</task>
+
+<refactoring_goals>
+- 단일 책임 원칙 적용
+- 중첩 조건문 단순화
+- 의미 있는 변수명 사용
+</refactoring_goals>
+
+<constraints>
+- 기존 기능 100% 유지
+- 외부 인터페이스 변경 없음
+- 타입 호환성 유지
+</constraints>
+
+<output_format>
+- 리팩토링된 코드
+- 변경 사항 설명
+- 단계별 적용 가이드
+</output_format>`,
+      improvement: '대상 코드 포함, 리팩토링 목표 구체화, 제약조건 명시',
+    },
+  },
+
+  'explanation': {
+    requiredSections: [
+      {
+        tag: 'topic',
+        generator: (ctx) => ctx.coreRequest,
+      },
+      {
+        tag: 'context',
+        generator: (ctx) => {
+          const lines: string[] = [];
+          if (ctx.extractedCode) {
+            lines.push(`참조 코드:\n${ctx.extractedCode}`);
+          }
+          if (ctx.sessionContext?.techStack.length) {
+            lines.push(`환경: ${ctx.sessionContext.techStack.join(', ')}`);
+          }
+          return lines.length > 0 ? lines.join('\n\n') : null;
+        },
+      },
+      {
+        tag: 'knowledge_level',
+        generator: (ctx) => {
+          // 원본에서 수준 추정
+          if (/초보|beginner|기초|basic/i.test(ctx.original)) {
+            return '입문자 (기초 개념부터 설명 필요)';
+          }
+          if (/깊이|심층|advanced|상세/i.test(ctx.original)) {
+            return '숙련자 (심층적인 내용 위주)';
+          }
+          return '중급자 (핵심 개념 중심)';
+        },
+      },
+      {
+        tag: 'output_format',
+        generator: () => '- 개념 설명\n- 코드 예시\n- 실제 사용 사례',
+      },
+    ],
+    defaultThinkMode: null,
+    qualityFactors: ['질문 명확화', '수준 명시', '예시 요청'],
+    example: {
+      before: '클로저가 뭐야',
+      after: `<topic>
+JavaScript 클로저(Closure)의 개념과 활용 방법
+</topic>
+
+<knowledge_level>
+중급자 (기본 함수 개념은 알고 있음)
+</knowledge_level>
+
+<output_format>
+- 클로저의 정의와 동작 원리
+- 실용적인 코드 예시 3가지
+- 흔한 실수와 주의사항
+- 실제 프로젝트 활용 사례
+</output_format>`,
+      improvement: '질문 구체화, 지식 수준 명시, 출력 형식 상세화',
+    },
+  },
+};
+
+/**
+ * 카테고리 템플릿을 사용한 프롬프트 생성
+ */
+function generateFromTemplate(ctx: TemplateContext): string {
+  const template = CATEGORY_TEMPLATES[ctx.category];
+  if (!template) {
+    // 템플릿이 없으면 기존 XML 빌더 사용
+    return buildXMLPrompt(ctx.original, ctx.evaluation, ctx.sessionContext);
+  }
+
+  const sections: string[] = [];
+
+  // Think mode 추가 (복잡도에 따라 오버라이드 가능)
+  const thinkMode = selectThinkMode(ctx.complexity) || template.defaultThinkMode;
+  if (thinkMode) {
+    sections.push(thinkMode);
+  }
+
+  // 템플릿 섹션들 생성
+  for (const { tag, generator } of template.requiredSections) {
+    const content = generator(ctx);
+    if (content) {
+      sections.push(`<${tag}>\n${content}\n</${tag}>`);
+    }
+  }
+
+  return sections.join('\n\n');
+}
+
+/**
+ * 템플릿 컨텍스트 생성
+ */
+function createTemplateContext(
+  original: string,
+  evaluation: GuidelineEvaluation,
+  sessionContext?: SessionContext
+): TemplateContext {
+  const coreRequest = extractCoreRequest(original);
+  const category = detectCategory(coreRequest);
+  const complexity = detectComplexity(original, sessionContext);
+
+  return {
+    original,
+    coreRequest,
+    category,
+    evaluation,
+    sessionContext,
+    extractedCode: extractCodeFromPrompt(original),
+    extractedError: extractErrorFromPrompt(original),
+    techStack: sessionContext?.techStack || [],
+    complexity,
+  };
+}
+
+/**
+ * 카테고리별 Few-shot 예시 가져오기 (AI 리라이트용)
+ */
+export function getCategoryExample(category: string): { before: string; after: string; improvement: string } | null {
+  const template = CATEGORY_TEMPLATES[category];
+  return template?.example || null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // COSP (Claude-Optimized Smart Prompt) 관련 함수들
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -472,7 +935,7 @@ function buildXMLPrompt(
 
 /**
  * COSP (Claude-Optimized Smart Prompt) 생성
- * XML 구조 + Think mode 자동 삽입
+ * 카테고리별 템플릿 시스템 + XML 구조 + Think mode 자동 삽입
  */
 function generateCOSPRewrite(
   original: string,
@@ -481,30 +944,60 @@ function generateCOSPRewrite(
 ): RewriteResult {
   const keyChanges: string[] = [];
 
-  // 복잡도 감지 및 Think mode 선택
-  const complexity = detectComplexity(original, context);
-  const thinkMode = selectThinkMode(complexity);
+  // 템플릿 컨텍스트 생성
+  const templateCtx = createTemplateContext(original, evaluation, context);
+  const category = templateCtx.category;
+  const template = CATEGORY_TEMPLATES[category];
 
-  // XML 구조화된 프롬프트 빌드
-  const xmlPrompt = buildXMLPrompt(original, evaluation, context);
+  // 카테고리 템플릿이 있으면 템플릿 기반 생성, 없으면 기존 XML 빌더 사용
+  let rewrittenPrompt: string;
 
-  // 최종 프롬프트 조합
-  const parts: string[] = [];
+  if (template) {
+    // 템플릿 기반 생성
+    rewrittenPrompt = generateFromTemplate(templateCtx);
+    keyChanges.push(`${getCategoryLabel(category)} 템플릿`);
 
-  // Think mode 추가 (있는 경우)
-  if (thinkMode) {
-    parts.push(thinkMode);
-    keyChanges.push(`Think mode: ${thinkMode}`);
+    // Think mode 정보 추가
+    const thinkMode = selectThinkMode(templateCtx.complexity) || template.defaultThinkMode;
+    if (thinkMode) {
+      keyChanges.push(`Think: ${thinkMode}`);
+    }
+
+    // 템플릿 품질 요소 반영 여부 체크
+    const appliedFactors = template.qualityFactors.filter(factor => {
+      if (factor.includes('에러') && templateCtx.extractedError) return true;
+      if (factor.includes('코드') && templateCtx.extractedCode) return true;
+      if (factor.includes('기술 스택') && templateCtx.techStack.length > 0) return true;
+      if (factor.includes('요구사항')) return true; // 항상 생성
+      if (factor.includes('출력 형식')) return true; // 항상 생성
+      return false;
+    });
+
+    if (appliedFactors.length > 0) {
+      keyChanges.push(...appliedFactors.slice(0, 2));
+    }
+  } else {
+    // 기존 XML 빌더 사용 (general 등 템플릿 없는 카테고리)
+    const complexity = detectComplexity(original, context);
+    const thinkMode = selectThinkMode(complexity);
+    const xmlPrompt = buildXMLPrompt(original, evaluation, context);
+
+    const parts: string[] = [];
+    if (thinkMode) {
+      parts.push(thinkMode);
+      keyChanges.push(`Think mode: ${thinkMode}`);
+    }
+    parts.push(xmlPrompt);
+    rewrittenPrompt = parts.join('\n\n');
+
+    keyChanges.push('XML 구조화');
   }
 
-  parts.push(xmlPrompt);
-
-  // key changes 추가
-  keyChanges.push('XML 구조화');
+  // 컨텍스트 정보 반영 여부
   if (context && context.techStack.length > 0) {
     keyChanges.push('기술 스택 반영');
   }
-  if (context && context.currentTask) {
+  if (context && context.currentTask && context.currentTask !== '작업 진행 중') {
     keyChanges.push('세션 컨텍스트');
   }
 
@@ -513,7 +1006,7 @@ function generateCOSPRewrite(
     .filter(([key, value]) => key !== 'total' && (value as number) < 0.5)
     .map(([key]) => key);
 
-  if (weakDimensions.length > 0) {
+  if (weakDimensions.length > 0 && !template) {
     const dimNames: Record<string, string> = {
       goal: '목표',
       output: '출력',
@@ -526,18 +1019,18 @@ function generateCOSPRewrite(
     keyChanges.push(`${weakNames.join('/')} 보강`);
   }
 
-  // 신뢰도 계산: 컨텍스트 유무 + 복잡도 기반
-  let confidence = 0.90;
+  // 신뢰도 계산: 템플릿 사용 + 컨텍스트 유무 기반
+  let confidence = template ? 0.92 : 0.90;
   if (context) {
-    confidence += 0.05;
+    confidence += 0.03;
     if (context.techStack.length > 0) confidence += 0.02;
     if (context.currentTask && context.currentTask !== '작업 진행 중') confidence += 0.01;
   }
   confidence = Math.min(confidence, 0.98);
 
   return {
-    rewrittenPrompt: parts.join('\n\n'),
-    keyChanges,
+    rewrittenPrompt,
+    keyChanges: [...new Set(keyChanges)].slice(0, 5), // 중복 제거, 최대 5개
     confidence,
     variant: 'cosp',
     variantLabel: 'COSP',

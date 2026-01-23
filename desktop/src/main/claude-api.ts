@@ -1,6 +1,10 @@
 /**
- * Claude API Client for AI-powered prompt rewriting (v2)
+ * Claude API Client for AI-powered prompt rewriting (v3)
  * Uses Anthropic SDK for direct API calls
+ *
+ * v3 개선사항:
+ * - 카테고리별 Few-shot 예시 주입
+ * - 템플릿 기반 리라이팅 가이드
  *
  * v2 개선사항:
  * - 시스템 프롬프트 ~1500 토큰으로 강화
@@ -10,6 +14,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
+import { getCategoryExample } from './prompt-rewriter.js';
 
 // Types
 export interface RewriteRequest {
@@ -52,6 +57,25 @@ export interface RewriteResult {
   explanation?: string;
   improvements?: string[];
   error?: string;
+}
+
+/**
+ * 프롬프트에서 카테고리 감지 (AI Few-shot용)
+ */
+function detectPromptCategory(text: string): string {
+  const patterns: Record<string, RegExp[]> = {
+    'code-generation': [/만들어|구현|생성|작성|개발/i, /component|function|class|api/i],
+    'bug-fix': [/에러|오류|버그|수정|fix|error|bug/i],
+    'refactoring': [/리팩토링|정리|개선|최적화|refactor/i],
+    'explanation': [/설명|알려|이해|왜|어떻게|explain|how|why/i],
+  };
+
+  for (const [category, regexes] of Object.entries(patterns)) {
+    if (regexes.some((r) => r.test(text))) {
+      return category;
+    }
+  }
+  return 'general';
 }
 
 // Enhanced system prompt for Claude to rewrite prompts (~1500 tokens)
@@ -146,10 +170,31 @@ const REWRITE_SYSTEM_PROMPT = `당신은 프롬프트 엔지니어링 전문가�
 }`;
 
 /**
- * Build enhanced user message with rich context
+ * Build enhanced user message with rich context and Few-shot example
  */
 function buildUserMessage(request: RewriteRequest): string {
   const parts: string[] = [];
+
+  // 0. 카테고리별 Few-shot 예시 (새로 추가)
+  const category = detectPromptCategory(request.originalPrompt);
+  const example = getCategoryExample(category);
+  if (example) {
+    parts.push(`## 참고: ${category} 카테고리 개선 예시
+
+**개선 전:**
+"""
+${example.before}
+"""
+
+**개선 후:**
+"""
+${example.after}
+"""
+
+**핵심 개선점:** ${example.improvement}
+
+---`);
+  }
 
   // 1. 원본 프롬프트
   parts.push(`원본 프롬프트:
