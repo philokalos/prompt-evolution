@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, MousePointer2, Zap, Clipboard, Sparkles, ChevronDown, AlertTriangle, Globe } from 'lucide-react';
+import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, MousePointer2, Zap, Clipboard, Sparkles, ChevronDown, AlertTriangle, Globe, Timer, Ghost } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import ProjectSettings from './ProjectSettings';
 import TemplateManager from './TemplateManager';
 import ProviderSettings from './ProviderSettings';
 import { changeLanguage } from '../../locales';
+
+interface GhostBarSettings {
+  enabled: boolean;
+  autoPaste: boolean;
+  dismissTimeout: number;
+  showOnlyOnImprovement: boolean;
+  minimumConfidence: number;
+}
 
 interface AppSettings {
   shortcut: string;
@@ -25,6 +33,8 @@ interface AppSettings {
   autoShowWindow: boolean;
   // Language preference
   language: 'auto' | 'en' | 'ko';
+  // Ghost Bar settings
+  ghostBar: GhostBarSettings;
 }
 
 // Language option values
@@ -59,6 +69,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
   const [showGettingStarted, setShowGettingStarted] = useState(true);
   const [showBehavior, setShowBehavior] = useState(true);
   const [showSmartFeatures, setShowSmartFeatures] = useState(true);
+  const [showGhostBar, setShowGhostBar] = useState(false);
   const [showProjectTemplates, setShowProjectTemplates] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
@@ -451,6 +462,105 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                       {t('sections.smart.autoApply.note')}
                     </p>
                   </div>
+                </div>
+              </Section>
+
+              {/* 👻 Ghost Bar Section */}
+              <Section
+                title={t('sections.ghostBar.title')}
+                icon={<Ghost size={16} className="text-purple-400" />}
+                isOpen={showGhostBar}
+                onToggle={() => setShowGhostBar(!showGhostBar)}
+              >
+                <div className="space-y-4">
+                  {/* Feature Description */}
+                  <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                    <p className="text-xs text-gray-300 leading-relaxed">
+                      {t('sections.ghostBar.description')}
+                    </p>
+                  </div>
+
+                  {/* Enable Ghost Bar */}
+                  <div className="flex items-center justify-between py-2">
+                    <div className="flex flex-col gap-0.5">
+                      <div className="flex items-center gap-2">
+                        <Ghost size={14} className="text-purple-400" />
+                        <span className="text-sm">{t('sections.ghostBar.enable')}</span>
+                      </div>
+                      <span className="text-xs text-gray-500">{t('sections.ghostBar.enableDesc')}</span>
+                    </div>
+                    <ToggleSwitch
+                      checked={settings.ghostBar?.enabled ?? false}
+                      onChange={(v) => updateSetting('ghostBar', { ...settings.ghostBar, enabled: v })}
+                    />
+                  </div>
+
+                  {settings.ghostBar?.enabled && (
+                    <>
+                      {/* Auto Paste */}
+                      <div className="flex items-center justify-between py-2 pl-4 border-l-2 border-purple-500/30">
+                        <div className="flex flex-col gap-0.5">
+                          <div className="flex items-center gap-2">
+                            <Clipboard size={14} className="text-gray-400" />
+                            <span className="text-sm">{t('sections.ghostBar.autoPaste')}</span>
+                          </div>
+                          <span className="text-xs text-gray-500">{t('sections.ghostBar.autoPasteDesc')}</span>
+                        </div>
+                        <ToggleSwitch
+                          checked={settings.ghostBar?.autoPaste ?? true}
+                          onChange={(v) => updateSetting('ghostBar', { ...settings.ghostBar, autoPaste: v })}
+                        />
+                      </div>
+
+                      {/* Dismiss Timeout */}
+                      <div className="py-2 pl-4 border-l-2 border-purple-500/30">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Timer size={14} className="text-gray-400" />
+                          <span className="text-sm">{t('sections.ghostBar.dismissTimeout')}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="range"
+                            min="1000"
+                            max="30000"
+                            step="1000"
+                            value={settings.ghostBar?.dismissTimeout ?? 5000}
+                            onChange={(e) => updateSetting('ghostBar', {
+                              ...settings.ghostBar,
+                              dismissTimeout: parseInt(e.target.value)
+                            })}
+                            className="flex-1 h-1.5 bg-dark-hover rounded-full appearance-none cursor-pointer
+                                     [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3
+                                     [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full
+                                     [&::-webkit-slider-thumb]:bg-purple-500"
+                          />
+                          <span className="text-xs text-gray-400 w-12 text-right">
+                            {((settings.ghostBar?.dismissTimeout ?? 5000) / 1000).toFixed(0)}s
+                          </span>
+                        </div>
+                        <span className="text-xs text-gray-500">{t('sections.ghostBar.dismissTimeoutDesc')}</span>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Keyboard Shortcuts Info */}
+                  {settings.ghostBar?.enabled && (
+                    <div className="pt-3 border-t border-dark-border">
+                      <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">
+                        {t('sections.ghostBar.shortcuts.title')}
+                      </h4>
+                      <div className="space-y-1.5 text-xs text-gray-400">
+                        <div className="flex justify-between">
+                          <span>{t('sections.ghostBar.shortcuts.apply')}</span>
+                          <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-gray-300">⌘⇧↵</kbd>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>{t('sections.ghostBar.shortcuts.dismiss')}</span>
+                          <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-gray-300">Esc</kbd>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </Section>
 

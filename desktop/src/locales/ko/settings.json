@@ -54,6 +54,21 @@
         "note": "※ VS Code, Cursor 등 일부 앱에서는 클립보드 복사 후 수동 붙여넣기 필요"
       }
     },
+    "ghostBar": {
+      "title": "Ghost Bar",
+      "description": "프롬프트를 복사하면 커서 근처에 작은 플로팅 바가 나타납니다. Enter 또는 클릭 한 번으로 개선된 프롬프트를 즉시 적용합니다. 기존 5단계 플로우를 2단계로 축소합니다.",
+      "enable": "Ghost Bar 활성화",
+      "enableDesc": "프롬프트 복사 시 플로팅 바 표시",
+      "autoPaste": "자동 붙여넣기",
+      "autoPasteDesc": "개선된 텍스트를 원본 앱에 자동 붙여넣기",
+      "dismissTimeout": "자동 닫힘",
+      "dismissTimeoutDesc": "Ghost Bar가 자동으로 사라지는 시간",
+      "shortcuts": {
+        "title": "키보드 단축키",
+        "apply": "개선 적용",
+        "dismiss": "닫기"
+      }
+    },
     "projectTemplates": {
       "title": "프로젝트 & 템플릿",
       "projectTab": "프로젝트 설정",

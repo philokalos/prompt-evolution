@@ -136,7 +136,8 @@ interface AnalysisResult {
   dbSaveError?: string; // 히스토리 저장 실패 시 에러 메시지
 }
 
-// Re-export for renderer
+// Re-export for renderer and other modules
+export type { AnalysisResult };
 export type {
   RewriteResult,
   VariantType,

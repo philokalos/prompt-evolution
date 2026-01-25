@@ -54,6 +54,21 @@
         "note": "※ Some apps (VS Code, Cursor) require manual paste after copy"
       }
     },
+    "ghostBar": {
+      "title": "Ghost Bar",
+      "description": "When you copy a prompt, a small floating bar appears near your cursor. Press Enter or click to instantly apply the improved version. Reduces the workflow from 5 steps to 2.",
+      "enable": "Enable Ghost Bar",
+      "enableDesc": "Show floating bar after copying prompts",
+      "autoPaste": "Auto paste",
+      "autoPasteDesc": "Automatically paste improved text back to source app",
+      "dismissTimeout": "Auto dismiss",
+      "dismissTimeoutDesc": "Time before Ghost Bar automatically hides",
+      "shortcuts": {
+        "title": "Keyboard Shortcuts",
+        "apply": "Apply improvement",
+        "dismiss": "Dismiss"
+      }
+    },
     "projectTemplates": {
       "title": "Projects & Templates",
       "projectTab": "Project Settings",

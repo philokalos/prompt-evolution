@@ -1,35 +1,17 @@
-// Shared types between main and renderer processes
+/**
+ * Ghost Bar Type Definitions
+ *
+ * Types used by the Ghost Bar UX feature.
+ * Defined in main/ to avoid TypeScript rootDir issues.
+ */
 
-// Re-export types from parent's shared types
-export type {
-  PromptIntent,
-  TaskCategory,
-  PromptClassification,
-  Issue,
-  AnalysisResult,
-  GoldenScores,
-  SessionContext,
-  ActiveSessionContext,
-  RewriteResult,
-  HistoryRecommendation,
-  PromptHistory,
-  PersonalStats,
-  ProgressPoint,
-} from '../../../src/shared/types/index.js';
-
-// Desktop-specific types (not in parent shared types)
-export interface UserSettings {
-  shortcut: string;
-  windowBounds: { width: number; height: number };
-  alwaysOnTop: boolean;
-  showTrayIcon: boolean;
-  autoLaunch: boolean;
-}
-
-// Ghost Bar UX types
+// Grade type for prompt quality
 export type Grade = 'A' | 'B' | 'C' | 'D' | 'F';
+
+// Variant type for prompt improvements
 export type VariantType = 'ai' | 'balanced' | 'conservative' | 'comprehensive';
 
+// Ghost Bar state for tracking current analysis
 export interface GhostBarState {
   id: string;
   originalText: string;
@@ -43,6 +25,7 @@ export interface GhostBarState {
   sourceApp: string | null;
 }
 
+// User settings for Ghost Bar behavior
 export interface GhostBarSettings {
   enabled: boolean;
   autoPaste: boolean;
@@ -51,6 +34,7 @@ export interface GhostBarSettings {
   minimumConfidence: number;
 }
 
+// Payload sent to Ghost Bar renderer
 export interface GhostBarShowPayload {
   originalGrade: Grade;
   improvedGrade: Grade;
@@ -60,17 +44,16 @@ export interface GhostBarShowPayload {
   sourceApp: string | null;
 }
 
+// Payload for updating Ghost Bar state
 export interface GhostBarUpdatePayload {
   improvedGrade?: Grade;
   improvedScore?: number;
   variantType?: VariantType;
 }
 
+// Result of apply action
 export interface ApplyResult {
   success: boolean;
   fallback?: 'clipboard';
   message?: string;
 }
-
-// Re-export AnalysisResultWithContext from parent
-export type { AnalysisResultWithContext } from '../../../src/shared/types/index.js';
