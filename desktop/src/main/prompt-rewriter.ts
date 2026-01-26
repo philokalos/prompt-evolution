@@ -13,6 +13,7 @@
  */
 
 import type { SessionContext } from './session-context.js';
+import type { ProjectSettings } from './db/project-settings-repository.js';
 import { rewritePromptWithClaude, rewritePromptWithMultiVariant, type RewriteRequest, type RewriteResult as _AIRewriteResult } from './claude-api.js';
 import {
   type ProviderConfig,
@@ -282,6 +283,7 @@ interface TemplateContext {
   category: string;
   evaluation: GuidelineEvaluation;
   sessionContext?: SessionContext;
+  projectSettings?: ProjectSettings;
   extractedCode?: string | null;
   extractedError?: string | null;
   techStack: string[];
@@ -677,7 +679,7 @@ function generateFromTemplate(ctx: TemplateContext): string {
   const template = CATEGORY_TEMPLATES[ctx.category];
   if (!template) {
     // 템플릿이 없으면 기존 XML 빌더 사용
-    return buildXMLPrompt(ctx.original, ctx.evaluation, ctx.sessionContext);
+    return buildXMLPrompt(ctx.original, ctx.evaluation, ctx.sessionContext, ctx.projectSettings);
   }
 
   const sections: string[] = [];
@@ -692,8 +694,20 @@ function generateFromTemplate(ctx: TemplateContext): string {
   for (const { tag, generator } of template.requiredSections) {
     const content = generator(ctx);
     if (content) {
-      sections.push(`<${tag}>\n${content}\n</${tag}>`);
+      // customConstraints를 constraints 섹션에 추가
+      if (tag === 'constraints' && ctx.projectSettings?.customConstraints) {
+        const combinedContent = `${content}\n- ${ctx.projectSettings.customConstraints}`;
+        sections.push(`<${tag}>\n${combinedContent}\n</${tag}>`);
+      } else {
+        sections.push(`<${tag}>\n${content}\n</${tag}>`);
+      }
     }
+  }
+
+  // 템플릿에 constraints 섹션이 없지만 customConstraints가 있는 경우
+  const hasConstraintsSection = template.requiredSections.some(s => s.tag === 'constraints');
+  if (!hasConstraintsSection && ctx.projectSettings?.customConstraints) {
+    sections.push(`<constraints>\n- ${ctx.projectSettings.customConstraints}\n</constraints>`);
   }
 
   return sections.join('\n\n');
@@ -705,7 +719,8 @@ function generateFromTemplate(ctx: TemplateContext): string {
 function createTemplateContext(
   original: string,
   evaluation: GuidelineEvaluation,
-  sessionContext?: SessionContext
+  sessionContext?: SessionContext,
+  projectSettings?: ProjectSettings
 ): TemplateContext {
   const coreRequest = extractCoreRequest(original);
   const category = detectCategory(coreRequest);
@@ -717,6 +732,7 @@ function createTemplateContext(
     category,
     evaluation,
     sessionContext,
+    projectSettings,
     extractedCode: extractCodeFromPrompt(original),
     extractedError: extractErrorFromPrompt(original),
     techStack: sessionContext?.techStack || [],
@@ -813,7 +829,8 @@ function selectThinkMode(complexity: PromptComplexity): string | null {
 function buildXMLPrompt(
   original: string,
   evaluation: GuidelineEvaluation,
-  context?: SessionContext
+  context?: SessionContext,
+  projectSettings?: ProjectSettings
 ): string {
   const sections: string[] = [];
   const coreRequest = extractCoreRequest(original);
@@ -904,6 +921,11 @@ function buildXMLPrompt(
     constraintLines.push(...categoryConstraints[category]);
   }
 
+  // 프로젝트 설정의 customConstraints 추가
+  if (projectSettings?.customConstraints) {
+    constraintLines.push(projectSettings.customConstraints);
+  }
+
   if (constraintLines.length > 0) {
     sections.push(`<constraints>\n${constraintLines.map(c => `- ${c}`).join('\n')}\n</constraints>`);
   }
@@ -940,12 +962,13 @@ function buildXMLPrompt(
 function generateCOSPRewrite(
   original: string,
   evaluation: GuidelineEvaluation,
-  context?: SessionContext
+  context?: SessionContext,
+  projectSettings?: ProjectSettings
 ): RewriteResult {
   const keyChanges: string[] = [];
 
   // 템플릿 컨텍스트 생성
-  const templateCtx = createTemplateContext(original, evaluation, context);
+  const templateCtx = createTemplateContext(original, evaluation, context, projectSettings);
   const category = templateCtx.category;
   const template = CATEGORY_TEMPLATES[category];
 
@@ -980,7 +1003,7 @@ function generateCOSPRewrite(
     // 기존 XML 빌더 사용 (general 등 템플릿 없는 카테고리)
     const complexity = detectComplexity(original, context);
     const thinkMode = selectThinkMode(complexity);
-    const xmlPrompt = buildXMLPrompt(original, evaluation, context);
+    const xmlPrompt = buildXMLPrompt(original, evaluation, context, projectSettings);
 
     const parts: string[] = [];
     if (thinkMode) {
@@ -999,6 +1022,10 @@ function generateCOSPRewrite(
   }
   if (context && context.currentTask && context.currentTask !== '작업 진행 중') {
     keyChanges.push('세션 컨텍스트');
+  }
+  // 프로젝트 설정 반영 여부
+  if (projectSettings?.customConstraints) {
+    keyChanges.push('사용자 제약조건');
   }
 
   // 약한 GOLDEN 차원 보강 메시지
@@ -1455,11 +1482,13 @@ function getSuccessCriteria(category: string): string {
 /**
  * COSP 변형 생성 (메인 함수)
  * 기존 3가지 변형 → 1개의 COSP 변형으로 통합
+ * Phase 4: ProjectSettings 지원 - customConstraints와 preferredVariant 반영
  */
 export function generatePromptVariants(
   original: string,
   evaluation: GuidelineEvaluation,
-  context?: SessionContext
+  context?: SessionContext,
+  projectSettings?: ProjectSettings
 ): RewriteResult[] {
   // 이미 점수가 높으면 최소 변형
   if (evaluation.overallScore >= 0.85) {
@@ -1474,8 +1503,8 @@ export function generatePromptVariants(
     ];
   }
 
-  // COSP 변형만 반환
-  return [generateCOSPRewrite(original, evaluation, context)];
+  // COSP 변형만 반환 (ProjectSettings 전달)
+  return [generateCOSPRewrite(original, evaluation, context, projectSettings)];
 }
 
 /**
@@ -1494,6 +1523,7 @@ export type GOLDENEvaluator = (text: string) => {
 /**
  * AI-powered prompt rewriting using Claude API
  * v2: Multi-variant generation with GOLDEN evaluation → best score selection
+ * Phase 4: ProjectSettings support - customConstraints passed to AI
  * Returns null if API is not available or fails
  */
 export async function generateAIRewrite(
@@ -1501,7 +1531,8 @@ export async function generateAIRewrite(
   original: string,
   evaluation: GuidelineEvaluation,
   context?: SessionContext,
-  goldenEvaluator?: GOLDENEvaluator
+  goldenEvaluator?: GOLDENEvaluator,
+  projectSettings?: ProjectSettings
 ): Promise<RewriteResult | null> {
   if (!apiKey || apiKey.trim() === '') {
     return null;
@@ -1545,6 +1576,8 @@ export async function generateAIRewrite(
             : undefined,
         }
       : undefined,
+    // Phase 4: customConstraints from project settings
+    customConstraints: projectSettings?.customConstraints,
   };
 
   try {
@@ -1601,13 +1634,15 @@ export async function generateAIRewrite(
 /**
  * AI-powered prompt rewriting using multi-provider system
  * Supports fallback across Claude, OpenAI, and Gemini providers
+ * Phase 4: ProjectSettings support - customConstraints passed to AI
  * Returns null if no providers are available or all fail
  */
 export async function generateAIRewriteWithProviders(
   providerConfigs: ProviderConfig[],
   original: string,
   evaluation: GuidelineEvaluation,
-  context?: SessionContext
+  context?: SessionContext,
+  projectSettings?: ProjectSettings
 ): Promise<RewriteResult | null> {
   if (!hasAnyProvider(providerConfigs)) {
     return null;
@@ -1650,6 +1685,8 @@ export async function generateAIRewriteWithProviders(
             : undefined,
         }
       : undefined,
+    // Phase 4: customConstraints from project settings
+    customConstraints: projectSettings?.customConstraints,
   };
 
   try {
@@ -1686,15 +1723,17 @@ export async function generateAIRewriteWithProviders(
 /**
  * Generate all prompt variants using multi-provider system
  * Uses provider configs instead of single API key
+ * Phase 4: ProjectSettings support
  */
 export async function generateAllVariantsWithProviders(
   original: string,
   evaluation: GuidelineEvaluation,
   context?: SessionContext,
-  providerConfigs?: ProviderConfig[]
+  providerConfigs?: ProviderConfig[],
+  projectSettings?: ProjectSettings
 ): Promise<RewriteResult[]> {
-  // Start with rule-based variants
-  const variants = generatePromptVariants(original, evaluation, context);
+  // Start with rule-based variants (pass projectSettings)
+  const variants = generatePromptVariants(original, evaluation, context, projectSettings);
 
   // Try multi-provider AI rewrite if configs provided
   if (providerConfigs && hasAnyProvider(providerConfigs)) {
@@ -1703,7 +1742,8 @@ export async function generateAllVariantsWithProviders(
         providerConfigs,
         original,
         evaluation,
-        context
+        context,
+        projectSettings
       );
       if (aiVariant) {
         variants.unshift(aiVariant);
@@ -1733,12 +1773,14 @@ export async function generateAllVariantsWithProviders(
 /**
  * Generate only the AI variant using multi-provider system
  * Called separately from main analysis to avoid blocking initial render
+ * Phase 4: ProjectSettings support
  */
 export async function generateAIVariantWithProviders(
   original: string,
   evaluation: GuidelineEvaluation,
   context?: SessionContext,
-  providerConfigs?: ProviderConfig[]
+  providerConfigs?: ProviderConfig[],
+  projectSettings?: ProjectSettings
 ): Promise<RewriteResult> {
   if (!providerConfigs || !hasAnyProvider(providerConfigs)) {
     return {
@@ -1757,7 +1799,8 @@ export async function generateAIVariantWithProviders(
       providerConfigs,
       original,
       evaluation,
-      context
+      context,
+      projectSettings
     );
     if (aiVariant) {
       return aiVariant;
@@ -1773,22 +1816,24 @@ export async function generateAIVariantWithProviders(
  * Generate all prompt variants including AI-powered one if API key is available
  * Always returns 4 variants: AI (or placeholder) + 3 rule-based
  * v2: Now accepts GOLDEN evaluator for multi-variant selection
+ * Phase 4: ProjectSettings support
  */
 export async function generateAllVariants(
   original: string,
   evaluation: GuidelineEvaluation,
   context?: SessionContext,
   apiKey?: string,
-  goldenEvaluator?: GOLDENEvaluator
+  goldenEvaluator?: GOLDENEvaluator,
+  projectSettings?: ProjectSettings
 ): Promise<RewriteResult[]> {
-  // Start with rule-based variants
-  const variants = generatePromptVariants(original, evaluation, context);
+  // Start with rule-based variants (pass projectSettings)
+  const variants = generatePromptVariants(original, evaluation, context, projectSettings);
 
   // Try AI rewrite if API key is provided
   if (apiKey && apiKey.trim() !== '') {
     try {
-      // v2: Pass GOLDEN evaluator for multi-variant generation
-      const aiVariant = await generateAIRewrite(apiKey, original, evaluation, context, goldenEvaluator);
+      // v2: Pass GOLDEN evaluator for multi-variant generation, Phase 4: pass projectSettings
+      const aiVariant = await generateAIRewrite(apiKey, original, evaluation, context, goldenEvaluator, projectSettings);
       if (aiVariant) {
         // Insert AI variant at the beginning (highest priority)
         variants.unshift(aiVariant);
@@ -1835,13 +1880,15 @@ function createAIPlaceholder(): RewriteResult {
 /**
  * Phase 3.1: Generate only the AI variant asynchronously
  * Called separately from main analysis to avoid blocking initial render
+ * Phase 4: ProjectSettings support
  */
 export async function generateAIVariantOnly(
   original: string,
   evaluation: GuidelineEvaluation,
   context?: SessionContext,
   apiKey?: string,
-  goldenEvaluator?: GOLDENEvaluator
+  goldenEvaluator?: GOLDENEvaluator,
+  projectSettings?: ProjectSettings
 ): Promise<RewriteResult> {
   if (!apiKey || apiKey.trim() === '') {
     return {
@@ -1856,7 +1903,7 @@ export async function generateAIVariantOnly(
   }
 
   try {
-    const aiVariant = await generateAIRewrite(apiKey, original, evaluation, context, goldenEvaluator);
+    const aiVariant = await generateAIRewrite(apiKey, original, evaluation, context, goldenEvaluator, projectSettings);
     if (aiVariant) {
       return aiVariant;
     }
@@ -1868,4 +1915,4 @@ export async function generateAIVariantOnly(
 }
 
 export { GuidelineEvaluation };
-export type { ProviderConfig, ProviderType };
+export type { ProviderConfig, ProviderType, ProjectSettings };

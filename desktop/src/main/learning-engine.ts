@@ -18,6 +18,7 @@ import {
   getMonthlyStats,
   getImprovementAnalysis,
   getStats,
+  getProjectSettings,
   type ProjectSettings,
   type PromptTemplate,
 } from './db/index.js';
@@ -190,12 +191,14 @@ async function loadAnalysisModules(): Promise<boolean> {
 
 /**
  * Convert GuidelineEvaluation to simplified AnalysisResult for UI
+ * Phase 4: Added projectSettings parameter for customConstraints/preferredVariant support
  */
 function convertToAnalysisResult(
   evaluation: GuidelineEvaluation,
   originalText: string,
   classification?: PromptClassification,
-  sessionContext?: SessionContext | null
+  sessionContext?: SessionContext | null,
+  projectSettings?: ProjectSettings | null
 ): AnalysisResult {
   // Convert anti-patterns to issues
   const issues = evaluation.antiPatterns.map((pattern) => ({
@@ -221,8 +224,13 @@ function convertToAnalysisResult(
   const severityOrder = { high: 0, medium: 1, low: 2 };
   issues.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-  // 3가지 변형 생성 (세션 컨텍스트 활용)
-  const promptVariants = generatePromptVariants(originalText, evaluation, sessionContext || undefined);
+  // Phase 4: 프로젝트 설정을 활용한 변형 생성 (customConstraints 적용)
+  const promptVariants = generatePromptVariants(
+    originalText,
+    evaluation,
+    sessionContext || undefined,
+    projectSettings || undefined
+  );
 
   // AI placeholder 추가 (AI가 활성화되지 않았을 때 설정 안내 표시)
   // analyzePrompt에서 AI가 성공하면 이 placeholder가 교체됨
@@ -335,6 +343,19 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
       sessionContext = await getActiveWindowSessionContext();
     }
 
+    // Phase 4: Load project settings if we have a project path
+    let projectSettings: ProjectSettings | null = null;
+    if (sessionContext?.projectPath) {
+      console.log('[LearningEngine] Loading project settings for:', sessionContext.projectPath);
+      projectSettings = getProjectSettings(sessionContext.projectPath);
+      if (projectSettings) {
+        console.log('[LearningEngine] Project settings loaded:', {
+          preferredVariant: projectSettings.preferredVariant,
+          hasCustomConstraints: !!projectSettings.customConstraints,
+        });
+      }
+    }
+
     // Run evaluation
     console.log('[LearningEngine] Running GOLDEN evaluation...');
     const evaluation = evaluatePromptAgainstGuidelines!(text);
@@ -349,7 +370,7 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
     }
 
     console.log('[LearningEngine] Converting to analysis result...');
-    const result = convertToAnalysisResult(evaluation, text, classification, sessionContext);
+    const result = convertToAnalysisResult(evaluation, text, classification, sessionContext, projectSettings);
     console.log('[LearningEngine] Conversion complete');
 
     // Phase 3.1: Async AI loading - Add loading placeholder instead of blocking
@@ -589,6 +610,12 @@ export function registerLearningEngineHandlers(): void {
         sessionContext = await getActiveWindowSessionContext();
       }
 
+      // Phase 4: Load project settings for AI variant
+      let projectSettings: ProjectSettings | null = null;
+      if (sessionContext?.projectPath) {
+        projectSettings = getProjectSettings(sessionContext.projectPath);
+      }
+
       // Run evaluation for AI variant generation
       const evaluation = evaluatePromptAgainstGuidelines!(text);
 
@@ -606,13 +633,14 @@ export function registerLearningEngineHandlers(): void {
         };
       };
 
-      // Generate AI variant
+      // Generate AI variant (pass projectSettings for customConstraints)
       const aiVariant = await generateAIVariantOnly(
         text,
         evaluation,
         sessionContext || undefined,
         aiSettings.apiKey,
-        goldenEvaluator
+        goldenEvaluator,
+        projectSettings || undefined
       );
 
       console.log('[LearningEngine] AI variant generated:', aiVariant.isAiGenerated ? 'success' : 'fallback');
@@ -673,15 +701,22 @@ export function registerLearningEngineHandlers(): void {
         sessionContext = await getActiveWindowSessionContext();
       }
 
+      // Phase 4: Load project settings for AI variant
+      let projectSettings: ProjectSettings | null = null;
+      if (sessionContext?.projectPath) {
+        projectSettings = getProjectSettings(sessionContext.projectPath);
+      }
+
       // Run evaluation for AI variant generation
       const evaluation = evaluatePromptAgainstGuidelines!(text);
 
-      // Generate AI variant using multi-provider system
+      // Generate AI variant using multi-provider system (pass projectSettings)
       const aiVariant = await generateAIVariantWithProviders(
         text,
         evaluation,
         sessionContext || undefined,
-        providerConfigs
+        providerConfigs,
+        projectSettings || undefined
       );
 
       console.log('[LearningEngine] Multi-provider AI variant generated:',
