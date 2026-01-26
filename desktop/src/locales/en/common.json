@@ -40,16 +40,6 @@
     "tips": "Personal Tips",
     "help": "Feature Guide"
   },
-  "quickAction": {
-    "pasteAfterCopy": "Paste after copy",
-    "variant": "variant",
-    "fullView": "Full analysis view",
-    "applyFailed": "Apply failed",
-    "shortcuts": {
-      "apply": "Apply",
-      "close": "Close"
-    }
-  },
   "notifications": {
     "copiedToClipboard": "Copied to clipboard - Paste with Cmd+V",
     "promptApplied": "Prompt applied"

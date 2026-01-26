@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { X, Minus, BarChart3, Lightbulb, ArrowLeft, Settings as SettingsIcon, Edit3, Send, Plus, HelpCircle, ArrowRight, Play, Copy, Check, Maximize2, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { X, Minus, BarChart3, Lightbulb, ArrowLeft, Settings as SettingsIcon, Edit3, Send, Plus, HelpCircle, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import GoldenRadar from './components/GoldenRadar';
 import ProgressTracker from './components/ProgressTracker';
 import PersonalTips from './components/PersonalTips';
@@ -83,11 +83,7 @@ function App() {
   const [shortcutError, setShortcutError] = useState<{ shortcut: string; message: string } | null>(null);
   const [isSourceAppBlocked, setIsSourceAppBlocked] = useState(false); // True if source app doesn't support Apply
   const [emptyState, setEmptyState] = useState<EmptyStatePayload | null>(null); // Empty state when no text captured
-  const [quickActionMode, setQuickActionMode] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false); // First launch onboarding
-  const [quickActionCopied, setQuickActionCopied] = useState(false);
-  const [quickActionApplying, setQuickActionApplying] = useState(false);
-  const [quickActionResult, setQuickActionResult] = useState<{ success: boolean; message?: string } | null>(null);
   const [showDetails, setShowDetails] = useState(false); // 세부 분석 접이식 상태
 
   // Project selection handlers
@@ -137,13 +133,6 @@ function App() {
 
     // Load settings on mount
     window.electronAPI.getSettings().then((settings) => {
-      // Quick action mode
-      const isQuickMode = (settings.quickActionMode as boolean) ?? false;
-      setQuickActionMode(isQuickMode);
-      if (isQuickMode) {
-        // Set compact window on load if quick action mode is enabled
-        window.electronAPI.setWindowCompact(true);
-      }
       // First launch onboarding
       const onboardingDismissed = (settings.onboardingDismissed as boolean) ?? false;
       if (!onboardingDismissed) {
@@ -357,61 +346,6 @@ function App() {
     }
   };
 
-  // Get projected grade from score
-  const getGradeFromScore = (score: number): 'A' | 'B' | 'C' | 'D' | 'F' => {
-    if (score >= 90) return 'A';
-    if (score >= 80) return 'B';
-    if (score >= 70) return 'C';
-    if (score >= 60) return 'D';
-    return 'F';
-  };
-
-  // Find best variant for Quick Action Mode
-  const bestVariant = useMemo(() => {
-    if (!analysis || !analysis.promptVariants || analysis.promptVariants.length === 0) {
-      return null;
-    }
-    // Find variant with highest confidence (projected score)
-    return analysis.promptVariants.reduce((best, current) => {
-      // Skip loading or needs-setup variants
-      if (current.isLoading || current.needsSetup) return best;
-      if (!best || current.confidence > best.confidence) return current;
-      return best;
-    }, null as typeof analysis.promptVariants[0] | null);
-  }, [analysis]);
-
-  // Quick Action handlers
-  const handleQuickApply = useCallback(async () => {
-    if (!bestVariant) return;
-    setQuickActionApplying(true);
-    setQuickActionResult(null);
-    try {
-      const result = await window.electronAPI.applyImprovedPrompt(bestVariant.rewrittenPrompt);
-      setQuickActionResult(result);
-      if (result.success) {
-        // Auto-hide after successful apply
-        setTimeout(() => window.electronAPI.hideWindow(), 1500);
-      }
-    } catch {
-      setQuickActionResult({ success: false, message: t('failed') });
-    } finally {
-      setQuickActionApplying(false);
-    }
-  }, [bestVariant, t]);
-
-  const handleQuickCopy = useCallback(async () => {
-    if (!bestVariant) return;
-    await window.electronAPI.setClipboard(bestVariant.rewrittenPrompt);
-    setQuickActionCopied(true);
-    setTimeout(() => setQuickActionCopied(false), 2000);
-  }, [bestVariant]);
-
-  const exitQuickActionMode = useCallback(() => {
-    setQuickActionMode(false);
-    // Persist to settings and resize window
-    window.electronAPI.setSetting('quickActionMode', false);
-    window.electronAPI.setWindowCompact(false);
-  }, []);
 
   // Dismiss onboarding and remember
   const dismissOnboarding = useCallback(() => {
@@ -419,24 +353,17 @@ function App() {
     window.electronAPI.setSetting('onboardingDismissed', true);
   }, []);
 
-  // Keyboard shortcuts: Escape to hide, Cmd+Enter to apply in quick action mode
+  // Keyboard shortcuts: Escape to hide
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         window.electronAPI.hideWindow();
-        return;
-      }
-
-      // Cmd+Enter in quick action mode → apply best variant
-      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && quickActionMode && bestVariant && !isSourceAppBlocked) {
-        e.preventDefault();
-        handleQuickApply();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [quickActionMode, bestVariant, isSourceAppBlocked, handleQuickApply]);
+  }, []);
 
   return (
     <div className="window-container h-full flex flex-col text-gray-200">
@@ -539,144 +466,6 @@ function App() {
           </div>
         ) : analysis ? (
           <>
-            {quickActionMode ? (
-              /* Quick Action Mode: Enhanced Minimal UI */
-              <div className="space-y-4">
-                {/* Grade & Score Comparison */}
-                <div className="flex items-center justify-center gap-4">
-                  {/* Current */}
-                  <div className="text-center">
-                    <div className={`text-3xl font-bold ${getGradeColor(analysis.grade)}`}>
-                      {analysis.grade}
-                    </div>
-                    <div className="text-sm text-gray-500">{analysis.overallScore}%</div>
-                  </div>
-
-                  {/* Arrow */}
-                  {bestVariant && (
-                    <>
-                      <ArrowRight size={24} className="text-gray-600" />
-
-                      {/* Projected */}
-                      <div className="text-center">
-                        <div className={`text-3xl font-bold ${getGradeColor(getGradeFromScore(bestVariant.confidence))}`}>
-                          {getGradeFromScore(bestVariant.confidence)}
-                        </div>
-                        <div className="text-sm text-accent-success">
-                          {Math.round(bestVariant.confidence)}%
-                          <span className="text-xs ml-1 text-accent-success/70">
-                            (+{Math.round(bestVariant.confidence - analysis.overallScore)})
-                          </span>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Variant Label */}
-                {bestVariant && (
-                  <div className="text-center text-xs text-gray-500">
-                    {bestVariant.variantLabel} {t('quickAction.variant')}
-                  </div>
-                )}
-
-                {/* Result Message */}
-                {quickActionResult && (
-                  <div
-                    className={`flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-sm ${
-                      quickActionResult.success
-                        ? 'bg-accent-success/20 text-accent-success'
-                        : 'bg-amber-500/20 text-amber-400'
-                    }`}
-                  >
-                    {quickActionResult.success ? <Check size={16} /> : null}
-                    <span>{quickActionResult.message || (quickActionResult.success ? t('applied') : t('failed'))}</span>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex items-center gap-2">
-                  {/* Apply Button or Blocked Notice */}
-                  {isSourceAppBlocked && bestVariant && (
-                    <div
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm text-gray-500 bg-dark-hover/50 cursor-not-allowed"
-                      title={t('quickAction.pasteAfterCopy')}
-                    >
-                      <Play size={16} className="opacity-50" />
-                      <span className="opacity-70">{t('quickAction.pasteAfterCopy')}</span>
-                    </div>
-                  )}
-                  {!isSourceAppBlocked && bestVariant && (
-                    <button
-                      onClick={handleQuickApply}
-                      disabled={quickActionApplying}
-                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                        quickActionApplying
-                          ? 'bg-accent-primary/50 text-white/70 cursor-wait'
-                          : 'bg-accent-primary hover:bg-accent-primary/90 text-white'
-                      }`}
-                    >
-                      {quickActionApplying ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />
-                          {t('applying')}
-                        </>
-                      ) : (
-                        <>
-                          <Play size={16} />
-                          {t('apply')}
-                        </>
-                      )}
-                    </button>
-                  )}
-
-                  {/* Copy Button */}
-                  {bestVariant && (
-                    <button
-                      onClick={handleQuickCopy}
-                      className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                        quickActionCopied
-                          ? 'bg-accent-success/20 text-accent-success'
-                          : 'bg-dark-hover hover:bg-dark-border text-gray-300'
-                      }`}
-                    >
-                      {quickActionCopied ? (
-                        <>
-                          <Check size={16} />
-                          {t('copied')}
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={16} />
-                          {t('copy')}
-                        </>
-                      )}
-                    </button>
-                  )}
-
-                  {/* Full View Button */}
-                  <button
-                    onClick={exitQuickActionMode}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-dark-hover hover:bg-dark-border text-gray-400 transition-colors"
-                    title={t('quickAction.fullView')}
-                  >
-                    <Maximize2 size={16} />
-                  </button>
-                </div>
-
-                {/* Keyboard shortcut hint */}
-                <div className="text-center text-[10px] text-gray-600">
-                  <kbd className="px-1 py-0.5 bg-dark-hover rounded">⌘</kbd>
-                  <kbd className="px-1 py-0.5 bg-dark-hover rounded ml-0.5">Enter</kbd>
-                  <span className="ml-1">{t('quickAction.shortcuts.apply')}</span>
-                  <span className="mx-2">·</span>
-                  <kbd className="px-1 py-0.5 bg-dark-hover rounded">Esc</kbd>
-                  <span className="ml-1">{t('quickAction.shortcuts.close')}</span>
-                </div>
-              </div>
-            ) : (
-              /* Full Analysis Mode - 핵심 가치 중심 레이아웃 */
-              <>
                 {/* Session Context Indicator */}
                 <ContextIndicator
                   context={analysis.sessionContext || (currentProject ? projectToContextInfo(currentProject) : null)}
@@ -788,8 +577,6 @@ function App() {
                     )}
                   </div>
                 )}
-              </>
-            )}
           </>
         ) : (
           <div className="flex flex-col h-full">

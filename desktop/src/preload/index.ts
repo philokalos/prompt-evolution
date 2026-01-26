@@ -57,7 +57,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Window controls
   hideWindow: (): Promise<boolean> => ipcRenderer.invoke('hide-window'),
   minimizeWindow: (): Promise<boolean> => ipcRenderer.invoke('minimize-window'),
-  setWindowCompact: (compact: boolean): Promise<boolean> => ipcRenderer.invoke('set-window-compact', compact),
 
   // Apply improved prompt to source app
   applyImprovedPrompt: (text: string): Promise<{ success: boolean; fallback?: string; message?: string }> =>
@@ -308,7 +307,6 @@ declare global {
       setSetting: (key: string, value: unknown) => Promise<boolean>;
       hideWindow: () => Promise<boolean>;
       minimizeWindow: () => Promise<boolean>;
-      setWindowCompact: (compact: boolean) => Promise<boolean>;
       applyImprovedPrompt: (text: string) => Promise<{ success: boolean; fallback?: string; message?: string }>;
       analyzePrompt: (text: string) => Promise<unknown>;
       getAIVariant: (text: string) => Promise<unknown>;

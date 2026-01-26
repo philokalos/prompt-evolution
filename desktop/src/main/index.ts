@@ -99,8 +99,6 @@ interface AppSettings {
   pollingIntervalMs: number;
   claudeApiKey: string;
   useAiRewrite: boolean;
-  // Quick Action mode settings
-  quickActionMode: boolean; // Enable minimal floating panel mode
   // Innovative activation methods
   enableClipboardWatch: boolean; // Auto-detect prompts in clipboard
   enableAIContextPopup: boolean; // Show popup when AI apps are active
@@ -138,7 +136,6 @@ const store = new Store<AppSettings>({
     pollingIntervalMs: 2000,
     claudeApiKey: '',
     useAiRewrite: false,
-    quickActionMode: false, // Default to full analysis view
     // Innovative activation - disabled by default for privacy
     enableClipboardWatch: false,
     enableAIContextPopup: false,
@@ -1179,28 +1176,6 @@ ipcMain.handle('apply-improved-prompt', async (_event, text: string): Promise<Ap
 
 ipcMain.handle('minimize-window', () => {
   mainWindow?.minimize();
-  return true;
-});
-
-// IPC Handler: Set window size for quick action mode toggle
-ipcMain.handle('set-window-compact', (_event, compact: boolean) => {
-  if (!mainWindow) return false;
-
-  if (compact) {
-    // Quick action mode: small compact window
-    mainWindow.setSize(360, 200);
-    mainWindow.setMinimumSize(300, 150);
-  } else {
-    // Full mode: restore to normal size
-    const bounds = store.get('windowBounds') as { width: number; height: number };
-    mainWindow.setSize(bounds.width, bounds.height);
-    mainWindow.setMinimumSize(360, 400);
-  }
-
-  // Re-position near cursor after resize
-  positionWindowNearCursor();
-
-  console.log(`[Main] Window ${compact ? 'compact' : 'full'} mode`);
   return true;
 });
 

@@ -40,16 +40,6 @@
     "tips": "맞춤 팁",
     "help": "기능 안내"
   },
-  "quickAction": {
-    "pasteAfterCopy": "복사 후 붙여넣기",
-    "variant": "변형",
-    "fullView": "전체 분석 보기",
-    "applyFailed": "적용 실패",
-    "shortcuts": {
-      "apply": "적용",
-      "close": "닫기"
-    }
-  },
   "notifications": {
     "copiedToClipboard": "클립보드에 복사됨 - Cmd+V로 붙여넣기 해주세요",
     "promptApplied": "프롬프트가 적용되었습니다"

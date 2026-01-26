@@ -73,12 +73,6 @@
       "title": "Projects & Templates",
       "projectTab": "Project Settings",
       "templatesTab": "Template Manager"
-    },
-    "advanced": {
-      "title": "Advanced",
-      "quickAction": "Quick Action Mode",
-      "quickActionDesc": "Show mini panel instead of full analysis",
-      "experimental": "Experimental"
     }
   },
   "shortcut": {

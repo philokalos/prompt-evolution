@@ -24,8 +24,6 @@ interface AppSettings {
   pollingIntervalMs: number;
   claudeApiKey: string;
   useAiRewrite: boolean;
-  // Quick Action mode settings
-  quickActionMode: boolean;
   // Innovative activation methods
   enableClipboardWatch: boolean;
   enableAIContextPopup: boolean;
@@ -71,7 +69,6 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
   const [showSmartFeatures, setShowSmartFeatures] = useState(true);
   const [showGhostBar, setShowGhostBar] = useState(false);
   const [showProjectTemplates, setShowProjectTemplates] = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Phase 4: Project & Templates tab state
   const [projectTemplatesTab, setProjectTemplatesTab] = useState<'project' | 'templates'>('project');
@@ -126,12 +123,6 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
       // Show saved feedback
       setShowSavedFeedback(true);
       setTimeout(() => setShowSavedFeedback(false), 2000);
-
-      // Handle special cases
-      if (key === 'quickActionMode') {
-        // Resize window when quick action mode is toggled
-        window.electronAPI.setWindowCompact(value as boolean);
-      }
     } catch (error) {
       console.error('Failed to save setting:', error);
     }
@@ -603,31 +594,6 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                 )}
               </Section>
 
-              {/* 🔧 Advanced Section */}
-              <Section
-                title={t('sections.advanced.title')}
-                icon="🔧"
-                isOpen={showAdvanced}
-                onToggle={() => setShowAdvanced(!showAdvanced)}
-              >
-                {/* Quick Action Mode */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <Zap size={14} className="text-gray-400" />
-                        <span className="text-sm">{t('sections.advanced.quickAction')}</span>
-                        <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 text-[10px] rounded uppercase font-medium">{t('sections.advanced.experimental')}</span>
-                      </div>
-                      <span className="text-xs text-gray-500">{t('sections.advanced.quickActionDesc')}</span>
-                    </div>
-                    <ToggleSwitch
-                      checked={settings.quickActionMode ?? false}
-                      onChange={(v) => updateSetting('quickActionMode', v)}
-                    />
-                  </div>
-                </div>
-              </Section>
 
               {/* ℹ️ App Info */}
               <div className="pt-4 border-t border-dark-border">
@@ -667,7 +633,7 @@ function Section({
   children,
 }: {
   title: string;
-  icon: string;
+  icon: React.ReactNode;
   isOpen: boolean;
   onToggle: () => void;
   children: React.ReactNode;

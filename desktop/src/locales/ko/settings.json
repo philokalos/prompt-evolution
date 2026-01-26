@@ -73,12 +73,6 @@
       "title": "프로젝트 & 템플릿",
       "projectTab": "프로젝트 설정",
       "templatesTab": "템플릿 관리"
-    },
-    "advanced": {
-      "title": "고급 설정",
-      "quickAction": "빠른 작업 모드",
-      "quickActionDesc": "분석 결과 대신 미니 패널만 표시",
-      "experimental": "실험적"
     }
   },
   "shortcut": {
