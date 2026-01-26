@@ -33,6 +33,34 @@ export type TaskCategory =
   | 'unknown';
 
 /**
+ * Secondary classification for multi-label support
+ */
+export interface SecondaryClassification {
+  category: TaskCategory;
+  confidence: number;
+}
+
+/**
+ * Multi-label classification result
+ */
+export interface MultiLabelClassification {
+  primary: { category: TaskCategory; confidence: number };
+  secondary: SecondaryClassification[];
+  isMultiIntent: boolean; // true if top-2 confidence gap < 0.15
+}
+
+/**
+ * Intent score details for debugging/analysis
+ */
+export interface IntentScoreDetails {
+  base: number; // Base keyword matching score
+  position: number; // Position weighting bonus (front 25% = x1.5)
+  negation: number; // Negation context penalty
+  cooccurrence: number; // Keyword combination bonus
+  total: number; // Final score
+}
+
+/**
  * Classification result
  */
 export interface ClassificationResult {
@@ -42,6 +70,10 @@ export interface ClassificationResult {
   categoryConfidence: number;
   matchedKeywords: string[];
   features: PromptFeatures;
+  // Multi-label classification (optional for backward compatibility)
+  multiLabel?: MultiLabelClassification;
+  // Score details for debugging (optional)
+  intentScoreDetails?: Record<string, IntentScoreDetails>;
 }
 
 /**

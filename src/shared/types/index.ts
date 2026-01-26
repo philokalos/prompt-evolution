@@ -10,6 +10,9 @@ export type {
   ClassificationResult,
   PromptClassification,
   PromptFeatures,
+  MultiLabelClassification,
+  SecondaryClassification,
+  IntentScoreDetails,
 } from './classification.js';
 
 // GOLDEN framework types

@@ -53,3 +53,14 @@ export {
   countSignalMatches as countPatternMatches,
   getSignalKeywords as getKeywords,
 } from './signal-patterns.js';
+
+// Export disambiguation rules
+export {
+  DISAMBIGUATION_RULES,
+  COOCCURRENCE_PATTERNS,
+  NEGATION_PATTERNS,
+  applyDisambiguationRules,
+  applyCooccurrenceBonus,
+  applyNegationPenalty,
+  type DisambiguationRule,
+} from './disambiguation-rules.js';

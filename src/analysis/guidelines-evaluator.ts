@@ -6,9 +6,20 @@
  * - Anthropic Claude 4 Best Practices
  * - GOLDEN Checklist (Goal, Output, Limits, Data, Evaluation, Next)
  * - BIV Loop (Baseline → Improve → Verify)
+ *
+ * v2 improvements:
+ * - Length bias removed (quality density instead)
+ * - Category-aware data scoring
+ * - Consistency validation between dimensions
  */
 
-import { extractFeatures } from './classifier.js';
+import { extractFeatures, classifyTaskCategory } from './classifier.js';
+import {
+  calculateQualityDensity,
+  validateGOLDENConsistency,
+  getCategoryDataWeights,
+  isCodeRelatedTask,
+} from './golden-consistency.js';
 
 // Import and re-export shared types
 import type {
@@ -335,11 +346,20 @@ export function evaluatePromptAgainstGuidelines(text: string): GuidelineEvaluati
 
 /**
  * GOLDEN 점수 계산
+ *
+ * v2 improvements:
  * - 더 포괄적인 한글 패턴 매칭 (존칭, 비존칭 모두 지원)
- * - 개선된 프롬프트가 더 높은 점수를 받도록 설계
+ * - 길이 보너스 → 품질 밀도로 대체 (length bias 제거)
+ * - 카테고리 인식 Data 점수 계산
+ * - 일관성 검증으로 논리적 모순 감지
  */
-export function calculateGOLDENScore(text: string): GOLDENScore {
+export function calculateGOLDENScore(text: string, category?: string): GOLDENScore {
   const features = extractFeatures(text);
+
+  // Auto-detect category if not provided
+  const taskCategory = category || classifyTaskCategory(text).category;
+  const isCodeTask = isCodeRelatedTask(text, taskCategory);
+  const dataWeights = getCategoryDataWeights(taskCategory);
 
   // G - Goal (목표 명확성)
   // - 목표/의도 표현
@@ -369,13 +389,33 @@ export function calculateGOLDENScore(text: string): GOLDENScore {
   // 범위 제약
   if (/최대|최소|이상|이하|범위|사이|까지|부터/i.test(text)) limits += 0.3;
 
-  // D - Data (데이터/컨텍스트)
+  // D - Data (데이터/컨텍스트) - v2: Category-aware scoring
   let data = 0;
-  if (features.hasCodeBlock) data += 0.25;
-  if (features.hasFilePath) data += 0.25;
-  if (/현재|상황|background|context|환경|프로젝트|시스템|아키텍처/i.test(text)) data += 0.25;
+
+  // Code block scoring (weight depends on task type)
+  if (features.hasCodeBlock) {
+    data += dataWeights.codeBlockWeight;
+  }
+
+  // File path (important for code tasks)
+  if (features.hasFilePath) {
+    data += dataWeights.filePathWeight;
+  }
+
+  // Context explanation (more important for non-code tasks)
+  if (/현재|상황|background|context|환경|프로젝트|시스템|아키텍처/i.test(text)) {
+    data += dataWeights.contextExplanationWeight;
+  }
+
+  // Reasoning/explanation (bonus for non-code tasks)
+  if (!isCodeTask && /왜냐하면|because|이유는|reason|배경|설명하자면/i.test(text)) {
+    data += 0.20;
+  }
+
   // 기술 스택 언급
-  if (/사용|using|스택|stack|라이브러리|library|프레임워크|framework/i.test(text)) data += 0.25;
+  if (/사용|using|스택|stack|라이브러리|library|프레임워크|framework/i.test(text)) {
+    data += 0.15;
+  }
 
   // E - Evaluation (평가 기준)
   let evaluation = 0;
@@ -391,22 +431,30 @@ export function calculateGOLDENScore(text: string): GOLDENScore {
   // 추가 작업 힌트
   if (/추가로|또한|그리고|추후|향후|확장/i.test(text)) next += 0.3;
 
-  // 길이 보너스 (충분히 상세한 프롬프트)
-  const wordCount = text.split(/\s+/).length;
-  const lengthBonus = Math.min(wordCount / 50, 0.15); // 50단어 이상이면 최대 0.15 보너스
+  // v2: Quality density instead of length bonus
+  // This rewards meaningful content per word, not just word count
+  const qualityDensityBonus = calculateQualityDensity(text);
 
-  const rawTotal = (goal + output + limits + data + evaluation + next) / 6;
-  const total = Math.min(rawTotal + lengthBonus, 1);
-
-  return {
+  // Cap individual dimensions
+  const rawScores: GOLDENScore = {
     goal: Math.min(goal, 1),
     output: Math.min(output, 1),
     limits: Math.min(limits, 1),
     data: Math.min(data, 1),
     evaluation: Math.min(evaluation, 1),
     next: Math.min(next, 1),
-    total: Math.min(total, 1),
+    total: 0, // Will be calculated below
   };
+
+  // Calculate raw total
+  const rawTotal = (rawScores.goal + rawScores.output + rawScores.limits +
+    rawScores.data + rawScores.evaluation + rawScores.next) / 6;
+  rawScores.total = Math.min(rawTotal + qualityDensityBonus, 1);
+
+  // v2: Apply consistency validation
+  const { adjustedScores } = validateGOLDENConsistency(rawScores);
+
+  return adjustedScores;
 }
 
 /**

@@ -1,5 +1,5 @@
 /**
- * Prompt Rewriter Engine v2
+ * Prompt Rewriter Engine v3
  * 원본 프롬프트를 GOLDEN 가이드라인에 맞게 실제로 리라이트
  * 3가지 변형 제공: 보수적, 균형, 적극적
  * AI 리라이트 옵션: Claude API를 사용한 지능형 개선
@@ -10,6 +10,11 @@
  * - 세션 컨텍스트를 실제 값으로 활용
  * - 원본에서 코드/에러 추출하여 구조화
  * - 항상 의미 있는 개선 적용
+ *
+ * v3 개선사항:
+ * - 증거 기반 신뢰도 계산 (무조건 높은 신뢰도 제거)
+ * - Anti-pattern 자동 수정 통합
+ * - 분류 품질에 따른 신뢰도 조정
  */
 
 import type { SessionContext } from './session-context.js';
@@ -21,6 +26,98 @@ import {
   rewriteWithFallback,
   hasAnyProvider,
 } from './providers/index.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 증거 기반 신뢰도 계산 (v3)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Confidence calculation factors
+ */
+interface ConfidenceFactors {
+  classificationConfidence: number; // 0-1, from classifier
+  dimensionsImproved: number; // 0-6, count of GOLDEN dimensions improved
+  antiPatternFree: number; // 0-1, 1 if no anti-patterns, lower if patterns remain
+  templateMatch: number; // 0-1, how well template fits category
+  contextRichness: number; // 0-1, how much context was available
+}
+
+/**
+ * Calculate calibrated confidence based on actual evidence
+ * Replaces the old unconditional high confidence (0.90-0.98)
+ */
+function calculateCalibratedConfidence(factors: ConfidenceFactors): number {
+  let confidence = 0;
+
+  // Classification quality (30% weight)
+  confidence += factors.classificationConfidence * 0.30;
+
+  // GOLDEN improvement extent (25% weight)
+  confidence += (factors.dimensionsImproved / 6) * 0.25;
+
+  // Anti-pattern status (15% weight)
+  confidence += factors.antiPatternFree * 0.15;
+
+  // Template applicability (15% weight)
+  confidence += factors.templateMatch * 0.15;
+
+  // Context availability (15% weight)
+  confidence += factors.contextRichness * 0.15;
+
+  // Clamp to reasonable range
+  return Math.max(0.30, Math.min(0.95, confidence));
+}
+
+/**
+ * Count how many GOLDEN dimensions will be improved
+ */
+function countImprovedDimensions(evaluation: GuidelineEvaluation): number {
+  const dimensions = ['goal', 'output', 'limits', 'data', 'evaluation', 'next'] as const;
+  let improved = 0;
+
+  for (const dim of dimensions) {
+    // If dimension score is below 0.5, rewriting will likely improve it
+    if (evaluation.goldenScore[dim] < 0.5) {
+      improved++;
+    }
+  }
+
+  return improved;
+}
+
+/**
+ * Calculate anti-pattern free score
+ */
+function calculateAntiPatternFreeScore(antiPatterns: Array<{ severity: string }>): number {
+  if (antiPatterns.length === 0) return 1.0;
+
+  // High severity patterns reduce score more
+  let penalty = 0;
+  for (const pattern of antiPatterns) {
+    if (pattern.severity === 'high') penalty += 0.3;
+    else if (pattern.severity === 'medium') penalty += 0.15;
+    else penalty += 0.05;
+  }
+
+  return Math.max(0, 1 - penalty);
+}
+
+/**
+ * Calculate context richness score
+ */
+function calculateContextRichness(context?: SessionContext): number {
+  if (!context) return 0.2;
+
+  let richness = 0.3; // Base for having any context
+
+  if (context.techStack.length > 0) richness += 0.2;
+  if (context.currentTask && context.currentTask !== '작업 진행 중') richness += 0.15;
+  if (context.recentFiles.length > 0) richness += 0.15;
+  if (context.lastExchange) richness += 0.1;
+  if (context.gitBranch) richness += 0.1;
+
+  return Math.min(1, richness);
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 헬퍼 함수: 원본 분석 및 컨텍스트 추출
@@ -247,6 +344,13 @@ interface GuidelineEvaluation {
     suggestion: string;
   }>;
   goldenScore: GOLDENScore;
+  antiPatterns?: Array<{
+    pattern: string;
+    severity: 'high' | 'medium' | 'low';
+    description: string;
+    example?: string;
+    fix: string;
+  }>;
   recommendations: string[];
   grade: 'A' | 'B' | 'C' | 'D' | 'F';
 }
@@ -1019,14 +1123,21 @@ function generateCOSPRewrite(
     keyChanges.push(`${weakNames.join('/')} 보강`);
   }
 
-  // 신뢰도 계산: 템플릿 사용 + 컨텍스트 유무 기반
-  let confidence = template ? 0.92 : 0.90;
-  if (context) {
-    confidence += 0.03;
-    if (context.techStack.length > 0) confidence += 0.02;
-    if (context.currentTask && context.currentTask !== '작업 진행 중') confidence += 0.01;
-  }
-  confidence = Math.min(confidence, 0.98);
+  // v3: 증거 기반 신뢰도 계산 (무조건 높은 신뢰도 대신)
+  const confidenceFactors: ConfidenceFactors = {
+    // Classification confidence (use category confidence as proxy)
+    classificationConfidence: 0.7, // Default, could be passed from classifier
+    // Count dimensions that will be improved
+    dimensionsImproved: countImprovedDimensions(evaluation),
+    // Anti-pattern free score
+    antiPatternFree: calculateAntiPatternFreeScore(evaluation.antiPatterns || []),
+    // Template match score
+    templateMatch: template ? 0.85 : 0.6,
+    // Context richness
+    contextRichness: calculateContextRichness(context),
+  };
+
+  const confidence = calculateCalibratedConfidence(confidenceFactors);
 
   return {
     rewrittenPrompt,

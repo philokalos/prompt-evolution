@@ -1,11 +1,21 @@
 /**
  * Prompt Classifier
  * Rule-based classification of user prompts by intent and task category
+ *
+ * v2 improvements:
+ * - Context-aware scoring with position weighting
+ * - Negation pattern detection
+ * - Keyword co-occurrence bonuses
+ * - Multi-label category support
+ * - Disambiguation rules for keyword conflicts
  */
 
 import {
   INTENT_PATTERNS,
   CATEGORY_PATTERNS,
+  applyDisambiguationRules,
+  applyCooccurrenceBonus,
+  applyNegationPenalty,
 } from './patterns/index.js';
 
 // Import and re-export shared types
@@ -15,6 +25,8 @@ import type {
   ClassificationResult,
   PromptClassification,
   PromptFeatures,
+  MultiLabelClassification,
+  IntentScoreDetails,
 } from '../shared/types/index.js';
 
 export type {
@@ -23,6 +35,8 @@ export type {
   ClassificationResult,
   PromptClassification,
   PromptFeatures,
+  MultiLabelClassification,
+  IntentScoreDetails,
 };
 
 /**
@@ -73,63 +87,118 @@ export function extractFeatures(text: string): PromptFeatures {
 }
 
 /**
- * Classify prompt intent
+ * Calculate position weight for a keyword match
+ * Keywords in the first 25% of text get 1.5x weight
+ */
+function getPositionWeight(text: string, keyword: string): number {
+  const lowerText = text.toLowerCase();
+  const lowerKeyword = keyword.toLowerCase();
+  const position = lowerText.indexOf(lowerKeyword);
+
+  if (position === -1) return 1.0;
+
+  const textLength = text.length;
+  const threshold = textLength * 0.25;
+
+  // Keywords in first 25% get 1.5x weight
+  return position < threshold ? 1.5 : 1.0;
+}
+
+/**
+ * Classify prompt intent with context-aware scoring
+ *
+ * v2 improvements:
+ * - Position weighting (front 25% gets x1.5)
+ * - Negation pattern detection
+ * - Better confidence calculation
  */
 export function classifyIntent(text: string): {
   intent: PromptIntent;
   confidence: number;
   matchedKeywords: string[];
+  scoreDetails?: Record<string, IntentScoreDetails>;
 } {
   const lowerText = text.toLowerCase();
   const features = extractFeatures(text);
   const allMatched: string[] = [];
 
-  // Score each intent (must match all keys in INTENT_PATTERNS)
-  const scores: Record<string, number> = {
-    command: 0,
-    question: 0,
-    instruction: 0,
-    feedback: 0,
-    context: 0,
-    clarification: 0,
-  };
+  // Score each intent with detailed breakdown
+  const scoreDetails: Record<string, IntentScoreDetails> = {};
+  const scores: Record<string, number> = {};
 
-  // Check patterns with language-aware matching
-  // Korean: substring matching (agglutinative language, no word boundaries)
-  // English: word boundary matching (avoid partial matches like "then" in "authentication")
+  for (const intent of Object.keys(INTENT_PATTERNS)) {
+    scoreDetails[intent] = { base: 0, position: 0, negation: 0, cooccurrence: 0, total: 0 };
+    scores[intent] = 0;
+  }
+
+  // Check patterns with language-aware matching and position weighting
   for (const intent of Object.keys(INTENT_PATTERNS)) {
     const patterns = INTENT_PATTERNS[intent];
+    let baseScore = 0;
+    let positionBonus = 0;
+
     // Korean keywords: substring matching
     for (const keyword of patterns.ko) {
       if (lowerText.includes(keyword.toLowerCase())) {
-        scores[intent]++;
+        const weight = getPositionWeight(text, keyword);
+        baseScore += 1;
+        positionBonus += weight - 1; // Only count the bonus portion
         allMatched.push(keyword);
       }
     }
+
     // English keywords: word boundary matching
     for (const keyword of patterns.en) {
       const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'i');
       if (regex.test(text)) {
-        scores[intent]++;
+        const weight = getPositionWeight(text, keyword);
+        baseScore += 1;
+        positionBonus += weight - 1;
         allMatched.push(keyword);
       }
     }
+
+    scoreDetails[intent].base = baseScore;
+    scoreDetails[intent].position = positionBonus;
+    scores[intent] = baseScore + positionBonus;
+  }
+
+  // Apply negation penalties
+  const adjustedScores = applyNegationPenalty(text, scores);
+
+  // Record negation adjustments
+  for (const intent of Object.keys(scores)) {
+    const negationDelta = adjustedScores[intent] - scores[intent];
+    if (negationDelta !== 0) {
+      scoreDetails[intent].negation = negationDelta;
+    }
+    scores[intent] = adjustedScores[intent];
   }
 
   // Boost question score if has question mark
   if (features.hasQuestionMark) {
     scores.question += 2;
+    scoreDetails.question.cooccurrence += 2;
+  }
+
+  // Calculate final totals
+  for (const intent of Object.keys(scores)) {
+    scoreDetails[intent].total = scores[intent];
   }
 
   // Find highest scoring intent
   let maxIntent: PromptIntent = 'unknown';
   let maxScore = 0;
+  let secondMaxScore = 0;
 
   for (const [intent, score] of Object.entries(scores)) {
     if (score > maxScore) {
+      secondMaxScore = maxScore;
       maxScore = score;
       maxIntent = intent as PromptIntent;
+    } else if (score > secondMaxScore) {
+      secondMaxScore = score;
     }
   }
 
@@ -143,19 +212,30 @@ export function classifyIntent(text: string): {
     maxIntent = 'command';
   }
 
-  // Calculate confidence
+  // Calculate confidence with improved formula
+  // Base confidence from score ratio + gap between top two
   const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
-  const confidence =
-    totalScore > 0 ? Math.min(maxScore / totalScore + 0.2, 1.0) : 0.5;
+  let confidence: number;
+
+  if (totalScore > 0) {
+    const scoreRatio = maxScore / totalScore;
+    const gapBonus = maxScore > 0 ? Math.min((maxScore - secondMaxScore) / maxScore * 0.2, 0.15) : 0;
+    confidence = Math.min(scoreRatio + gapBonus + 0.1, 0.95);
+  } else {
+    confidence = 0.4; // Lower default confidence when no matches
+  }
 
   // If no matches, try to infer from features
   if (maxScore === 0) {
     if (features.hasQuestionMark) {
       maxIntent = 'question';
+      confidence = 0.6; // Moderate confidence for punctuation-based inference
     } else if (features.complexity === 'complex') {
       maxIntent = 'instruction';
+      confidence = 0.45;
     } else {
       maxIntent = 'command';
+      confidence = 0.4;
     }
   }
 
@@ -163,60 +243,117 @@ export function classifyIntent(text: string): {
     intent: maxIntent,
     confidence,
     matchedKeywords: allMatched,
+    scoreDetails,
   };
 }
 
 /**
- * Classify task category
+ * Classify task category with disambiguation rules and multi-label support
+ *
+ * v2 improvements:
+ * - Position-weighted scoring
+ * - Disambiguation rules for keyword conflicts
+ * - Co-occurrence bonuses
+ * - Multi-label classification support
  */
 export function classifyTaskCategory(text: string): {
   category: TaskCategory;
   confidence: number;
+  multiLabel?: MultiLabelClassification;
 } {
   const lowerText = text.toLowerCase();
+  const matchedKeywords: string[] = [];
 
+  // Initial scores with position weighting
   const scores: Record<string, number> = {};
 
   for (const category of Object.keys(CATEGORY_PATTERNS)) {
     scores[category] = 0;
     const patterns = CATEGORY_PATTERNS[category];
-    // Korean keywords: substring matching
+
+    // Korean keywords: substring matching with position weighting
     for (const keyword of patterns.ko) {
       if (lowerText.includes(keyword.toLowerCase())) {
-        scores[category]++;
+        const weight = getPositionWeight(text, keyword);
+        scores[category] += weight;
+        matchedKeywords.push(keyword);
       }
     }
-    // English keywords: word boundary matching
+
+    // English keywords: word boundary matching with position weighting
     for (const keyword of patterns.en) {
       const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'i');
       if (regex.test(text)) {
-        scores[category]++;
+        const weight = getPositionWeight(text, keyword);
+        scores[category] += weight;
+        matchedKeywords.push(keyword);
       }
     }
   }
 
+  // Apply disambiguation rules for conflicting keywords
+  const disambiguatedScores = applyDisambiguationRules(text, matchedKeywords, scores);
+
+  // Apply co-occurrence bonuses
+  const finalScores = applyCooccurrenceBonus(text, disambiguatedScores);
+
+  // Sort categories by score to find top candidates
+  const sortedCategories = Object.entries(finalScores)
+    .filter(([_, score]) => score > 0)
+    .sort((a, b) => b[1] - a[1]);
+
+  // Determine primary category
   let maxCategory: TaskCategory = 'general';
   let maxScore = 0;
+  let secondMaxScore = 0;
 
-  for (const [category, score] of Object.entries(scores)) {
-    if (score > maxScore) {
-      maxScore = score;
-      maxCategory = category as TaskCategory;
+  if (sortedCategories.length > 0) {
+    maxCategory = sortedCategories[0][0] as TaskCategory;
+    maxScore = sortedCategories[0][1];
+
+    if (sortedCategories.length > 1) {
+      secondMaxScore = sortedCategories[1][1];
     }
   }
 
-  const totalScore = Object.values(scores).reduce((a, b) => a + b, 0);
-  const confidence =
-    totalScore > 0 ? Math.min(maxScore / totalScore + 0.15, 1.0) : 0.3;
+  // Calculate confidence with improved formula
+  const totalScore = Object.values(finalScores).reduce((a, b) => a + b, 0);
+  let confidence: number;
+
+  if (totalScore > 0) {
+    const scoreRatio = maxScore / totalScore;
+    // Bonus for clear gap between top two categories
+    const gapBonus = maxScore > 0 ? Math.min((maxScore - secondMaxScore) / maxScore * 0.15, 0.1) : 0;
+    confidence = Math.min(scoreRatio + gapBonus + 0.05, 0.95);
+  } else {
+    confidence = 0.25; // Lower default confidence when no matches
+  }
 
   if (maxScore === 0) {
     maxCategory = 'unknown';
+    confidence = 0.2;
   }
+
+  // Build multi-label classification
+  const isMultiIntent = maxScore > 0 && secondMaxScore > 0 &&
+    (maxScore - secondMaxScore) / maxScore < 0.15;
+
+  const multiLabel: MultiLabelClassification = {
+    primary: { category: maxCategory, confidence },
+    secondary: sortedCategories
+      .slice(1, 3) // Top 2 secondary categories
+      .map(([cat, score]) => ({
+        category: cat as TaskCategory,
+        confidence: totalScore > 0 ? Math.min(score / totalScore + 0.05, 0.9) : 0.2,
+      })),
+    isMultiIntent,
+  };
 
   return {
     category: maxCategory,
     confidence,
+    multiLabel,
   };
 }
 
@@ -235,6 +372,9 @@ export function classifyPrompt(text: string): ClassificationResult {
     categoryConfidence: categoryResult.confidence,
     matchedKeywords: intentResult.matchedKeywords,
     features,
+    // v2: Include multi-label classification and score details
+    multiLabel: categoryResult.multiLabel,
+    intentScoreDetails: intentResult.scoreDetails,
   };
 }
 
