@@ -11,6 +11,10 @@ reports/
 # Build artifacts
 *.tsbuildinfo
 coverage/
+src/shared/types/*.js
+src/shared/types/*.d.ts
+desktop/src/shared/*.js
+desktop/src/shared/*.d.ts
 
 # Speckit
 .specify/
