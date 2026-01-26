@@ -17,7 +17,6 @@ export interface ElectronAPI {
   // Window controls
   hideWindow: () => Promise<boolean>;
   minimizeWindow: () => Promise<boolean>;
-  setWindowCompact: (compact: boolean) => Promise<boolean>;
 
   // Apply improved prompt to source app
   applyImprovedPrompt: (text: string) => Promise<{ success: boolean; fallback?: string; message?: string }>;
