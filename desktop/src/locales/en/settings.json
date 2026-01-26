@@ -24,8 +24,8 @@
         "cmd14": "= Copy improvement"
       }
     },
-    "behavior": {
-      "title": "Behavior",
+    "coreFeatures": {
+      "title": "Core Features",
       "window": "Window Behavior",
       "alwaysOnTop": "Always on top",
       "alwaysOnTopDesc": "Keep analysis window above other windows",
@@ -34,45 +34,41 @@
       "conflictWarning": "\"Always on top\" and \"Hide after copy\" are both enabled. Window won't be on top after reopening.",
       "autoShowWindow": "Auto-show on complete",
       "autoShowWindowDesc": "Automatically show window when analysis completes",
-      "notifications": "Notifications",
       "showNotifications": "Show notifications",
       "showNotificationsDesc": "Get macOS notifications for analysis completion, errors, etc."
     },
-    "smart": {
-      "title": "Smart Features",
-      "autoDetect": "Auto Detection",
+    "clipboardFeatures": {
+      "title": "Clipboard Features",
       "clipboardWatch": "Detect on copy",
       "clipboardWatchDesc": "Show • indicator in tray when prompt is copied",
+      "enabledViaGhostBar": "via Ghost Bar",
       "autoAnalyze": "Auto analyze",
       "autoAnalyzeDesc": "Analyze immediately on detection (no tray click needed)",
-      "aiContextPopup": "Show button in AI apps",
-      "aiContextPopupDesc": "Floating button when using Claude, ChatGPT",
-      "aiContextPopupWarning": "⚠️ May interfere while typing - enable only when needed",
+      "ghostBar": {
+        "description": "When you copy a prompt, a small floating bar appears near your cursor. Press Enter or click to instantly apply the improved version. Reduces the workflow from 5 steps to 2.",
+        "enable": "Enable Ghost Bar",
+        "enableDesc": "Show floating bar after copying prompts",
+        "autoPaste": "Auto paste",
+        "autoPasteDesc": "Automatically paste improved text back to source app",
+        "dismissTimeout": "Auto dismiss",
+        "dismissTimeoutDesc": "Time before Ghost Bar automatically hides",
+        "shortcuts": {
+          "title": "Keyboard Shortcuts",
+          "apply": "Apply improvement",
+          "dismiss": "Dismiss"
+        }
+      },
       "autoApply": {
         "title": "Auto Apply",
         "description": "Click [Apply] to automatically replace the original text in the source app (Claude, ChatGPT, etc.).",
         "note": "※ Some apps (VS Code, Cursor) require manual paste after copy"
       }
     },
-    "ghostBar": {
-      "title": "Ghost Bar",
-      "description": "When you copy a prompt, a small floating bar appears near your cursor. Press Enter or click to instantly apply the improved version. Reduces the workflow from 5 steps to 2.",
-      "enable": "Enable Ghost Bar",
-      "enableDesc": "Show floating bar after copying prompts",
-      "autoPaste": "Auto paste",
-      "autoPasteDesc": "Automatically paste improved text back to source app",
-      "dismissTimeout": "Auto dismiss",
-      "dismissTimeoutDesc": "Time before Ghost Bar automatically hides",
-      "shortcuts": {
-        "title": "Keyboard Shortcuts",
-        "apply": "Apply improvement",
-        "dismiss": "Dismiss"
-      }
-    },
-    "projectTemplates": {
-      "title": "Projects & Templates",
-      "projectTab": "Project Settings",
-      "templatesTab": "Template Manager"
+    "advanced": {
+      "title": "Advanced",
+      "aiContextPopup": "Show button in AI apps",
+      "aiContextPopupDesc": "Floating button when using Claude, ChatGPT",
+      "aiContextPopupWarning": "⚠️ May interfere while typing - enable only when needed"
     }
   },
   "shortcut": {
@@ -161,104 +157,5 @@
         "description": "Fast inference, long context support"
       }
     }
-  },
-  "project": {
-    "title": "Project Settings",
-    "noProject": "No project path set",
-    "noProjectHint": "Please open a project in your IDE plugin",
-    "projectPath": "Project path",
-    "projectName": "Project name",
-    "projectNameOptional": "(optional)",
-    "projectNamePlaceholder": "e.g.: PromptLint Desktop",
-    "ideType": "IDE type",
-    "ideTypeOptional": "(optional)",
-    "ideTypePlaceholder": "e.g.: vscode, cursor, webstorm",
-    "ideTypeHint": "Used for IDE-specific template recommendations",
-    "improvementStyle": "Improvement style",
-    "customConstraints": "Custom constraints",
-    "customConstraintsOptional": "(optional)",
-    "customConstraintsPlaceholder": "Enter project-specific constraints\\ne.g.:\\n- No Korean comments\\n- Minimize external libraries\\n- Follow specific design patterns",
-    "customConstraintsHint": "These constraints will be considered when improving prompts",
-    "autoInjectContext": "Auto-inject context",
-    "autoInjectContextDesc": "Automatically include project info when analyzing prompts",
-    "resetSettings": "Reset settings",
-    "resetConfirm": "Reset project settings?",
-    "resetSuccess": "Project settings have been reset.",
-    "loadError": "Failed to load settings.",
-    "saveError": "Failed to save settings.",
-    "resetError": "Failed to reset settings.",
-    "saved": "Settings saved",
-    "saving": "Saving...",
-    "save": "Save",
-    "variant": {
-      "conservative": "Conservative",
-      "conservativeDesc": "Core improvements only (safe)",
-      "balanced": "Balanced",
-      "balancedDesc": "Practical improvements (recommended)",
-      "comprehensive": "Comprehensive",
-      "comprehensiveDesc": "All improvement suggestions",
-      "ai": "AI Optimized",
-      "aiDesc": "LLM-based improvements (slower)"
-    },
-    "infoTips": [
-      "You can set different improvement styles for each project",
-      "Setting IDE type provides optimized template recommendations",
-      "Custom constraints are applied when improving prompts"
-    ]
-  },
-  "templates": {
-    "title": "Template Manager",
-    "count": "({{count}} items)",
-    "newTemplate": "New Template",
-    "editTemplate": "Edit Template",
-    "search": "Search templates...",
-    "filter": "Filter:",
-    "allIde": "All IDE",
-    "allCategory": "All categories",
-    "showInactive": "Show inactive",
-    "clearFilters": "Clear filters",
-    "noTemplates": "No templates to display",
-    "noTemplatesHint": "Add a new template or adjust filters",
-    "inactive": "Inactive",
-    "ide": "IDE:",
-    "category": "Category:",
-    "usage": "Used: {{count}} times",
-    "copy": "Copy",
-    "activate": "Activate",
-    "deactivate": "Deactivate",
-    "edit": "Edit",
-    "delete": "Delete",
-    "templateName": "Template name",
-    "templateNameRequired": "*",
-    "templateNamePlaceholder": "e.g.: VS Code Component Create",
-    "ideTypeOptional": "IDE type (optional)",
-    "categoryOptional": "Category (optional)",
-    "categoryPlaceholder": "e.g.: bug-fix, feature, refactor",
-    "descriptionOptional": "Description (optional)",
-    "descriptionPlaceholder": "Template description",
-    "templateContent": "Template content",
-    "templateContentRequired": "*",
-    "templateContentPlaceholder": "Enter prompt template...",
-    "cancel": "Cancel",
-    "create": "Create",
-    "update": "Update",
-    "saving": "Saving...",
-    "nameContentRequired": "Template name and content are required",
-    "saveFailed": "Failed to save template",
-    "deleteConfirm": "Delete \"{{name}}\" template?",
-    "deleteFailed": "Failed to delete template",
-    "toggleFailed": "Failed to change template status"
-  },
-  "templateSelector": {
-    "title": "Select Template",
-    "ide": "IDE:",
-    "category": "Category:",
-    "recommended": "Recommended Template",
-    "usageCount": "Used {{count}} times",
-    "otherTemplates": "Other Templates ({{count}})",
-    "noTemplates": "No templates available",
-    "noTemplatesHint": "Add templates in Settings",
-    "cancel": "Cancel",
-    "selectHint": "Click a template to apply"
   }
 }

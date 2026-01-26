@@ -198,19 +198,9 @@ ${contextLines.join('\n')}`);
     }
   }
 
-  // 5. Phase 4: 사용자 정의 제약조건 추가
-  if (request.customConstraints) {
-    parts.push(`사용자 정의 제약조건:
-- ${request.customConstraints}`);
-  }
-
-  // 6. 요청
-  const requestText = request.customConstraints
-    ? `위 프롬프트를 GOLDEN 체크리스트와 사용자 정의 제약조건에 맞게 개선해주세요.
-플레이스홀더 없이, 즉시 사용 가능한 형태로 작성해주세요.`
-    : `위 프롬프트를 GOLDEN 체크리스트에 맞게 개선해주세요.
-플레이스홀더 없이, 즉시 사용 가능한 형태로 작성해주세요.`;
-  parts.push(requestText);
+  // 5. 요청
+  parts.push(`위 프롬프트를 GOLDEN 체크리스트에 맞게 개선해주세요.
+플레이스홀더 없이, 즉시 사용 가능한 형태로 작성해주세요.`);
 
   return parts.join('\n\n');
 }

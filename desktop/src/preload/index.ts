@@ -121,26 +121,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPredictedScore: (windowDays?: number): Promise<unknown> =>
     ipcRenderer.invoke('get-predicted-score', windowDays),
 
-  // Phase 4: Project settings and templates
-  getProjectSettings: (projectPath: string): Promise<unknown> =>
-    ipcRenderer.invoke('get-project-settings', projectPath),
-  saveProjectSettings: (settings: unknown): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke('save-project-settings', settings),
-  deleteProjectSettings: (projectPath: string): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke('delete-project-settings', projectPath),
-  getTemplates: (options?: unknown): Promise<unknown[]> =>
-    ipcRenderer.invoke('get-templates', options),
-  getTemplate: (idOrName: number | string): Promise<unknown> =>
-    ipcRenderer.invoke('get-template', idOrName),
-  saveTemplate: (template: unknown): Promise<{ success: boolean; id: number }> =>
-    ipcRenderer.invoke('save-template', template),
-  deleteTemplate: (id: number): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke('delete-template', id),
-  getRecommendedTemplate: (context: unknown): Promise<unknown> =>
-    ipcRenderer.invoke('get-recommended-template', context),
-  incrementTemplateUsage: (templateId: number): Promise<{ success: boolean }> =>
-    ipcRenderer.invoke('increment-template-usage', templateId),
-
   // Renderer ready signal (fixes IPC race condition)
   signalReady: (): Promise<boolean> => ipcRenderer.invoke('renderer-ready'),
 
@@ -337,16 +317,6 @@ declare global {
       getConsecutiveImprovements: (limit?: number) => Promise<unknown[]>;
       getCategoryPerformance: () => Promise<unknown[]>;
       getPredictedScore: (windowDays?: number) => Promise<unknown>;
-      // Phase 4: Project settings and templates
-      getProjectSettings: (projectPath: string) => Promise<unknown>;
-      saveProjectSettings: (settings: unknown) => Promise<{ success: boolean }>;
-      deleteProjectSettings: (projectPath: string) => Promise<{ success: boolean }>;
-      getTemplates: (options?: unknown) => Promise<unknown[]>;
-      getTemplate: (idOrName: number | string) => Promise<unknown>;
-      saveTemplate: (template: unknown) => Promise<{ success: boolean; id: number }>;
-      deleteTemplate: (id: number) => Promise<{ success: boolean }>;
-      getRecommendedTemplate: (context: unknown) => Promise<unknown>;
-      incrementTemplateUsage: (templateId: number) => Promise<{ success: boolean }>;
       signalReady: () => Promise<boolean>;
       onClipboardText: (callback: (payload: ClipboardPayload) => void) => void;
       removeClipboardListener: () => void;

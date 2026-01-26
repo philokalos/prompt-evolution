@@ -24,8 +24,8 @@
         "cmd14": "= 개선안 복사"
       }
     },
-    "behavior": {
-      "title": "동작 설정",
+    "coreFeatures": {
+      "title": "핵심 기능",
       "window": "창 동작",
       "alwaysOnTop": "항상 위에 표시",
       "alwaysOnTopDesc": "다른 창 위에 분석 창이 항상 보이도록 유지",
@@ -34,45 +34,41 @@
       "conflictWarning": "\"항상 위에 표시\"와 \"복사하면 자동으로 닫기\"가 동시에 활성화되어 있습니다. 복사 후 창이 닫히면 다시 열 때까지 다른 앱 위에 표시되지 않습니다.",
       "autoShowWindow": "분석 완료 시 자동으로 열기",
       "autoShowWindowDesc": "분석이 끝나면 창을 자동으로 표시",
-      "notifications": "알림",
       "showNotifications": "알림 받기",
       "showNotificationsDesc": "분석 완료, 오류 등을 macOS 알림으로 안내"
     },
-    "smart": {
-      "title": "똑똑한 기능",
-      "autoDetect": "자동 감지",
+    "clipboardFeatures": {
+      "title": "클립보드 기능",
       "clipboardWatch": "복사할 때 감지",
       "clipboardWatchDesc": "프롬프트 복사 시 트레이에 • 표시",
+      "enabledViaGhostBar": "Ghost Bar로 활성화됨",
       "autoAnalyze": "자동으로 분석",
       "autoAnalyzeDesc": "감지 즉시 자동 분석 (트레이 클릭 불필요)",
-      "aiContextPopup": "AI 앱에서 버튼 보기",
-      "aiContextPopupDesc": "Claude, ChatGPT 사용 시 플로팅 버튼",
-      "aiContextPopupWarning": "⚠️ 타이핑 중 방해될 수 있으니 필요시에만 활성화",
+      "ghostBar": {
+        "description": "프롬프트를 복사하면 커서 근처에 작은 플로팅 바가 나타납니다. Enter 또는 클릭 한 번으로 개선된 프롬프트를 즉시 적용합니다. 기존 5단계 플로우를 2단계로 축소합니다.",
+        "enable": "Ghost Bar 활성화",
+        "enableDesc": "프롬프트 복사 시 플로팅 바 표시",
+        "autoPaste": "자동 붙여넣기",
+        "autoPasteDesc": "개선된 텍스트를 원본 앱에 자동 붙여넣기",
+        "dismissTimeout": "자동 닫힘",
+        "dismissTimeoutDesc": "Ghost Bar가 자동으로 사라지는 시간",
+        "shortcuts": {
+          "title": "키보드 단축키",
+          "apply": "개선 적용",
+          "dismiss": "닫기"
+        }
+      },
       "autoApply": {
         "title": "작업 자동 적용",
         "description": "[적용] 버튼을 누르면 개선된 프롬프트가 원본 앱(Claude, ChatGPT 등)의 입력창에 자동으로 교체됩니다.",
         "note": "※ VS Code, Cursor 등 일부 앱에서는 클립보드 복사 후 수동 붙여넣기 필요"
       }
     },
-    "ghostBar": {
-      "title": "Ghost Bar",
-      "description": "프롬프트를 복사하면 커서 근처에 작은 플로팅 바가 나타납니다. Enter 또는 클릭 한 번으로 개선된 프롬프트를 즉시 적용합니다. 기존 5단계 플로우를 2단계로 축소합니다.",
-      "enable": "Ghost Bar 활성화",
-      "enableDesc": "프롬프트 복사 시 플로팅 바 표시",
-      "autoPaste": "자동 붙여넣기",
-      "autoPasteDesc": "개선된 텍스트를 원본 앱에 자동 붙여넣기",
-      "dismissTimeout": "자동 닫힘",
-      "dismissTimeoutDesc": "Ghost Bar가 자동으로 사라지는 시간",
-      "shortcuts": {
-        "title": "키보드 단축키",
-        "apply": "개선 적용",
-        "dismiss": "닫기"
-      }
-    },
-    "projectTemplates": {
-      "title": "프로젝트 & 템플릿",
-      "projectTab": "프로젝트 설정",
-      "templatesTab": "템플릿 관리"
+    "advanced": {
+      "title": "고급",
+      "aiContextPopup": "AI 앱에서 버튼 보기",
+      "aiContextPopupDesc": "Claude, ChatGPT 사용 시 플로팅 버튼",
+      "aiContextPopupWarning": "⚠️ 타이핑 중 방해될 수 있으니 필요시에만 활성화"
     }
   },
   "shortcut": {
@@ -161,104 +157,5 @@
         "description": "빠른 추론, 긴 컨텍스트 지원"
       }
     }
-  },
-  "project": {
-    "title": "프로젝트 설정",
-    "noProject": "프로젝트 경로가 설정되지 않았습니다",
-    "noProjectHint": "IDE 플러그인에서 프로젝트를 열어주세요",
-    "projectPath": "프로젝트 경로",
-    "projectName": "프로젝트 이름",
-    "projectNameOptional": "(선택)",
-    "projectNamePlaceholder": "예: PromptLint Desktop",
-    "ideType": "IDE 타입",
-    "ideTypeOptional": "(선택)",
-    "ideTypePlaceholder": "예: vscode, cursor, webstorm",
-    "ideTypeHint": "템플릿 추천 시 IDE별 맞춤 제안에 사용됩니다",
-    "improvementStyle": "개선 스타일",
-    "customConstraints": "커스텀 제약조건",
-    "customConstraintsOptional": "(선택)",
-    "customConstraintsPlaceholder": "프로젝트별 특수 제약사항을 입력하세요\\n예:\\n- 한글 주석 사용 금지\\n- 외부 라이브러리 사용 최소화\\n- 특정 디자인 패턴 준수",
-    "customConstraintsHint": "프롬프트 개선 시 이 제약조건을 고려합니다",
-    "autoInjectContext": "자동 컨텍스트 주입",
-    "autoInjectContextDesc": "프롬프트 분석 시 프로젝트 정보를 자동으로 포함합니다",
-    "resetSettings": "설정 초기화",
-    "resetConfirm": "프로젝트 설정을 초기화하시겠습니까?",
-    "resetSuccess": "프로젝트 설정이 초기화되었습니다.",
-    "loadError": "설정을 불러오는데 실패했습니다.",
-    "saveError": "설정 저장에 실패했습니다.",
-    "resetError": "설정 초기화에 실패했습니다.",
-    "saved": "설정이 저장되었습니다",
-    "saving": "저장 중...",
-    "save": "저장",
-    "variant": {
-      "conservative": "보수적",
-      "conservativeDesc": "핵심 개선만 제안 (안전)",
-      "balanced": "균형적",
-      "balancedDesc": "실용적인 개선 (추천)",
-      "comprehensive": "포괄적",
-      "comprehensiveDesc": "모든 개선 제안",
-      "ai": "AI 최적화",
-      "aiDesc": "LLM 기반 개선 (느림)"
-    },
-    "infoTips": [
-      "프로젝트별로 다른 개선 스타일을 설정할 수 있습니다",
-      "IDE 타입 설정 시 최적화된 템플릿을 추천받을 수 있습니다",
-      "커스텀 제약조건은 프롬프트 개선 시 반영됩니다"
-    ]
-  },
-  "templates": {
-    "title": "템플릿 관리",
-    "count": "({{count}}개)",
-    "newTemplate": "새 템플릿",
-    "editTemplate": "템플릿 수정",
-    "search": "템플릿 검색...",
-    "filter": "필터:",
-    "allIde": "모든 IDE",
-    "allCategory": "모든 카테고리",
-    "showInactive": "비활성 표시",
-    "clearFilters": "필터 초기화",
-    "noTemplates": "표시할 템플릿이 없습니다",
-    "noTemplatesHint": "새 템플릿을 추가하거나 필터를 조정해보세요",
-    "inactive": "비활성",
-    "ide": "IDE:",
-    "category": "카테고리:",
-    "usage": "사용: {{count}}회",
-    "copy": "복사",
-    "activate": "활성화",
-    "deactivate": "비활성화",
-    "edit": "수정",
-    "delete": "삭제",
-    "templateName": "템플릿 이름",
-    "templateNameRequired": "*",
-    "templateNamePlaceholder": "예: VS Code 컴포넌트 생성",
-    "ideTypeOptional": "IDE 타입 (선택)",
-    "categoryOptional": "카테고리 (선택)",
-    "categoryPlaceholder": "예: bug-fix, feature, refactor",
-    "descriptionOptional": "설명 (선택)",
-    "descriptionPlaceholder": "템플릿 설명",
-    "templateContent": "템플릿 내용",
-    "templateContentRequired": "*",
-    "templateContentPlaceholder": "프롬프트 템플릿을 입력하세요...",
-    "cancel": "취소",
-    "create": "생성",
-    "update": "수정",
-    "saving": "저장 중...",
-    "nameContentRequired": "템플릿 이름과 내용은 필수입니다",
-    "saveFailed": "템플릿 저장에 실패했습니다",
-    "deleteConfirm": "\"{{name}}\" 템플릿을 삭제하시겠습니까?",
-    "deleteFailed": "템플릿 삭제에 실패했습니다",
-    "toggleFailed": "템플릿 상태 변경에 실패했습니다"
-  },
-  "templateSelector": {
-    "title": "템플릿 선택",
-    "ide": "IDE:",
-    "category": "카테고리:",
-    "recommended": "추천 템플릿",
-    "usageCount": "사용 {{count}}회",
-    "otherTemplates": "다른 템플릿 ({{count}}개)",
-    "noTemplates": "사용 가능한 템플릿이 없습니다",
-    "noTemplatesHint": "설정에서 템플릿을 추가해보세요",
-    "cancel": "취소",
-    "selectHint": "템플릿을 클릭하여 적용하세요"
   }
 }

@@ -99,8 +99,6 @@ export interface RewriteRequest {
     suggestion?: string;
   }>;
   sessionContext?: SessionContext;
-  // Phase 4: Project-specific custom constraints
-  customConstraints?: string;
 }
 
 /**

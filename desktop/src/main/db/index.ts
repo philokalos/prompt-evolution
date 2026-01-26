@@ -28,20 +28,3 @@ export {
   type ConsecutiveImprovement,
   type CategoryPerformance,
 } from './history-repository.js';
-
-// Phase 4: Project settings and templates
-export {
-  getProjectSettings,
-  saveProjectSettings,
-  deleteProjectSettings,
-  getTemplates,
-  getTemplate,
-  saveTemplate,
-  incrementTemplateUsage,
-  deleteTemplate,
-  initializeDefaultTemplates,
-  getRecommendedTemplate,
-  type ProjectSettings,
-  type CustomTemplate,
-  type PromptTemplate,
-} from './project-settings-repository.js';

@@ -18,9 +18,6 @@ import {
   getMonthlyStats,
   getImprovementAnalysis,
   getStats,
-  getProjectSettings,
-  type ProjectSettings,
-  type PromptTemplate,
 } from './db/index.js';
 import {
   generatePromptVariants,
@@ -191,14 +188,12 @@ async function loadAnalysisModules(): Promise<boolean> {
 
 /**
  * Convert GuidelineEvaluation to simplified AnalysisResult for UI
- * Phase 4: Added projectSettings parameter for customConstraints/preferredVariant support
  */
 function convertToAnalysisResult(
   evaluation: GuidelineEvaluation,
   originalText: string,
   classification?: PromptClassification,
-  sessionContext?: SessionContext | null,
-  projectSettings?: ProjectSettings | null
+  sessionContext?: SessionContext | null
 ): AnalysisResult {
   // Convert anti-patterns to issues
   const issues = evaluation.antiPatterns.map((pattern) => ({
@@ -224,12 +219,11 @@ function convertToAnalysisResult(
   const severityOrder = { high: 0, medium: 1, low: 2 };
   issues.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
-  // Phase 4: 프로젝트 설정을 활용한 변형 생성 (customConstraints 적용)
+  // Generate prompt variants
   const promptVariants = generatePromptVariants(
     originalText,
     evaluation,
-    sessionContext || undefined,
-    projectSettings || undefined
+    sessionContext || undefined
   );
 
   // AI placeholder 추가 (AI가 활성화되지 않았을 때 설정 안내 표시)
@@ -343,19 +337,6 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
       sessionContext = await getActiveWindowSessionContext();
     }
 
-    // Phase 4: Load project settings if we have a project path
-    let projectSettings: ProjectSettings | null = null;
-    if (sessionContext?.projectPath) {
-      console.log('[LearningEngine] Loading project settings for:', sessionContext.projectPath);
-      projectSettings = getProjectSettings(sessionContext.projectPath);
-      if (projectSettings) {
-        console.log('[LearningEngine] Project settings loaded:', {
-          preferredVariant: projectSettings.preferredVariant,
-          hasCustomConstraints: !!projectSettings.customConstraints,
-        });
-      }
-    }
-
     // Run evaluation
     console.log('[LearningEngine] Running GOLDEN evaluation...');
     const evaluation = evaluatePromptAgainstGuidelines!(text);
@@ -370,7 +351,7 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
     }
 
     console.log('[LearningEngine] Converting to analysis result...');
-    const result = convertToAnalysisResult(evaluation, text, classification, sessionContext, projectSettings);
+    const result = convertToAnalysisResult(evaluation, text, classification, sessionContext);
     console.log('[LearningEngine] Conversion complete');
 
     // Phase 3.1: Async AI loading - Add loading placeholder instead of blocking
@@ -610,12 +591,6 @@ export function registerLearningEngineHandlers(): void {
         sessionContext = await getActiveWindowSessionContext();
       }
 
-      // Phase 4: Load project settings for AI variant
-      let projectSettings: ProjectSettings | null = null;
-      if (sessionContext?.projectPath) {
-        projectSettings = getProjectSettings(sessionContext.projectPath);
-      }
-
       // Run evaluation for AI variant generation
       const evaluation = evaluatePromptAgainstGuidelines!(text);
 
@@ -633,14 +608,13 @@ export function registerLearningEngineHandlers(): void {
         };
       };
 
-      // Generate AI variant (pass projectSettings for customConstraints)
+      // Generate AI variant
       const aiVariant = await generateAIVariantOnly(
         text,
         evaluation,
         sessionContext || undefined,
         aiSettings.apiKey,
-        goldenEvaluator,
-        projectSettings || undefined
+        goldenEvaluator
       );
 
       console.log('[LearningEngine] AI variant generated:', aiVariant.isAiGenerated ? 'success' : 'fallback');
@@ -701,22 +675,15 @@ export function registerLearningEngineHandlers(): void {
         sessionContext = await getActiveWindowSessionContext();
       }
 
-      // Phase 4: Load project settings for AI variant
-      let projectSettings: ProjectSettings | null = null;
-      if (sessionContext?.projectPath) {
-        projectSettings = getProjectSettings(sessionContext.projectPath);
-      }
-
       // Run evaluation for AI variant generation
       const evaluation = evaluatePromptAgainstGuidelines!(text);
 
-      // Generate AI variant using multi-provider system (pass projectSettings)
+      // Generate AI variant using multi-provider system
       const aiVariant = await generateAIVariantWithProviders(
         text,
         evaluation,
         sessionContext || undefined,
-        providerConfigs,
-        projectSettings || undefined
+        providerConfigs
       );
 
       console.log('[LearningEngine] Multi-provider AI variant generated:',
@@ -764,57 +731,6 @@ export function registerLearningEngineHandlers(): void {
     return getPredictedScore(windowDays || 7);
   });
 
-  // Phase 4: Project settings and templates handlers
-  ipcMain.handle('get-project-settings', async (_event, projectPath: string) => {
-    const { getProjectSettings } = await import('./db/index.js');
-    return getProjectSettings(projectPath);
-  });
-
-  ipcMain.handle('save-project-settings', async (_event, settings: ProjectSettings) => {
-    const { saveProjectSettings } = await import('./db/index.js');
-    saveProjectSettings(settings);
-    return { success: true };
-  });
-
-  ipcMain.handle('delete-project-settings', async (_event, projectPath: string) => {
-    const { deleteProjectSettings } = await import('./db/index.js');
-    deleteProjectSettings(projectPath);
-    return { success: true };
-  });
-
-  ipcMain.handle('get-templates', async (_event, options?: { ideType?: string; category?: string; activeOnly?: boolean }) => {
-    const { getTemplates } = await import('./db/index.js');
-    return getTemplates(options);
-  });
-
-  ipcMain.handle('get-template', async (_event, idOrName: number | string) => {
-    const { getTemplate } = await import('./db/index.js');
-    return getTemplate(idOrName);
-  });
-
-  ipcMain.handle('save-template', async (_event, template: PromptTemplate) => {
-    const { saveTemplate } = await import('./db/index.js');
-    const id = saveTemplate(template);
-    return { success: true, id };
-  });
-
-  ipcMain.handle('delete-template', async (_event, id: number) => {
-    const { deleteTemplate } = await import('./db/index.js');
-    deleteTemplate(id);
-    return { success: true };
-  });
-
-  ipcMain.handle('get-recommended-template', async (_event, context: { ideType?: string; category?: string; projectPath?: string }) => {
-    const { getRecommendedTemplate } = await import('./db/index.js');
-    return getRecommendedTemplate(context);
-  });
-
-  ipcMain.handle('increment-template-usage', async (_event, templateId: number) => {
-    const { incrementTemplateUsage } = await import('./db/index.js');
-    incrementTemplateUsage(templateId);
-    return { success: true };
-  });
-
   // Initialize by loading modules
   loadAnalysisModules().then((loaded) => {
     if (loaded) {
@@ -823,15 +739,6 @@ export function registerLearningEngineHandlers(): void {
       console.warn('[LearningEngine] Running in fallback mode');
     }
   });
-
-  // Initialize default templates on first run
-  import('./db/index.js')
-    .then(({ initializeDefaultTemplates }) => {
-      initializeDefaultTemplates();
-    })
-    .catch((error) => {
-      console.warn('[LearningEngine] Failed to initialize default templates:', error);
-    });
 }
 
 export { analyzePrompt };

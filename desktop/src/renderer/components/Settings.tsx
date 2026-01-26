@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, MousePointer2, Zap, Clipboard, Sparkles, ChevronDown, AlertTriangle, Globe, Timer, Ghost } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import ProjectSettings from './ProjectSettings';
-import TemplateManager from './TemplateManager';
 import ProviderSettings from './ProviderSettings';
 import { changeLanguage } from '../../locales';
 
@@ -10,8 +8,6 @@ interface GhostBarSettings {
   enabled: boolean;
   autoPaste: boolean;
   dismissTimeout: number;
-  showOnlyOnImprovement: boolean;
-  minimumConfidence: number;
 }
 
 interface AppSettings {
@@ -22,13 +18,12 @@ interface AppSettings {
   captureMode: 'auto' | 'selection' | 'clipboard';
   enableProjectPolling: boolean;
   pollingIntervalMs: number;
-  claudeApiKey: string;
-  useAiRewrite: boolean;
-  // Innovative activation methods
+  // Clipboard-related features
   enableClipboardWatch: boolean;
-  enableAIContextPopup: boolean;
   autoAnalyzeOnCopy: boolean;
   autoShowWindow: boolean;
+  // Advanced features
+  enableAIContextPopup: boolean;
   // Language preference
   language: 'auto' | 'en' | 'ko';
   // Ghost Bar settings
@@ -65,14 +60,9 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
   // Section collapse states
   const [showGuide, setShowGuide] = useState(false);
   const [showGettingStarted, setShowGettingStarted] = useState(true);
-  const [showBehavior, setShowBehavior] = useState(true);
-  const [showSmartFeatures, setShowSmartFeatures] = useState(true);
-  const [showGhostBar, setShowGhostBar] = useState(false);
-  const [showProjectTemplates, setShowProjectTemplates] = useState(false);
-
-  // Phase 4: Project & Templates tab state
-  const [projectTemplatesTab, setProjectTemplatesTab] = useState<'project' | 'templates'>('project');
-  const [currentProjectPath, setCurrentProjectPath] = useState<string | undefined>();
+  const [showCoreFeatures, setShowCoreFeatures] = useState(true);
+  const [showClipboardFeatures, setShowClipboardFeatures] = useState(true);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   // Escape key handler
   useEffect(() => {
@@ -104,12 +94,6 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
       loadSettings();
       // Load app version
       window.electronAPI.getAppVersion().then(setAppVersion).catch(console.error);
-      // Load current project for Phase 4
-      window.electronAPI.getCurrentProject().then((project) => {
-        if (project && typeof project === 'object' && 'projectPath' in project) {
-          setCurrentProjectPath((project as { projectPath: string }).projectPath);
-        }
-      }).catch(console.error);
     }
   }, [isOpen]);
 
@@ -293,24 +277,27 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                 </div>
               </Section>
 
-              {/* ⚙️ Behavior Section */}
+              {/* ⚙️ Core Features Section */}
               <Section
-                title={t('sections.behavior.title')}
+                title={t('sections.coreFeatures.title')}
                 icon="⚙️"
-                isOpen={showBehavior}
-                onToggle={() => setShowBehavior(!showBehavior)}
+                isOpen={showCoreFeatures}
+                onToggle={() => setShowCoreFeatures(!showCoreFeatures)}
               >
+                {/* Multi-Provider AI Settings */}
+                <ProviderSettings />
+
                 {/* Window Behavior */}
-                <div className="space-y-3">
-                  <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide">{t('sections.behavior.window')}</h4>
+                <div className="pt-3 border-t border-dark-border space-y-3">
+                  <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide">{t('sections.coreFeatures.window')}</h4>
 
                   <div className="flex items-center justify-between py-2">
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <Eye size={14} className="text-gray-400" />
-                        <span className="text-sm">{t('sections.behavior.alwaysOnTop')}</span>
+                        <span className="text-sm">{t('sections.coreFeatures.alwaysOnTop')}</span>
                       </div>
-                      <span className="text-xs text-gray-500">{t('sections.behavior.alwaysOnTopDesc')}</span>
+                      <span className="text-xs text-gray-500">{t('sections.coreFeatures.alwaysOnTopDesc')}</span>
                     </div>
                     <ToggleSwitch
                       checked={settings.alwaysOnTop}
@@ -322,9 +309,9 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <Eye size={14} className="text-gray-400" />
-                        <span className="text-sm">{t('sections.behavior.hideOnCopy')}</span>
+                        <span className="text-sm">{t('sections.coreFeatures.hideOnCopy')}</span>
                       </div>
-                      <span className="text-xs text-gray-500">{t('sections.behavior.hideOnCopyDesc')}</span>
+                      <span className="text-xs text-gray-500">{t('sections.coreFeatures.hideOnCopyDesc')}</span>
                     </div>
                     <ToggleSwitch
                       checked={settings.hideOnCopy}
@@ -337,7 +324,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                     <div className="flex items-start gap-2 p-2 mt-1 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
                       <AlertTriangle size={14} className="text-yellow-500 mt-0.5 flex-shrink-0" />
                       <span className="text-xs text-yellow-500/90">
-                        {t('sections.behavior.conflictWarning')}
+                        {t('sections.coreFeatures.conflictWarning')}
                       </span>
                     </div>
                   )}
@@ -346,9 +333,9 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <Zap size={14} className="text-gray-400" />
-                        <span className="text-sm">{t('sections.behavior.autoShowWindow')}</span>
+                        <span className="text-sm">{t('sections.coreFeatures.autoShowWindow')}</span>
                       </div>
-                      <span className="text-xs text-gray-500">{t('sections.behavior.autoShowWindowDesc')}</span>
+                      <span className="text-xs text-gray-500">{t('sections.coreFeatures.autoShowWindowDesc')}</span>
                     </div>
                     <ToggleSwitch
                       checked={settings.autoShowWindow ?? true}
@@ -363,9 +350,9 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <Bell size={14} className="text-gray-400" />
-                        <span className="text-sm">{t('sections.behavior.showNotifications')}</span>
+                        <span className="text-sm">{t('sections.coreFeatures.showNotifications')}</span>
                       </div>
-                      <span className="text-xs text-gray-500">{t('sections.behavior.showNotificationsDesc')}</span>
+                      <span className="text-xs text-gray-500">{t('sections.coreFeatures.showNotificationsDesc')}</span>
                     </div>
                     <ToggleSwitch
                       checked={settings.showNotifications}
@@ -375,27 +362,27 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                 </div>
               </Section>
 
-              {/* ✨ Smart Features Section */}
+              {/* 📋 Clipboard Features Section */}
               <Section
-                title={t('sections.smart.title')}
-                icon="✨"
-                isOpen={showSmartFeatures}
-                onToggle={() => setShowSmartFeatures(!showSmartFeatures)}
+                title={t('sections.clipboardFeatures.title')}
+                icon="📋"
+                isOpen={showClipboardFeatures}
+                onToggle={() => setShowClipboardFeatures(!showClipboardFeatures)}
               >
-                {/* Multi-Provider AI Settings */}
-                <ProviderSettings />
-
-                {/* Auto Detection */}
-                <div className="pt-3 border-t border-dark-border space-y-3">
-                  <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide">{t('sections.smart.autoDetect')}</h4>
-
+                {/* Clipboard Watch */}
+                <div className="space-y-3">
                   <div className="flex items-center justify-between py-2">
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <Clipboard size={14} className="text-gray-400" />
-                        <span className="text-sm">{t('sections.smart.clipboardWatch')}</span>
+                        <span className="text-sm">{t('sections.clipboardFeatures.clipboardWatch')}</span>
+                        {settings.ghostBar?.enabled && !settings.enableClipboardWatch && (
+                          <span className="px-1.5 py-0.5 bg-purple-500/20 text-purple-400 text-[10px] rounded">
+                            {t('sections.clipboardFeatures.enabledViaGhostBar')}
+                          </span>
+                        )}
                       </div>
-                      <span className="text-xs text-gray-500">{t('sections.smart.clipboardWatchDesc')}</span>
+                      <span className="text-xs text-gray-500">{t('sections.clipboardFeatures.clipboardWatchDesc')}</span>
                     </div>
                     <ToggleSwitch
                       checked={settings.enableClipboardWatch ?? false}
@@ -403,14 +390,14 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                     />
                   </div>
 
-                  {settings.enableClipboardWatch && (
+                  {(settings.enableClipboardWatch || settings.ghostBar?.enabled) && (
                     <div className="flex items-center justify-between py-2 pl-6">
                       <div className="flex flex-col gap-0.5">
                         <div className="flex items-center gap-2">
                           <Zap size={14} className="text-gray-400" />
-                          <span className="text-sm">{t('sections.smart.autoAnalyze')}</span>
+                          <span className="text-sm">{t('sections.clipboardFeatures.autoAnalyze')}</span>
                         </div>
-                        <span className="text-xs text-gray-500">{t('sections.smart.autoAnalyzeDesc')}</span>
+                        <span className="text-xs text-gray-500">{t('sections.clipboardFeatures.autoAnalyzeDesc')}</span>
                       </div>
                       <ToggleSwitch
                         checked={settings.autoAnalyzeOnCopy ?? false}
@@ -418,67 +405,23 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                       />
                     </div>
                   )}
-
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <Sparkles size={14} className="text-gray-400" />
-                        <span className="text-sm">{t('sections.smart.aiContextPopup')}</span>
-                      </div>
-                      <span className="text-xs text-gray-500">{t('sections.smart.aiContextPopupDesc')}</span>
-                      {settings.enableAIContextPopup && (
-                        <div className="mt-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded text-[10px] text-amber-400">
-                          {t('sections.smart.aiContextPopupWarning')}
-                        </div>
-                      )}
-                    </div>
-                    <ToggleSwitch
-                      checked={settings.enableAIContextPopup ?? false}
-                      onChange={(v) => updateSetting('enableAIContextPopup', v)}
-                    />
-                  </div>
                 </div>
 
-                {/* Auto Apply (info) */}
-                <div className="pt-3 border-t border-dark-border">
-                  <div className="p-3 bg-accent-primary/10 border border-accent-primary/20 rounded-lg space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Zap size={14} className="text-accent-primary" />
-                      <h4 className="text-sm font-medium text-accent-primary">{t('sections.smart.autoApply.title')}</h4>
-                    </div>
-                    <p className="text-xs text-gray-300 leading-relaxed">
-                      {t('sections.smart.autoApply.description')}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {t('sections.smart.autoApply.note')}
-                    </p>
-                  </div>
-                </div>
-              </Section>
-
-              {/* 👻 Ghost Bar Section */}
-              <Section
-                title={t('sections.ghostBar.title')}
-                icon={<Ghost size={16} className="text-purple-400" />}
-                isOpen={showGhostBar}
-                onToggle={() => setShowGhostBar(!showGhostBar)}
-              >
-                <div className="space-y-4">
-                  {/* Feature Description */}
+                {/* Ghost Bar */}
+                <div className="pt-3 border-t border-dark-border space-y-3">
                   <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
                     <p className="text-xs text-gray-300 leading-relaxed">
-                      {t('sections.ghostBar.description')}
+                      {t('sections.clipboardFeatures.ghostBar.description')}
                     </p>
                   </div>
 
-                  {/* Enable Ghost Bar */}
                   <div className="flex items-center justify-between py-2">
                     <div className="flex flex-col gap-0.5">
                       <div className="flex items-center gap-2">
                         <Ghost size={14} className="text-purple-400" />
-                        <span className="text-sm">{t('sections.ghostBar.enable')}</span>
+                        <span className="text-sm">{t('sections.clipboardFeatures.ghostBar.enable')}</span>
                       </div>
-                      <span className="text-xs text-gray-500">{t('sections.ghostBar.enableDesc')}</span>
+                      <span className="text-xs text-gray-500">{t('sections.clipboardFeatures.ghostBar.enableDesc')}</span>
                     </div>
                     <ToggleSwitch
                       checked={settings.ghostBar?.enabled ?? false}
@@ -493,9 +436,9 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                         <div className="flex flex-col gap-0.5">
                           <div className="flex items-center gap-2">
                             <Clipboard size={14} className="text-gray-400" />
-                            <span className="text-sm">{t('sections.ghostBar.autoPaste')}</span>
+                            <span className="text-sm">{t('sections.clipboardFeatures.ghostBar.autoPaste')}</span>
                           </div>
-                          <span className="text-xs text-gray-500">{t('sections.ghostBar.autoPasteDesc')}</span>
+                          <span className="text-xs text-gray-500">{t('sections.clipboardFeatures.ghostBar.autoPasteDesc')}</span>
                         </div>
                         <ToggleSwitch
                           checked={settings.ghostBar?.autoPaste ?? true}
@@ -507,7 +450,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                       <div className="py-2 pl-4 border-l-2 border-purple-500/30">
                         <div className="flex items-center gap-2 mb-2">
                           <Timer size={14} className="text-gray-400" />
-                          <span className="text-sm">{t('sections.ghostBar.dismissTimeout')}</span>
+                          <span className="text-sm">{t('sections.clipboardFeatures.ghostBar.dismissTimeout')}</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <input
@@ -529,71 +472,73 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                             {((settings.ghostBar?.dismissTimeout ?? 5000) / 1000).toFixed(0)}s
                           </span>
                         </div>
-                        <span className="text-xs text-gray-500">{t('sections.ghostBar.dismissTimeoutDesc')}</span>
+                        <span className="text-xs text-gray-500">{t('sections.clipboardFeatures.ghostBar.dismissTimeoutDesc')}</span>
+                      </div>
+
+                      {/* Keyboard Shortcuts Info */}
+                      <div className="pt-3 border-t border-dark-border">
+                        <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">
+                          {t('sections.clipboardFeatures.ghostBar.shortcuts.title')}
+                        </h4>
+                        <div className="space-y-1.5 text-xs text-gray-400">
+                          <div className="flex justify-between">
+                            <span>{t('sections.clipboardFeatures.ghostBar.shortcuts.apply')}</span>
+                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-gray-300">⌘⇧↵</kbd>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>{t('sections.clipboardFeatures.ghostBar.shortcuts.dismiss')}</span>
+                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-gray-300">Esc</kbd>
+                          </div>
+                        </div>
                       </div>
                     </>
                   )}
+                </div>
 
-                  {/* Keyboard Shortcuts Info */}
-                  {settings.ghostBar?.enabled && (
-                    <div className="pt-3 border-t border-dark-border">
-                      <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">
-                        {t('sections.ghostBar.shortcuts.title')}
-                      </h4>
-                      <div className="space-y-1.5 text-xs text-gray-400">
-                        <div className="flex justify-between">
-                          <span>{t('sections.ghostBar.shortcuts.apply')}</span>
-                          <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-gray-300">⌘⇧↵</kbd>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>{t('sections.ghostBar.shortcuts.dismiss')}</span>
-                          <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-gray-300">Esc</kbd>
-                        </div>
-                      </div>
+                {/* Auto Apply (info) */}
+                <div className="pt-3 border-t border-dark-border">
+                  <div className="p-3 bg-accent-primary/10 border border-accent-primary/20 rounded-lg space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Zap size={14} className="text-accent-primary" />
+                      <h4 className="text-sm font-medium text-accent-primary">{t('sections.clipboardFeatures.autoApply.title')}</h4>
                     </div>
-                  )}
+                    <p className="text-xs text-gray-300 leading-relaxed">
+                      {t('sections.clipboardFeatures.autoApply.description')}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {t('sections.clipboardFeatures.autoApply.note')}
+                    </p>
+                  </div>
                 </div>
               </Section>
 
-              {/* 📁 Projects & Templates Section (Phase 4) */}
+              {/* 🔧 Advanced Section */}
               <Section
-                title={t('sections.projectTemplates.title')}
-                icon="📁"
-                isOpen={showProjectTemplates}
-                onToggle={() => setShowProjectTemplates(!showProjectTemplates)}
+                title={t('sections.advanced.title')}
+                icon="🔧"
+                isOpen={showAdvanced}
+                onToggle={() => setShowAdvanced(!showAdvanced)}
               >
-                {/* Tab Selector */}
-                <div className="flex gap-2 mb-4">
-                  <button
-                    onClick={() => setProjectTemplatesTab('project')}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      projectTemplatesTab === 'project'
-                        ? 'bg-accent-primary text-white'
-                        : 'bg-dark-hover text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    {t('sections.projectTemplates.projectTab')}
-                  </button>
-                  <button
-                    onClick={() => setProjectTemplatesTab('templates')}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      projectTemplatesTab === 'templates'
-                        ? 'bg-accent-primary text-white'
-                        : 'bg-dark-hover text-gray-400 hover:text-gray-200'
-                    }`}
-                  >
-                    {t('sections.projectTemplates.templatesTab')}
-                  </button>
+                {/* AI Context Popup */}
+                <div className="flex items-center justify-between py-2">
+                  <div className="flex flex-col gap-0.5">
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={14} className="text-gray-400" />
+                      <span className="text-sm">{t('sections.advanced.aiContextPopup')}</span>
+                    </div>
+                    <span className="text-xs text-gray-500">{t('sections.advanced.aiContextPopupDesc')}</span>
+                    {settings.enableAIContextPopup && (
+                      <div className="mt-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded text-[10px] text-amber-400">
+                        {t('sections.advanced.aiContextPopupWarning')}
+                      </div>
+                    )}
+                  </div>
+                  <ToggleSwitch
+                    checked={settings.enableAIContextPopup ?? false}
+                    onChange={(v) => updateSetting('enableAIContextPopup', v)}
+                  />
                 </div>
-
-                {/* Tab Content */}
-                {projectTemplatesTab === 'project' ? (
-                  <ProjectSettings projectPath={currentProjectPath} />
-                ) : (
-                  <TemplateManager />
-                )}
               </Section>
-
 
               {/* ℹ️ App Info */}
               <div className="pt-4 border-t border-dark-border">
