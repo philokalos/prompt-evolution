@@ -86,7 +86,8 @@ export function createGhostBar(preloadPath?: string): void {
     skipTaskbar: true,
     resizable: false,
     movable: false,
-    focusable: false, // Don't steal focus
+    focusable: true, // Allow focus for button clicks
+    acceptFirstMouse: true, // Accept clicks without requiring focus first
     hasShadow: true,
     type: 'panel', // macOS: Prevents keyboard interference
     show: false, // Don't show until ready
@@ -97,8 +98,8 @@ export function createGhostBar(preloadPath?: string): void {
     },
   });
 
-  // Allow mouse events to pass through transparent areas
-  ghostBarWindow.setIgnoreMouseEvents(true, { forward: true });
+  // NOTE: setIgnoreMouseEvents 제거 - 버튼 클릭 가능하도록
+  // ghostBarWindow.setIgnoreMouseEvents(true, { forward: true });
 
   // Visible on all workspaces but not on fullscreen
   ghostBarWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: false });
@@ -268,15 +269,33 @@ function unregisterGhostBarShortcuts(): void {
  * Handle apply action
  */
 async function handleApply(): Promise<ApplyResult> {
+  console.log('[GhostBar] handleApply called, currentState:', currentState ? 'exists' : 'null');
+
   if (!currentState) {
+    console.log('[GhostBar] No currentState, returning early');
     return { success: false, message: 'No active state' };
   }
 
   const state = currentState;
 
+  console.log('[GhostBar] State:', {
+    hasOriginal: !!state.originalText,
+    hasImproved: !!state.improvedText,
+    improvedLength: state.improvedText?.length || 0,
+    originalGrade: state.originalGrade,
+    improvedGrade: state.improvedGrade,
+  });
+
+  // Validate improved text
+  if (!state.improvedText || state.improvedText.trim().length === 0) {
+    console.log('[GhostBar] No improved text available');
+    return { success: false, message: 'No improved text available' };
+  }
+
   // Write improved text to clipboard
+  console.log('[GhostBar] Writing to clipboard:', state.improvedText.substring(0, 50) + '...');
   clipboard.writeText(state.improvedText);
-  console.log('[GhostBar] Wrote improved text to clipboard');
+  console.log('[GhostBar] Wrote improved text to clipboard (length:', state.improvedText.length, ')');
 
   let result: ApplyResult = { success: true };
 
@@ -340,10 +359,13 @@ function handleExpand(): void {
  */
 function startDismissTimeout(timeout: number): void {
   clearDismissTimeout();
+  // 최소 5초, 최대 30초
+  const effectiveTimeout = Math.max(5000, Math.min(timeout || 5000, 30000));
+  console.log(`[GhostBar] Setting dismiss timeout: ${effectiveTimeout}ms (requested: ${timeout}ms)`);
   dismissTimeout = setTimeout(() => {
     console.log('[GhostBar] Auto-dismiss triggered');
     hideGhostBar();
-  }, timeout);
+  }, effectiveTimeout);
 }
 
 /**
@@ -429,7 +451,6 @@ function getGhostBarHTML(): string {
       background: transparent;
       overflow: hidden;
       -webkit-app-region: no-drag;
-      pointer-events: none;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     }
 
@@ -564,8 +585,12 @@ function getGhostBarHTML(): string {
 
     // Button handlers
     applyBtn.addEventListener('click', () => {
+      console.log('[GhostBar UI] Apply button clicked');
       if (window.electronAPI && window.electronAPI.invoke) {
+        console.log('[GhostBar UI] Calling invoke ghost-bar:apply');
         window.electronAPI.invoke('ghost-bar:apply');
+      } else {
+        console.log('[GhostBar UI] electronAPI.invoke not available');
       }
     });
 

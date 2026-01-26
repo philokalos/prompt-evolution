@@ -157,7 +157,7 @@ const store = new Store<AppSettings>({
       autoPaste: true, // When enabled, auto-paste after apply
       dismissTimeout: 5000, // 5 seconds auto-dismiss
       showOnlyOnImprovement: true, // Only show when improvement is possible
-      minimumConfidence: 0.3, // Minimum confidence threshold
+      minimumConfidence: 0.15, // Minimum confidence threshold (낮춤)
     },
   },
 });
@@ -729,9 +729,16 @@ function initProjectPolling(): void {
 
 /**
  * Initialize or update clipboard watching based on settings.
+ * Clipboard watching is enabled if either:
+ * - enableClipboardWatch is true, OR
+ * - Ghost Bar is enabled (for seamless UX)
  */
 function initClipboardWatch(): void {
-  const enabled = store.get('enableClipboardWatch') as boolean;
+  const clipboardWatchEnabled = store.get('enableClipboardWatch') as boolean;
+  const ghostBarSettings = store.get('ghostBar') as GhostBarSettings;
+
+  // Ghost Bar 활성화 시 자동으로 클립보드 감시 시작
+  const enabled = clipboardWatchEnabled || ghostBarSettings?.enabled;
   const watcher = getClipboardWatcher();
 
   // Stop existing polling first to prevent race conditions
@@ -824,11 +831,13 @@ function initGhostBarCallbacks(): void {
 async function handleGhostBarPrompt(detected: DetectedPrompt): Promise<void> {
   const ghostBarSettings = store.get('ghostBar') as GhostBarSettings;
 
-  // Check confidence threshold
-  if (detected.confidence < ghostBarSettings.minimumConfidence) {
-    console.log(`[Main] Ghost Bar: Confidence ${detected.confidence} below threshold ${ghostBarSettings.minimumConfidence}`);
+  // Check confidence threshold (use low value to catch more prompts)
+  const effectiveThreshold = Math.min(ghostBarSettings.minimumConfidence, 0.1);
+  if (detected.confidence < effectiveThreshold) {
+    console.log(`[Main] Ghost Bar: Confidence ${detected.confidence} below threshold ${effectiveThreshold}`);
     return;
   }
+  console.log(`[Main] Ghost Bar: Starting analysis`);
 
   // Cancel any previous analysis
   cancelCurrentAnalysis();
@@ -870,6 +879,18 @@ async function handleGhostBarPrompt(detected: DetectedPrompt): Promise<void> {
   createGhostBar();
   showGhostBar(state, ghostBarSettings);
   console.log('[Main] Ghost Bar shown');
+
+  // Also send result to main window if it exists
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const payload = {
+      text: detected.text,
+      capturedContext: null,
+      isSourceAppBlocked: blockedApp,
+    };
+    mainWindow.webContents.send('clipboard-text', payload);
+    mainWindow.show();
+    console.log('[Main] Ghost Bar: Also sent to main window');
+  }
 }
 
 /**
@@ -969,7 +990,8 @@ ipcMain.handle('set-setting', (_event, key: string, value: unknown): { success: 
     }
 
     // Toggle clipboard watching if setting changed
-    if (key === 'enableClipboardWatch') {
+    // Ghost Bar also requires clipboard watching, so reinit on both
+    if (key === 'enableClipboardWatch' || key === 'ghostBar') {
       initClipboardWatch();
     }
 

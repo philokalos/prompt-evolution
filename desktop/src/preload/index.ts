@@ -232,6 +232,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.send(channel, ...args);
   },
 
+  // Receive message from main process (for Ghost Bar)
+  receive: (channel: string, callback: (...args: unknown[]) => void): void => {
+    ipcRenderer.on(channel, (_event, ...args) => callback(...args));
+  },
+
+  // Invoke and wait for response
+  invoke: (channel: string, ...args: unknown[]): Promise<unknown> => {
+    return ipcRenderer.invoke(channel, ...args);
+  },
+
   // i18n Language support
   getLanguage: (): Promise<{ preference: string; resolved: string; systemLanguage: string }> =>
     ipcRenderer.invoke('get-language'),
