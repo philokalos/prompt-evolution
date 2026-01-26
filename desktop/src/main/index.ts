@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import Store from 'electron-store';
 import { createTray, destroyTray, clearTrayBadge, setTrayBadge, rebuildTrayMenu } from './tray.js';
 import { getClipboardWatcher, destroyClipboardWatcher, type DetectedPrompt } from './clipboard-watcher.js';
-import { registerLearningEngineHandlers } from './learning-engine.js';
+import { registerLearningEngineHandlers, analyzePrompt } from './learning-engine.js';
 import {
   captureTextForAnalysis,
   checkAccessibilityPermission,
@@ -36,6 +36,24 @@ import {
   destroyAIContextButton,
   initAIContextPopupIPC,
 } from './ai-context-popup.js';
+import {
+  createGhostBar,
+  showGhostBar,
+  hideGhostBar,
+  destroyGhostBar,
+  isGhostBarVisible,
+  registerGhostBarHandlers,
+  setOnExpandCallback,
+  setOnApplyCallback,
+} from './ghost-bar.js';
+import {
+  analyzeWithTimeout,
+  cancelCurrentAnalysis,
+  canBeImproved,
+  createGhostBarState,
+  getCachedAnalysis,
+} from './ghost-bar-analysis.js';
+import type { GhostBarSettings, GhostBarState } from './ghost-bar-types.js';
 import {
   needsMigration,
   migrateToProviders,
@@ -95,6 +113,14 @@ interface AppSettings {
   hasSeenAccessibilityDialog: boolean; // Whether user has seen the accessibility permission dialog
   // Language preference
   language: UserLanguagePreference; // 'auto' | 'en' | 'ko'
+  // Ghost Bar settings
+  ghostBar: {
+    enabled: boolean;
+    autoPaste: boolean;
+    dismissTimeout: number;
+    showOnlyOnImprovement: boolean;
+    minimumConfidence: number;
+  };
 }
 
 // Initialize settings store with explicit name to ensure consistency across dev/prod
@@ -125,6 +151,14 @@ const store = new Store<AppSettings>({
     hasSeenAccessibilityDialog: false, // Show accessibility dialog on first launch
     // Language preference - default to auto (system language)
     language: 'auto' as UserLanguagePreference,
+    // Ghost Bar settings - disabled by default, user must opt-in
+    ghostBar: {
+      enabled: false, // Ghost Bar feature disabled by default
+      autoPaste: true, // When enabled, auto-paste after apply
+      dismissTimeout: 5000, // 5 seconds auto-dismiss
+      showOnlyOnImprovement: true, // Only show when improvement is possible
+      minimumConfidence: 0.15, // Minimum confidence threshold (낮춤)
+    },
   },
 });
 
@@ -695,9 +729,16 @@ function initProjectPolling(): void {
 
 /**
  * Initialize or update clipboard watching based on settings.
+ * Clipboard watching is enabled if either:
+ * - enableClipboardWatch is true, OR
+ * - Ghost Bar is enabled (for seamless UX)
  */
 function initClipboardWatch(): void {
-  const enabled = store.get('enableClipboardWatch') as boolean;
+  const clipboardWatchEnabled = store.get('enableClipboardWatch') as boolean;
+  const ghostBarSettings = store.get('ghostBar') as GhostBarSettings;
+
+  // Ghost Bar 활성화 시 자동으로 클립보드 감시 시작
+  const enabled = clipboardWatchEnabled || ghostBarSettings?.enabled;
   const watcher = getClipboardWatcher();
 
   // Stop existing polling first to prevent race conditions
@@ -707,11 +748,19 @@ function initClipboardWatch(): void {
 
   if (enabled) {
     // Set up prompt detection handler
-    watcher.on('prompt-detected', (detected: DetectedPrompt) => {
+    watcher.on('prompt-detected', async (detected: DetectedPrompt) => {
       console.log(`[Main] Clipboard prompt detected: "${detected.text.substring(0, 50)}..."`);
 
       // Show badge on tray icon
       setTrayBadge(true);
+
+      // Check if Ghost Bar is enabled
+      const ghostBarSettings = store.get('ghostBar') as GhostBarSettings;
+      if (ghostBarSettings?.enabled) {
+        console.log('[Main] Ghost Bar enabled, processing prompt');
+        await handleGhostBarPrompt(detected);
+        return; // Ghost Bar handles everything
+      }
 
       // Check if auto-analyze is enabled
       const autoAnalyze = store.get('autoAnalyzeOnCopy') as boolean;
@@ -738,6 +787,121 @@ function initClipboardWatch(): void {
     watcher.stop();
     clearTrayBadge();
     console.log('[Main] Clipboard watching disabled');
+  }
+}
+
+/**
+ * Initialize Ghost Bar callbacks for expand and apply actions
+ */
+function initGhostBarCallbacks(): void {
+  // Handle expand action: open full analysis window with cached result
+  setOnExpandCallback((state: GhostBarState) => {
+    console.log('[Main] Ghost Bar expand triggered');
+
+    // Get cached analysis result
+    const cached = getCachedAnalysis(state.originalText);
+
+    if (cached && isMainWindowValid()) {
+      // Send cached result to main window
+      mainWindow!.webContents.send('analysis-result', cached);
+      // Show main window
+      if (!mainWindow!.isVisible()) {
+        positionWindowNearCursor();
+        mainWindow!.showInactive();
+      } else {
+        mainWindow!.focus();
+      }
+    } else {
+      // No cache, trigger new analysis
+      sendTextToRenderer(state.originalText);
+    }
+  });
+
+  // Handle apply action: save to history
+  setOnApplyCallback((_state: GhostBarState) => {
+    console.log('[Main] Ghost Bar apply triggered');
+    // Clear badge since prompt was processed
+    clearTrayBadge();
+  });
+}
+
+/**
+ * Handle prompt detection for Ghost Bar
+ */
+async function handleGhostBarPrompt(detected: DetectedPrompt): Promise<void> {
+  const ghostBarSettings = store.get('ghostBar') as GhostBarSettings;
+
+  // Check confidence threshold (use low value to catch more prompts)
+  const effectiveThreshold = Math.min(ghostBarSettings.minimumConfidence, 0.1);
+  if (detected.confidence < effectiveThreshold) {
+    console.log(`[Main] Ghost Bar: Confidence ${detected.confidence} below threshold ${effectiveThreshold}`);
+    return;
+  }
+  console.log(`[Main] Ghost Bar: Starting analysis`);
+
+  // Cancel any previous analysis
+  cancelCurrentAnalysis();
+
+  // Get source app info
+  let sourceApp: string | null = null;
+  let blockedApp = false;
+  try {
+    sourceApp = await getFrontmostApp();
+    blockedApp = sourceApp ? isBlockedApp(sourceApp) : false;
+  } catch (error) {
+    console.warn('[Main] Ghost Bar: Failed to get source app:', error);
+  }
+
+  // Analyze with timeout
+  console.log('[Main] Ghost Bar: Starting analysis');
+  const result = await analyzeWithTimeout(detected.text, analyzePrompt);
+
+  if (!result) {
+    console.log('[Main] Ghost Bar: Analysis failed or timed out');
+    return;
+  }
+
+  // Check if improvement is possible (skip A-grade)
+  if (!canBeImproved(result)) {
+    console.log('[Main] Ghost Bar: Already A-grade, skipping');
+    return;
+  }
+
+  // Create Ghost Bar state
+  const state = createGhostBarState(detected.text, result, sourceApp, blockedApp);
+
+  if (!state) {
+    console.log('[Main] Ghost Bar: Failed to create state (no suitable variant)');
+    return;
+  }
+
+  // Show Ghost Bar
+  createGhostBar();
+  showGhostBar(state, ghostBarSettings);
+  console.log('[Main] Ghost Bar shown');
+
+  // Also send result to main window if it exists
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    const payload = {
+      text: detected.text,
+      capturedContext: null,
+      isSourceAppBlocked: blockedApp,
+    };
+    mainWindow.webContents.send('clipboard-text', payload);
+    mainWindow.show();
+    console.log('[Main] Ghost Bar: Also sent to main window');
+  }
+}
+
+/**
+ * Handle hotkey when Ghost Bar is visible
+ * Close Ghost Bar and open full analysis window
+ */
+export function handleHotkeyWithGhostBar(): void {
+  if (isGhostBarVisible()) {
+    console.log('[Main] Hotkey pressed while Ghost Bar visible, opening full window');
+    hideGhostBar();
+    // Continue with normal hotkey behavior (analyze and show main window)
   }
 }
 
@@ -826,7 +990,8 @@ ipcMain.handle('set-setting', (_event, key: string, value: unknown): { success: 
     }
 
     // Toggle clipboard watching if setting changed
-    if (key === 'enableClipboardWatch') {
+    // Ghost Bar also requires clipboard watching, so reinit on both
+    if (key === 'enableClipboardWatch' || key === 'ghostBar') {
       initClipboardWatch();
     }
 
@@ -1181,6 +1346,10 @@ app.whenReady().then(async () => {
   // Initialize AI context popup IPC
   initAIContextPopupIPC();
 
+  // Initialize Ghost Bar IPC handlers
+  registerGhostBarHandlers();
+  initGhostBarCallbacks();
+
   // Start project polling for active window detection
   initProjectPolling();
 
@@ -1243,6 +1412,7 @@ app.on('will-quit', () => {
   stopAIAppPolling();
   destroyClipboardWatcher();
   destroyAIContextButton();
+  destroyGhostBar();
   destroyTray();
   cleanupAutoUpdater();
   closeDatabase();

@@ -85,7 +85,7 @@ export class ClipboardWatcher extends EventEmitter {
   constructor(options: ClipboardWatcherOptions = {}) {
     super();
     this.pollMs = options.pollIntervalMs ?? 500;
-    this.minLength = options.minTextLength ?? 20;
+    this.minLength = options.minTextLength ?? 5; // 짧은 프롬프트도 감지 (예: "버그 고쳐줘")
     this.maxLength = options.maxTextLength ?? 10000;
   }
 
@@ -154,12 +154,15 @@ export class ClipboardWatcher extends EventEmitter {
         return;
       }
 
+      console.log(`[ClipboardWatcher] Clipboard changed: "${currentText.substring(0, 30)}..." (${currentText.length} chars)`);
+
       // Update state
       this.lastText = currentText;
       this.lastChangeTime = Date.now();
 
       // Validate text
       if (!this.isValidText(currentText)) {
+        console.log(`[ClipboardWatcher] Text invalid (min: ${this.minLength}, got: ${currentText.trim().length})`);
         return;
       }
 
@@ -171,8 +174,9 @@ export class ClipboardWatcher extends EventEmitter {
 
       // Check if it looks like a prompt
       const confidence = this.calculatePromptConfidence(currentText);
+      console.log(`[ClipboardWatcher] Confidence: ${confidence.toFixed(2)}`);
 
-      if (confidence > 0.3) {
+      if (confidence > 0.05) { // 매우 낮은 임계값 - 대부분의 텍스트 감지
         const detected: DetectedPrompt = {
           text: currentText,
           timestamp: new Date(),
