@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, clipboard, ipcMain, screen, Notification, dialog } from 'electron';
+import { app, BrowserWindow, globalShortcut, clipboard, screen, session, Notification, dialog } from 'electron';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import Store from 'electron-store';
@@ -13,7 +13,6 @@ import {
   getFrontmostApp,
   isBlockedApp,
   type CaptureMode,
-  type ApplyTextResult,
 } from './text-selection.js';
 import {
   startWindowPolling,
@@ -57,11 +56,8 @@ import type { GhostBarSettings, GhostBarState } from './ghost-bar-types.js';
 import {
   needsMigration,
   migrateToProviders,
-  getProvidersFromStore,
-  saveProvidersToStore,
 } from './settings-migration.js';
-import type { ProviderConfig } from './providers/types.js';
-import { validateProviderKey as validateProviderKeyFn, hasAnyProvider } from './providers/provider-manager.js';
+import { validateProviderKey as validateProviderKeyFn } from './providers/provider-manager.js';
 import {
   initMainI18n,
   setLanguage,
@@ -71,6 +67,25 @@ import {
   t,
   type UserLanguagePreference,
 } from './i18n.js';
+import {
+  registerSettingsHandlers,
+  registerClipboardHandlers,
+  registerWindowHandlers,
+  registerProjectHandlers,
+  registerProviderHandlers,
+} from './ipc/index.js';
+import {
+  store,
+  getAIRewriteSettings,
+  getAIProviders,
+  setAIProviders,
+  getPrimaryProviderConfig,
+  hasAnyAIProvider,
+} from './settings-store.js';
+import {
+  type CapturedContext,
+  setLastCapturedContext as appStateSetLastCapturedContext,
+} from './app-state.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -87,77 +102,7 @@ if (app.isPackaged) {
   // Keep console.warn and console.error for critical issues
 }
 
-// Settings schema
-interface AppSettings {
-  shortcut: string;
-  windowBounds: { width: number; height: number };
-  alwaysOnTop: boolean;
-  hideOnCopy: boolean;
-  showNotifications: boolean;
-  captureMode: 'auto' | 'selection' | 'clipboard';
-  enableProjectPolling: boolean;
-  pollingIntervalMs: number;
-  claudeApiKey: string;
-  useAiRewrite: boolean;
-  // Innovative activation methods
-  enableClipboardWatch: boolean; // Auto-detect prompts in clipboard
-  enableAIContextPopup: boolean; // Show popup when AI apps are active
-  autoAnalyzeOnCopy: boolean; // Automatically analyze when prompt is detected
-  autoShowWindow: boolean; // Automatically show window after analysis completes
-  // Manual project override
-  manualProjectPath: string; // Empty = auto-detect, path = manual override
-  // First launch flags
-  hasSeenWelcome: boolean; // Whether user has seen the welcome/onboarding message
-  hasSeenAccessibilityDialog: boolean; // Whether user has seen the accessibility permission dialog
-  // Language preference
-  language: UserLanguagePreference; // 'auto' | 'en' | 'ko'
-  // Ghost Bar settings
-  ghostBar: {
-    enabled: boolean;
-    autoPaste: boolean;
-    dismissTimeout: number;
-    showOnlyOnImprovement: boolean;
-    minimumConfidence: number;
-  };
-}
-
-// Initialize settings store with explicit name to ensure consistency across dev/prod
-const store = new Store<AppSettings>({
-  name: 'config',
-  cwd: app.getPath('userData').replace(/Electron$/, 'PromptLint'), // Force PromptLint directory
-  defaults: {
-    shortcut: 'CommandOrControl+Shift+P',
-    windowBounds: { width: 420, height: 600 },
-    alwaysOnTop: true,
-    hideOnCopy: false,
-    showNotifications: true,
-    captureMode: 'auto',
-    enableProjectPolling: true,
-    pollingIntervalMs: 2000,
-    claudeApiKey: '',
-    useAiRewrite: false,
-    // Innovative activation - disabled by default for privacy
-    enableClipboardWatch: false,
-    enableAIContextPopup: false,
-    autoAnalyzeOnCopy: false, // User must opt-in for automatic analysis
-    autoShowWindow: true, // Auto-show window after analysis (convenient)
-    // Manual project override - empty = auto-detect
-    manualProjectPath: '',
-    // First launch flags
-    hasSeenWelcome: false, // Show welcome message on first launch
-    hasSeenAccessibilityDialog: false, // Show accessibility dialog on first launch
-    // Language preference - default to auto (system language)
-    language: 'auto' as UserLanguagePreference,
-    // Ghost Bar settings - disabled by default, user must opt-in
-    ghostBar: {
-      enabled: false, // Ghost Bar feature disabled by default
-      autoPaste: true, // When enabled, auto-paste after apply
-      dismissTimeout: 5000, // 5 seconds auto-dismiss
-      showOnlyOnImprovement: true, // Only show when improvement is possible
-      minimumConfidence: 0.15, // Minimum confidence threshold (낮춤)
-    },
-  },
-});
+// Store imported from ./settings-store.js
 
 /**
  * Show macOS notification if enabled in settings
@@ -247,77 +192,23 @@ async function showWelcomeMessage(): Promise<void> {
   store.set('hasSeenWelcome', true);
 }
 
-/**
- * Captured window context at hotkey time
- * Used to ensure correct project detection even if user switches windows
- */
-export interface CapturedContext {
-  windowInfo: ActiveWindowInfo | null;
-  project: DetectedProject | null;
-  timestamp: Date;
-}
+// Re-export CapturedContext for backward compatibility
+export type { CapturedContext };
 
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
 let showWindowTimeout: NodeJS.Timeout | null = null;
 
-/**
- * Get AI rewrite settings for use by learning engine
- */
-export function getAIRewriteSettings(): { apiKey: string; enabled: boolean } {
-  return {
-    apiKey: store.get('claudeApiKey') || '',
-    enabled: store.get('useAiRewrite') || false,
-  };
-}
-
-/**
- * Get AI providers configuration
- * Returns array of provider configs with fallback to legacy format
- */
-export function getAIProviders(): ProviderConfig[] {
-  return getProvidersFromStore(store as unknown as Store<Record<string, unknown>>);
-}
-
-/**
- * Set AI providers configuration
- * Also updates legacy fields for backward compatibility
- */
-export function setAIProviders(providers: ProviderConfig[]): void {
-  saveProvidersToStore(store as unknown as Store<Record<string, unknown>>, providers);
-}
-
-/**
- * Get the primary provider config
- * Returns the provider marked as primary, or first enabled provider
- */
-export function getPrimaryProviderConfig(): ProviderConfig | null {
-  const providers = getAIProviders();
-  const primary = providers.find(p => p.isPrimary && p.isEnabled);
-  if (primary) return primary;
-
-  // Fallback to first enabled provider
-  const enabled = providers
-    .filter(p => p.isEnabled && p.apiKey && p.apiKey.trim() !== '')
-    .sort((a, b) => a.priority - b.priority);
-  return enabled.length > 0 ? enabled[0] : null;
-}
-
-/**
- * Check if any AI provider is available
- */
-export function hasAnyAIProvider(): boolean {
-  return hasAnyProvider(getAIProviders());
-}
+// Re-export settings functions for backward compatibility
+export { getAIRewriteSettings, getAIProviders, setAIProviders, getPrimaryProviderConfig, hasAnyAIProvider };
 
 // State tracking for improved hotkey behavior
 let _lastAnalyzedText = '';
 let isRendererReady = false;
 let pendingText: { text: string; capturedContext: CapturedContext | null; isSourceAppBlocked: boolean } | null = null;
 let currentProject: DetectedProject | null = null;
-let lastFrontmostApp: string | null = null; // Track source app for apply feature
-let lastCapturedContext: CapturedContext | null = null; // Captured at hotkey time
-// User-selected project: load from store on startup, save on change
+let lastFrontmostApp: string | null = null;
+let lastCapturedContext: CapturedContext | null = null;
 let selectedProjectPath: string | null = store.get('manualProjectPath') || null;
 
 /**
@@ -325,6 +216,14 @@ let selectedProjectPath: string | null = store.get('manualProjectPath') || null;
  */
 export function getLastCapturedContext(): CapturedContext | null {
   return lastCapturedContext;
+}
+
+/**
+ * Set captured context in both local and app-state (for learning engine)
+ */
+function setCapturedContext(ctx: CapturedContext | null): void {
+  lastCapturedContext = ctx;
+  appStateSetLastCapturedContext(ctx);
 }
 
 /**
@@ -413,7 +312,7 @@ function createWindow(): void {
   isRendererReady = false;
   pendingText = null;
   lastFrontmostApp = null;
-  lastCapturedContext = null;
+  setCapturedContext(null);
   _lastAnalyzedText = '';
 
   // Check for screenshot mode environment variables
@@ -450,6 +349,25 @@ function createWindow(): void {
       nodeIntegration: false,
       sandbox: false,
     },
+  });
+
+  // Production: tighten CSP by removing 'unsafe-eval' (needed only for Vite HMR in dev)
+  if (process.env.NODE_ENV !== 'development') {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';",
+          ],
+        },
+      });
+    });
+  }
+
+  // Deny all permission requests (camera, mic, geolocation, etc.) — this app doesn't need them
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => {
+    callback(false);
   });
 
   // Development: load from Vite dev server
@@ -549,11 +467,11 @@ function registerShortcut(): boolean {
     const windowInfo = await getActiveWindowInfo();
     const project = windowInfo?.isIDE ? parseWindowTitle(windowInfo) : null;
 
-    lastCapturedContext = {
+    setCapturedContext({
       windowInfo,
       project,
       timestamp: new Date(),
-    };
+    });
 
     console.log(`[Main] Captured context: ${project?.projectPath || 'no project'} (IDE: ${windowInfo?.ideName || 'none'})`);
 
@@ -643,11 +561,11 @@ async function analyzeClipboardNow(): Promise<void> {
   const windowInfo = await getActiveWindowInfo();
   const project = windowInfo?.isIDE ? parseWindowTitle(windowInfo) : null;
 
-  lastCapturedContext = {
+  setCapturedContext({
     windowInfo,
     project,
     timestamp: new Date(),
-  };
+  });
 
   lastFrontmostApp = windowInfo?.appName || null;
   _lastAnalyzedText = clipboardText;
@@ -942,285 +860,46 @@ function initAIContextPolling(): void {
   }
 }
 
-// IPC Handlers
-ipcMain.handle('get-clipboard', () => {
-  return clipboard.readText();
-});
+// Register extracted IPC handlers
+function registerExtractedHandlers(): void {
+  registerSettingsHandlers({
+    store: store as unknown as Store<Record<string, unknown>>,
+    mainWindow: () => mainWindow,
+    registerShortcut,
+    initProjectPolling,
+    initClipboardWatch,
+    initAIContextPolling,
+    rebuildTrayMenu,
+    t,
+    setLanguage,
+    getLanguageInfo,
+    resolveLanguage,
+    getSystemLocale,
+    globalShortcut,
+  });
 
-// IPC Handler: Get app version (for Settings display)
-ipcMain.handle('get-app-version', () => {
-  return app.getVersion();
-});
+  registerClipboardHandlers({
+    mainWindow: () => mainWindow,
+    lastFrontmostApp: () => lastFrontmostApp,
+    showNotification,
+    applyTextToApp,
+    isBlockedApp,
+    t,
+  });
 
-ipcMain.handle('set-clipboard', (_event, text: string) => {
-  clipboard.writeText(text);
-  return true;
-});
-
-ipcMain.handle('get-settings', () => {
-  return store.store;
-});
-
-ipcMain.handle('set-setting', (_event, key: string, value: unknown): { success: boolean; error?: string } => {
-  try {
-    // For shortcut changes, unregister old first
-    const oldShortcut = key === 'shortcut' ? (store.get('shortcut') as string) : null;
-
-    store.set(key, value);
-
-    // Re-register shortcut if it changed
-    if (key === 'shortcut' && oldShortcut) {
-      globalShortcut.unregister(oldShortcut);
-      const success = registerShortcut();
-      if (!success && mainWindow) {
-        mainWindow.webContents.send('shortcut-failed', {
-          shortcut: value as string,
-          message: t('errors:settings.shortcutFailed', { shortcut: value as string }),
-        });
-      }
-      return { success };
-    }
-
-    // Restart polling if polling settings changed
-    if (key === 'enableProjectPolling' || key === 'pollingIntervalMs') {
-      initProjectPolling();
-    }
-
-    // Toggle clipboard watching if setting changed
-    // Ghost Bar also requires clipboard watching, so reinit on both
-    if (key === 'enableClipboardWatch' || key === 'ghostBar') {
-      initClipboardWatch();
-    }
-
-    // Toggle AI context popup if setting changed
-    if (key === 'enableAIContextPopup') {
-      initAIContextPolling();
-    }
-
-    return { success: true };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[Settings] Failed to save setting:', key, errorMessage);
-    return { success: false, error: t('errors:settings.saveError', { error: errorMessage }) };
-  }
-});
-
-// IPC Handlers: Multi-provider API support
-ipcMain.handle('get-providers', () => {
-  return getAIProviders();
-});
-
-ipcMain.handle('set-providers', (_event, providers: ProviderConfig[]) => {
-  setAIProviders(providers);
-  return true;
-});
-
-ipcMain.handle('validate-provider-key', async (_event, providerType: string, apiKey: string) => {
-  try {
-    const valid = await validateProviderKeyFn(providerType as 'claude' | 'openai' | 'gemini', apiKey);
-    return { valid, error: null };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return { valid: false, error: message };
-  }
-});
-
-ipcMain.handle('get-primary-provider', () => {
-  return getPrimaryProviderConfig();
-});
-
-ipcMain.handle('has-any-provider', () => {
-  return hasAnyAIProvider();
-});
-
-// IPC Handlers: Language/i18n support
-ipcMain.handle('get-language', () => {
-  const preference = store.get('language') as UserLanguagePreference;
-  return getLanguageInfo(preference);
-});
-
-ipcMain.handle('set-language', (_event, language: UserLanguagePreference) => {
-  try {
-    // Validate input
-    if (!['auto', 'en', 'ko'].includes(language)) {
-      return { success: false, error: 'Invalid language code' };
-    }
-
-    // Save preference
-    store.set('language', language);
-
-    // Resolve actual language
-    const resolved = resolveLanguage(language, getSystemLocale());
-
-    // Update main process i18n
-    setLanguage(resolved);
-
-    // Notify renderer of language change
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('language-changed', {
-        language: resolved,
-        source: 'user',
-      });
-    }
-
-    // Rebuild tray menu with new language
-    if (mainWindow) {
-      rebuildTrayMenu();
-    }
-
-    console.log(`[Main] Language changed: ${language} → ${resolved}`);
-    return { success: true, resolvedLanguage: resolved };
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error('[Main] Failed to set language:', errorMessage);
-    return { success: false, error: errorMessage };
-  }
-});
-
-// IPC Handler: Get current detected project
-ipcMain.handle('get-current-project', async () => {
-  // Check for user-selected project first (runtime state)
-  if (selectedProjectPath) {
-    // Find the selected project from open projects
-    const allProjects = await detectAllOpenProjects();
-    const selected = allProjects.find(p => p.projectPath === selectedProjectPath);
-    if (selected) {
-      return { ...selected, isManual: true };
-    }
-    // If selected project is no longer open, reset to auto-detect
-    selectedProjectPath = null;
-  }
-  // Return cached project or detect fresh (auto-detect mode)
-  if (currentProject) {
-    return currentProject;
-  }
-  return await detectActiveProject();
-});
-
-// IPC Handler: Get all open IDE projects
-ipcMain.handle('get-all-open-projects', async () => {
-  console.log('[Main] get-all-open-projects called');
-  const projects = await detectAllOpenProjects();
-  console.log('[Main] get-all-open-projects result:', projects.length, 'projects');
-  if (projects.length > 0) {
-    console.log('[Main] Projects:', projects.map(p => p.projectName));
-  }
-  return projects;
-});
-
-// IPC Handler: Select a project (persisted to store, with validation)
-ipcMain.handle('select-project', (_event, projectPath: unknown) => {
-  // Validate input type
-  if (projectPath !== null && typeof projectPath !== 'string') {
-    console.warn('[Main] select-project: Invalid path type');
-    return { success: false, error: 'Invalid path type' };
-  }
-
-  // Validate path if provided
-  if (typeof projectPath === 'string') {
-    // Length limit
-    if (projectPath.length > 500) {
-      console.warn('[Main] select-project: Path too long');
-      return { success: false, error: 'Path too long' };
-    }
-    // Basic path character validation (alphanumeric, slashes, dashes, dots, underscores, spaces)
-    if (!/^[\w\s./-]+$/.test(projectPath)) {
-      console.warn('[Main] select-project: Invalid path characters');
-      return { success: false, error: 'Invalid characters in path' };
-    }
-  }
-
-  selectedProjectPath = projectPath as string | null;
-  store.set('manualProjectPath', projectPath || '');
-  console.log(`[Main] Project ${projectPath ? 'selected: ' + projectPath : 'reset to auto-detect'}`);
-  return { success: true };
-});
-
-ipcMain.handle('hide-window', () => {
-  if (isMainWindowValid()) {
-    mainWindow!.hide();
-  }
-  return true;
-});
-
-// IPC Handler: Apply improved prompt to source app
-ipcMain.handle('apply-improved-prompt', async (_event, text: string): Promise<ApplyTextResult> => {
-  if (!lastFrontmostApp) {
-    // No source app tracked, just copy to clipboard
-    clipboard.writeText(text);
-    const clipboardMessage = t('common:notifications.copiedToClipboard');
-    showNotification('PromptLint', clipboardMessage);
-    return {
-      success: false,
-      fallback: 'clipboard',
-      message: clipboardMessage,
-    };
-  }
-
-  // Apply text to the source app
-  const result = await applyTextToApp(text, lastFrontmostApp);
-
-  // Show notification based on result
-  if (result.success) {
-    showNotification('PromptLint', t('common:notifications.promptApplied'));
-    // Safe window hide with destroyed check
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.hide();
-    }
-  } else if (result.fallback === 'clipboard') {
-    showNotification('PromptLint', result.message || t('common:notifications.copiedToClipboard'));
-  }
-
-  return result;
-});
-
-ipcMain.handle('minimize-window', () => {
-  mainWindow?.minimize();
-  return true;
-});
-
-// IPC Handler: Open external URL (with security validation)
-ipcMain.handle('open-external', async (_event, url: unknown) => {
-  // Validate URL type and format
-  if (typeof url !== 'string') {
-    console.warn('[Main] open-external: Invalid URL type');
-    return { success: false, error: 'Invalid URL type' };
-  }
-
-  try {
-    const parsed = new URL(url);
-    // Only allow http and https protocols for security
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      console.warn(`[Main] open-external: Blocked protocol ${parsed.protocol}`);
-      return { success: false, error: `Protocol ${parsed.protocol} not allowed` };
-    }
-
-    const { shell } = await import('electron');
-    await shell.openExternal(url);
-    return { success: true };
-  } catch {
-    console.warn('[Main] open-external: Invalid URL', url);
-    return { success: false, error: 'Invalid URL format' };
-  }
-});
-
-// IPC Handler: Renderer ready signal (fixes race condition)
-ipcMain.handle('renderer-ready', () => {
-  isRendererReady = true;
-  console.log('[Main] Renderer signaled ready');
-
-  // Send any pending text that was queued before renderer was ready
-  if (pendingText && mainWindow) {
-    console.log('[Main] Sending pending text to renderer with context');
-    mainWindow.webContents.send('clipboard-text', pendingText);
-    pendingText = null;
-  }
-
-  // Screenshot mode: Auto-inject test data using pendingText queue for safety
-  const screenshotMode = process.env.SCREENSHOT_MODE === 'true';
-  if (screenshotMode && mainWindow && !pendingText) {
-    console.log('[Main] 📸 Screenshot mode: Preparing test prompt');
-    const testPrompt = `Create a React component that displays user profile information with the following features:
+  registerWindowHandlers({
+    mainWindow: () => mainWindow,
+    isMainWindowValid,
+    getIsRendererReady: () => isRendererReady,
+    setIsRendererReady: (ready: boolean) => { isRendererReady = ready; },
+    getPendingText: () => pendingText,
+    clearPendingText: () => { pendingText = null; },
+    onRendererReady: () => {
+      // Screenshot mode: Auto-inject test data using pendingText queue for safety
+      const screenshotMode = process.env.SCREENSHOT_MODE === 'true';
+      if (screenshotMode && mainWindow && !pendingText) {
+        console.log('[Main] 📸 Screenshot mode: Preparing test prompt');
+        const testPrompt = `Create a React component that displays user profile information with the following features:
 
 1. Display user avatar image
 2. Show user's full name and email address
@@ -1235,31 +914,47 @@ ipcMain.handle('renderer-ready', () => {
 
 The component should follow React best practices and be reusable across the application.`;
 
-    const mockContext: CapturedContext = {
-      windowInfo: {
-        appName: 'Code',
-        windowTitle: 'UserProfile.tsx — my-app — Visual Studio Code',
-        isIDE: true,
-        ideName: 'Code',
-      },
-      project: {
-        projectPath: '/Users/developer/projects/my-app',
-        projectName: 'my-app',
-        ideName: 'Code',
-        currentFile: 'src/components/UserProfile.tsx',
-        confidence: 'high',
-      },
-      timestamp: new Date(),
-    };
+        const mockContext: CapturedContext = {
+          windowInfo: {
+            appName: 'Code',
+            windowTitle: 'UserProfile.tsx — my-app — Visual Studio Code',
+            isIDE: true,
+            ideName: 'Code',
+          },
+          project: {
+            projectPath: '/Users/developer/projects/my-app',
+            projectName: 'my-app',
+            ideName: 'Code',
+            currentFile: 'src/components/UserProfile.tsx',
+            confidence: 'high',
+          },
+          timestamp: new Date(),
+        };
 
-    // Queue the test data - sendTextToRenderer will handle it whether renderer is ready or not
-    lastCapturedContext = mockContext;
-    sendTextToRenderer(testPrompt, mockContext);
-    console.log('[Main] 📸 Test prompt queued for injection');
-  }
+        setCapturedContext(mockContext);
+        sendTextToRenderer(testPrompt, mockContext);
+        console.log('[Main] 📸 Test prompt queued for injection');
+      }
+    },
+  });
 
-  return true;
-});
+  registerProjectHandlers({
+    getCurrentProject: () => currentProject,
+    setSelectedProjectPath: (p: string | null) => { selectedProjectPath = p; },
+    getSelectedProjectPath: () => selectedProjectPath,
+    detectActiveProject,
+    detectAllOpenProjects,
+    store: store as unknown as { get: (key: string) => unknown; set: (key: string, value: unknown) => void },
+  });
+
+  registerProviderHandlers({
+    getAIProviders,
+    setAIProviders,
+    getPrimaryProviderConfig,
+    hasAnyAIProvider,
+    validateProviderKey: validateProviderKeyFn,
+  });
+}
 
 // App lifecycle
 app.whenReady().then(async () => {
@@ -1272,6 +967,9 @@ app.whenReady().then(async () => {
   const languagePreference = store.get('language') as UserLanguagePreference;
   const resolvedLanguage = initMainI18n(languagePreference);
   console.log(`[Main] i18n initialized: preference=${languagePreference}, resolved=${resolvedLanguage}`);
+
+  // Register extracted IPC handlers (settings, clipboard, window, project, provider)
+  registerExtractedHandlers();
 
   createWindow();
   const shortcutRegistered = registerShortcut();

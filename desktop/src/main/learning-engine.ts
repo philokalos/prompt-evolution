@@ -28,7 +28,8 @@ import {
   type GOLDENEvaluator,
   type ProviderConfig,
 } from './prompt-rewriter.js';
-import { getAIRewriteSettings, getLastCapturedContext } from './index.js';
+import { getAIRewriteSettings } from './settings-store.js';
+import { getLastCapturedContext } from './app-state.js';
 import {
   getSessionContext,
   getSessionContextForPath,

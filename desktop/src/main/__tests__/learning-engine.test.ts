@@ -149,9 +149,13 @@ vi.mock('../prompt-rewriter.js', () => ({
   generateAllVariants: mockState.generateAllVariants,
 }));
 
-// Mock index.js
-vi.mock('../index.js', () => ({
+// Mock settings-store.js (extracted from index.js)
+vi.mock('../settings-store.js', () => ({
   getAIRewriteSettings: mockState.getAIRewriteSettings,
+}));
+
+// Mock app-state.js (extracted from index.js)
+vi.mock('../app-state.js', () => ({
   getLastCapturedContext: mockState.getLastCapturedContext,
 }));
 

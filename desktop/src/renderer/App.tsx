@@ -116,6 +116,7 @@ function App() {
             <button
               onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'analysis' })}
               className="p-1 rounded-md hover:bg-dark-hover transition-colors"
+              aria-label={t('back')}
             >
               <ArrowLeft size={16} />
             </button>
@@ -141,6 +142,7 @@ function App() {
               onClick={handleNewAnalysis}
               className="p-1.5 rounded-md hover:bg-dark-hover transition-colors"
               title={t('newAnalysis')}
+              aria-label={t('newAnalysis')}
             >
               <Plus size={14} />
             </button>
@@ -154,6 +156,7 @@ function App() {
             }
             className={`p-1.5 rounded-md transition-colors ${viewMode === 'help' ? 'bg-accent-primary/20 text-accent-primary' : 'hover:bg-dark-hover'}`}
             title={t('navigation.help')}
+            aria-label={t('navigation.help')}
           >
             <HelpCircle size={14} />
           </button>
@@ -161,18 +164,21 @@ function App() {
             onClick={() => dispatch({ type: 'OPEN_SETTINGS' })}
             className="p-1.5 rounded-md hover:bg-dark-hover transition-colors"
             title={t('settings')}
+            aria-label={t('settings')}
           >
             <SettingsIcon size={14} />
           </button>
           <button
             onClick={handleMinimize}
             className="p-1.5 rounded-md hover:bg-dark-hover transition-colors"
+            aria-label={t('minimize')}
           >
             <Minus size={14} />
           </button>
           <button
             onClick={handleClose}
             className="p-1.5 rounded-md hover:bg-red-500/20 hover:text-red-400 transition-colors"
+            aria-label={t('close')}
           >
             <X size={14} />
           </button>
@@ -196,6 +202,7 @@ function App() {
             <button
               onClick={() => dispatch({ type: 'CLEAR_SHORTCUT_ERROR' })}
               className="text-amber-400 hover:text-amber-200"
+              aria-label={t('dismiss')}
             >
               <X size={14} />
             </button>
