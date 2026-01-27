@@ -1,52 +1,31 @@
-import { useState, useEffect, useCallback } from 'react';
-import { X, Minus, BarChart3, Lightbulb, ArrowLeft, Settings as SettingsIcon, Edit3, Send, Plus, HelpCircle, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { useEffect } from 'react';
+import {
+  X,
+  Minus,
+  BarChart3,
+  Lightbulb,
+  ArrowLeft,
+  Settings as SettingsIcon,
+  Edit3,
+  Send,
+  Plus,
+  HelpCircle,
+  ChevronDown,
+  ChevronUp,
+  Sparkles,
+} from 'lucide-react';
 import GoldenRadar from './components/GoldenRadar';
 import ProgressTracker from './components/ProgressTracker';
 import PersonalTips from './components/PersonalTips';
 import HelpView from './components/HelpView';
 import IssueList from './components/IssueList';
-import PromptComparison, { RewriteResult } from './components/PromptComparison';
+import PromptComparison from './components/PromptComparison';
 import ContextIndicator, { SessionContextInfo } from './components/ContextIndicator';
 import HistoryRecommendations from './components/HistoryRecommendations';
 import Settings from './components/Settings';
-import type { DetectedProject, HistoryRecommendation, EmptyStatePayload, AIVariantResult } from './electron.d';
-import { initializeLanguage, changeLanguage } from '../locales';
+import type { DetectedProject } from './electron.d';
 import { useTranslation } from 'react-i18next';
-
-// Analysis result types
-interface Issue {
-  severity: 'high' | 'medium' | 'low';
-  category: string;
-  message: string;
-  suggestion: string;
-}
-
-interface AnalysisResult {
-  overallScore: number;
-  grade: 'A' | 'B' | 'C' | 'D' | 'F';
-  goldenScores: {
-    goal: number;
-    output: number;
-    limits: number;
-    data: number;
-    evaluation: number;
-    next: number;
-  };
-  issues: Issue[];
-  personalTips: string[];
-  improvedPrompt?: string; // deprecated, 호환성 유지
-  promptVariants: RewriteResult[]; // 신규: 3가지 변형
-  sessionContext?: SessionContextInfo; // 세션 컨텍스트
-  // Phase 2: History-based recommendations
-  historyRecommendations?: HistoryRecommendation[];
-  comparisonWithHistory?: {
-    betterThanAverage: boolean;
-    scoreDiff: number;
-    improvement: string | null;
-  } | null;
-}
-
-type ViewMode = 'analysis' | 'progress' | 'tips' | 'help';
+import { useAppState } from './hooks/useAppState';
 
 /**
  * Convert DetectedProject to minimal SessionContextInfo for display
@@ -72,266 +51,36 @@ function projectToContextInfo(project: DetectedProject): SessionContextInfo {
 function App() {
   const { t } = useTranslation('common');
   const { t: te } = useTranslation('errors');
-  const [originalPrompt, setOriginalPrompt] = useState('');
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('analysis');
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [showDirectInput, setShowDirectInput] = useState(false);
-  const [inputText, setInputText] = useState('');
-  const [currentProject, setCurrentProject] = useState<DetectedProject | null>(null);
-  const [shortcutError, setShortcutError] = useState<{ shortcut: string; message: string } | null>(null);
-  const [isSourceAppBlocked, setIsSourceAppBlocked] = useState(false); // True if source app doesn't support Apply
-  const [emptyState, setEmptyState] = useState<EmptyStatePayload | null>(null); // Empty state when no text captured
-  const [showOnboarding, setShowOnboarding] = useState(false); // First launch onboarding
-  const [showDetails, setShowDetails] = useState(false); // 세부 분석 접이식 상태
 
-  // Project selection handlers
-  const handleProjectSelect = useCallback(async (projectPath: string | null) => {
-    try {
-      await window.electronAPI.selectProject(projectPath);
-      // Refresh current project state
-      const project = await window.electronAPI.getCurrentProject();
-      setCurrentProject(project as DetectedProject | null);
-    } catch (error) {
-      console.error('Failed to select project:', error);
-    }
-  }, []);
+  const {
+    state,
+    dispatch,
+    handleCopy,
+    handleApply,
+    handleClose,
+    handleMinimize,
+    handleNewAnalysis,
+    dismissOnboarding,
+    handleProjectSelect,
+    loadAllProjects,
+    handleDirectInputSubmit,
+  } = useAppState(te);
 
-  const loadAllProjects = useCallback(async (): Promise<DetectedProject[]> => {
-    try {
-      const projects = await window.electronAPI.getAllOpenProjects();
-      return projects as DetectedProject[];
-    } catch (error) {
-      console.error('Failed to load projects:', error);
-      return [];
-    }
-  }, []);
-
-  // Listen for clipboard text from main process
-  useEffect(() => {
-    // Signal to main process that renderer is ready to receive IPC messages
-    window.electronAPI.signalReady().then(() => {
-      console.log('[Renderer] Signaled ready to main process');
-    });
-
-    // Initialize language from main process settings
-    initializeLanguage().then((lang) => {
-      console.log('[Renderer] Language initialized:', lang);
-    });
-
-    // Listen for language changes
-    window.electronAPI.onLanguageChanged(async (data) => {
-      console.log('[Renderer] Language changed:', data.language, 'source:', data.source);
-      await changeLanguage(data.language as 'en' | 'ko');
-    });
-
-    // Get initial project state
-    window.electronAPI.getCurrentProject().then((project) => {
-      setCurrentProject(project as DetectedProject | null);
-    });
-
-    // Load settings on mount
-    window.electronAPI.getSettings().then((settings) => {
-      // First launch onboarding
-      const onboardingDismissed = (settings.onboardingDismissed as boolean) ?? false;
-      if (!onboardingDismissed) {
-        setShowOnboarding(true);
-      }
-    });
-
-    console.log('[Renderer] Setting up clipboard listener');
-    window.electronAPI.onClipboardText((payload) => {
-      console.log('[Renderer] >>> Clipboard text received! <<<');
-      const { text, capturedContext, isSourceAppBlocked: blocked } = payload;
-      console.log('[Renderer] Text length:', text?.length, 'Preview:', text?.substring(0, 50));
-      console.log('[Renderer] Source app blocked:', blocked);
-      if (capturedContext?.project) {
-        console.log('[Renderer] Captured project:', capturedContext.project.projectPath);
-      }
-      console.log('[Renderer] Calling setOriginalPrompt and analyzePrompt');
-      // Clear empty state when text is received
-      setEmptyState(null);
-      setOriginalPrompt(text);
-      setIsSourceAppBlocked(blocked);
-      analyzePrompt(text);
-    });
-    console.log('[Renderer] Clipboard listener registered');
-
-    // Listen for empty state (no text captured on hotkey)
-    window.electronAPI.onEmptyState((payload) => {
-      console.log('[Renderer] Empty state received:', payload.reason, 'app:', payload.appName);
-      // Clear any previous analysis and show contextual guidance
-      setAnalysis(null);
-      setOriginalPrompt('');
-      setEmptyState(payload);
-    });
-    console.log('[Renderer] Empty state listener registered');
-
-    // Listen for project changes (polling)
-    window.electronAPI.onProjectChanged((project) => {
-      console.log('[Renderer] Project changed:', project?.projectPath);
-      setCurrentProject(project as DetectedProject | null);
-    });
-
-    // Listen for navigation events (from tray menu)
-    window.electronAPI.onNavigate((view) => {
-      console.log('[Renderer] Navigate to:', view);
-      if (view === 'stats' || view === 'progress') {
-        setViewMode('progress');
-      } else if (view === 'help') {
-        setViewMode('help');
-      } else if (view === 'tips') {
-        setViewMode('tips');
-      } else {
-        setViewMode('analysis');
-      }
-    });
-
-    // Listen for shortcut registration failures
-    window.electronAPI.onShortcutFailed((data) => {
-      console.log('[Renderer] Shortcut registration failed:', data);
-      setShortcutError(data);
-    });
-
-    return () => {
-      window.electronAPI.removeClipboardListener();
-      window.electronAPI.removeEmptyStateListener();
-      window.electronAPI.removeProjectListener();
-      window.electronAPI.removeNavigateListener();
-      window.electronAPI.removeShortcutFailedListener();
-      window.electronAPI.removeLanguageChangedListener();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // analyzePrompt is stable (useCallback with empty deps), mount-only effect
-
-  const analyzePrompt = useCallback(async (text: string) => {
-    if (!text.trim()) return;
-
-    setIsAnalyzing(true);
-    try {
-      // Call the analysis engine via IPC
-      const result = await window.electronAPI.analyzePrompt(text);
-      const analysisResult = result as AnalysisResult;
-      setAnalysis(analysisResult);
-
-      // Phase 3.1: Check if AI variant needs async loading
-      const aiVariantIndex = analysisResult.promptVariants?.findIndex(
-        (v: RewriteResult) => v.variant === 'ai' && v.isLoading
-      );
-
-      if (aiVariantIndex !== undefined && aiVariantIndex >= 0) {
-        console.log('[Renderer] AI variant loading async...');
-        // Load AI variant asynchronously (don't await, fire-and-forget)
-        window.electronAPI.getAIVariant(text).then((aiVariant: AIVariantResult) => {
-          console.log('[Renderer] AI variant loaded:', aiVariant?.isAiGenerated);
-          // Update the analysis with the loaded AI variant
-          setAnalysis((prev) => {
-            if (!prev) return prev;
-            const updatedVariants = [...prev.promptVariants];
-            if (updatedVariants[aiVariantIndex]) {
-              updatedVariants[aiVariantIndex] = aiVariant as RewriteResult;
-            }
-            return { ...prev, promptVariants: updatedVariants };
-          });
-        }).catch((err: unknown) => {
-          console.error('[Renderer] AI variant loading failed:', err);
-          // Update with error state
-          setAnalysis((prev) => {
-            if (!prev) return prev;
-            const updatedVariants = [...prev.promptVariants];
-            if (updatedVariants[aiVariantIndex]) {
-              updatedVariants[aiVariantIndex] = {
-                ...updatedVariants[aiVariantIndex],
-                isLoading: false,
-                needsSetup: false,
-              };
-            }
-            return { ...prev, promptVariants: updatedVariants };
-          });
-        });
-      }
-    } catch (error) {
-      console.error('Analysis failed:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      const isNetworkError = errorMessage.includes('timeout') || errorMessage.includes('network');
-      const isDbError = errorMessage.includes('데이터베이스') || errorMessage.includes('database');
-
-      // Fallback to basic analysis if IPC fails
-      setAnalysis({
-        overallScore: 50,
-        grade: 'C',
-        goldenScores: {
-          goal: 50,
-          output: 50,
-          limits: 50,
-          data: 50,
-          evaluation: 50,
-          next: 50,
-        },
-        issues: [
-          {
-            severity: 'medium',
-            category: 'analysis',
-            message: isDbError
-              ? te('storage.databaseError')
-              : isNetworkError
-                ? te('network.failed')
-                : te('analysis.failed'),
-            suggestion: isDbError
-              ? te('general.tryAgain')
-              : isNetworkError
-                ? te('general.tryAgain')
-                : te('general.tryAgain'),
-          },
-        ],
-        personalTips: [],
-        improvedPrompt: undefined,
-        promptVariants: [],
-      });
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }, [te]);
-
-  const handleCopy = async (text: string) => {
-    try {
-      await window.electronAPI.setClipboard(text);
-
-      // Check hideOnCopy setting and close window if enabled
-      const settings = await window.electronAPI.getSettings();
-      console.log('[App] handleCopy - hideOnCopy setting:', settings.hideOnCopy);
-      if (settings.hideOnCopy) {
-        console.log('[App] Hiding window after copy');
-        await window.electronAPI.hideWindow();
-      }
-    } catch (error) {
-      console.error('[App] handleCopy error:', error);
-    }
-  };
-
-  const handleApply = async (text: string): Promise<{ success: boolean; message?: string }> => {
-    const result = await window.electronAPI.applyImprovedPrompt(text);
-    return {
-      success: result.success,
-      message: result.message,
-    };
-  };
-
-  const handleClose = () => {
-    window.electronAPI.hideWindow();
-  };
-
-  const handleMinimize = () => {
-    window.electronAPI.minimizeWindow();
-  };
-
-  const handleNewAnalysis = () => {
-    setAnalysis(null);
-    setOriginalPrompt('');
-    setEmptyState(null);
-    setShowDirectInput(true);
-  };
+  const {
+    originalPrompt,
+    analysis,
+    isAnalyzing,
+    showDetails,
+    emptyState,
+    isSourceAppBlocked,
+    viewMode,
+    settingsOpen,
+    showDirectInput,
+    inputText,
+    showOnboarding,
+    currentProject,
+    shortcutError,
+  } = state;
 
   const getGradeColor = (grade: string) => {
     switch (grade) {
@@ -345,13 +94,6 @@ function App() {
         return 'text-accent-error';
     }
   };
-
-
-  // Dismiss onboarding and remember
-  const dismissOnboarding = useCallback(() => {
-    setShowOnboarding(false);
-    window.electronAPI.setSetting('onboardingDismissed', true);
-  }, []);
 
   // Keyboard shortcuts: Escape to hide
   useEffect(() => {
@@ -372,19 +114,23 @@ function App() {
         <div className="flex items-center gap-2">
           {viewMode !== 'analysis' && (
             <button
-              onClick={() => setViewMode('analysis')}
+              onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'analysis' })}
               className="p-1 rounded-md hover:bg-dark-hover transition-colors"
             >
               <ArrowLeft size={16} />
             </button>
           )}
           <span className="text-sm font-semibold">
-            {viewMode === 'analysis' ? t('navigation.analysis') : viewMode === 'progress' ? t('navigation.progress') : viewMode === 'tips' ? t('navigation.tips') : t('navigation.help')}
+            {viewMode === 'analysis'
+              ? t('navigation.analysis')
+              : viewMode === 'progress'
+                ? t('navigation.progress')
+                : viewMode === 'tips'
+                  ? t('navigation.tips')
+                  : t('navigation.help')}
           </span>
           {viewMode === 'analysis' && analysis && (
-            <span
-              className={`grade-badge text-2xl font-bold ${getGradeColor(analysis.grade)}`}
-            >
+            <span className={`grade-badge text-2xl font-bold ${getGradeColor(analysis.grade)}`}>
               {analysis.grade}
             </span>
           )}
@@ -400,14 +146,19 @@ function App() {
             </button>
           )}
           <button
-            onClick={() => setViewMode(viewMode === 'help' ? 'analysis' : 'help')}
+            onClick={() =>
+              dispatch({
+                type: 'SET_VIEW_MODE',
+                mode: viewMode === 'help' ? 'analysis' : 'help',
+              })
+            }
             className={`p-1.5 rounded-md transition-colors ${viewMode === 'help' ? 'bg-accent-primary/20 text-accent-primary' : 'hover:bg-dark-hover'}`}
             title={t('navigation.help')}
           >
             <HelpCircle size={14} />
           </button>
           <button
-            onClick={() => setSettingsOpen(true)}
+            onClick={() => dispatch({ type: 'OPEN_SETTINGS' })}
             className="p-1.5 rounded-md hover:bg-dark-hover transition-colors"
             title={t('settings')}
           >
@@ -437,13 +188,13 @@ function App() {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setSettingsOpen(true)}
+              onClick={() => dispatch({ type: 'OPEN_SETTINGS' })}
               className="text-xs bg-amber-600 hover:bg-amber-500 text-white px-2 py-1 rounded"
             >
               {t('settings')}
             </button>
             <button
-              onClick={() => setShortcutError(null)}
+              onClick={() => dispatch({ type: 'CLEAR_SHORTCUT_ERROR' })}
               className="text-amber-400 hover:text-amber-200"
             >
               <X size={14} />
@@ -466,117 +217,119 @@ function App() {
           </div>
         ) : analysis ? (
           <>
-                {/* Session Context Indicator */}
-                <ContextIndicator
-                  context={analysis.sessionContext || (currentProject ? projectToContextInfo(currentProject) : null)}
-                  onProjectSelect={handleProjectSelect}
-                  onLoadProjects={loadAllProjects}
-                />
+            {/* Session Context Indicator */}
+            <ContextIndicator
+              context={
+                analysis.sessionContext ||
+                (currentProject ? projectToContextInfo(currentProject) : null)
+              }
+              onProjectSelect={handleProjectSelect}
+              onLoadProjects={loadAllProjects}
+            />
 
-                {/* [Hero] Prompt Comparison - Before→After 변환을 가장 먼저 */}
-                {analysis.promptVariants.length > 0 && (
-                  <PromptComparison
-                    originalPrompt={originalPrompt}
-                    variants={analysis.promptVariants}
-                    onCopy={handleCopy}
-                    onApply={isSourceAppBlocked ? undefined : handleApply}
-                    onOpenSettings={() => setSettingsOpen(true)}
+            {/* [Hero] Prompt Comparison - Before→After 변환을 가장 먼저 */}
+            {analysis.promptVariants.length > 0 && (
+              <PromptComparison
+                originalPrompt={originalPrompt}
+                variants={analysis.promptVariants}
+                onCopy={handleCopy}
+                onApply={isSourceAppBlocked ? undefined : handleApply}
+                onOpenSettings={() => dispatch({ type: 'OPEN_SETTINGS' })}
+              />
+            )}
+
+            {/* [Summary] 간략 GOLDEN Score + 접이식 토글 */}
+            <div className="bg-dark-surface rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div>
+                    <span className="text-xs text-gray-500">GOLDEN</span>
+                    <div className="text-xl font-bold">{analysis.overallScore}%</div>
+                  </div>
+                  <span
+                    className={`grade-badge text-3xl font-bold ${getGradeColor(analysis.grade)}`}
+                  >
+                    {analysis.grade}
+                  </span>
+                </div>
+                <button
+                  onClick={() => dispatch({ type: 'TOGGLE_DETAILS' })}
+                  className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 bg-dark-hover hover:bg-dark-border rounded-lg transition-colors"
+                >
+                  {showDetails ? (
+                    <>
+                      <ChevronUp size={14} />
+                      <span>{t('collapse')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown size={14} />
+                      <span>{t('showDetails')}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* 핵심 개선점 한 줄 요약 */}
+              {analysis.issues.length > 0 && !showDetails && (
+                <div className="mt-3 pt-3 border-t border-dark-border">
+                  <div className="flex items-start gap-2 text-sm">
+                    <Lightbulb size={14} className="text-accent-warning mt-0.5 flex-shrink-0" />
+                    <span className="text-gray-400">{analysis.issues[0].suggestion}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* [Expandable] 세부 분석 - 접이식 */}
+            {showDetails && (
+              <div className="space-y-4">
+                {/* Radar Chart */}
+                <div className="bg-dark-surface rounded-lg p-4">
+                  <div className="flex justify-center">
+                    <GoldenRadar scores={analysis.goldenScores} size={180} />
+                  </div>
+                </div>
+
+                {/* Issues */}
+                <IssueList issues={analysis.issues} />
+
+                {/* History-based Recommendations */}
+                {(analysis.historyRecommendations?.length ||
+                  analysis.comparisonWithHistory?.improvement) && (
+                  <HistoryRecommendations
+                    recommendations={analysis.historyRecommendations || []}
+                    comparisonWithHistory={analysis.comparisonWithHistory}
                   />
                 )}
 
-                {/* [Summary] 간략 GOLDEN Score + 접이식 토글 */}
-                <div className="bg-dark-surface rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div>
-                        <span className="text-xs text-gray-500">GOLDEN</span>
-                        <div className="text-xl font-bold">{analysis.overallScore}%</div>
+                {/* Personal Tips */}
+                {analysis.personalTips.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Lightbulb size={16} className="text-accent-primary" />
+                        <span>{t('navigation.tips')}</span>
                       </div>
-                      <span
-                        className={`grade-badge text-3xl font-bold ${getGradeColor(analysis.grade)}`}
+                      <button
+                        onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'tips' })}
+                        className="text-xs text-accent-primary hover:underline"
                       >
-                        {analysis.grade}
-                      </span>
+                        {t('viewMore')}
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setShowDetails(!showDetails)}
-                      className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 bg-dark-hover hover:bg-dark-border rounded-lg transition-colors"
-                    >
-                      {showDetails ? (
-                        <>
-                          <ChevronUp size={14} />
-                          <span>{t('collapse')}</span>
-                        </>
-                      ) : (
-                        <>
-                          <ChevronDown size={14} />
-                          <span>{t('showDetails')}</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* 핵심 개선점 한 줄 요약 */}
-                  {analysis.issues.length > 0 && !showDetails && (
-                    <div className="mt-3 pt-3 border-t border-dark-border">
-                      <div className="flex items-start gap-2 text-sm">
-                        <Lightbulb size={14} className="text-accent-warning mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-400">
-                          {analysis.issues[0].suggestion}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* [Expandable] 세부 분석 - 접이식 */}
-                {showDetails && (
-                  <div className="space-y-4">
-                    {/* Radar Chart */}
-                    <div className="bg-dark-surface rounded-lg p-4">
-                      <div className="flex justify-center">
-                        <GoldenRadar scores={analysis.goldenScores} size={180} />
-                      </div>
-                    </div>
-
-                    {/* Issues */}
-                    <IssueList issues={analysis.issues} />
-
-                    {/* History-based Recommendations */}
-                    {(analysis.historyRecommendations?.length || analysis.comparisonWithHistory?.improvement) && (
-                      <HistoryRecommendations
-                        recommendations={analysis.historyRecommendations || []}
-                        comparisonWithHistory={analysis.comparisonWithHistory}
-                      />
-                    )}
-
-                    {/* Personal Tips */}
-                    {analysis.personalTips.length > 0 && (
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-sm font-medium">
-                            <Lightbulb size={16} className="text-accent-primary" />
-                            <span>{t('navigation.tips')}</span>
-                          </div>
-                          <button
-                            onClick={() => setViewMode('tips')}
-                            className="text-xs text-accent-primary hover:underline"
-                          >
-                            {t('viewMore')}
-                          </button>
+                    <div className="bg-dark-surface rounded-lg p-3 space-y-2">
+                      {analysis.personalTips.slice(0, 2).map((tip, index) => (
+                        <div key={index} className="flex items-start gap-2 text-sm">
+                          <span className="text-accent-secondary">•</span>
+                          <span className="text-gray-300">{tip}</span>
                         </div>
-                        <div className="bg-dark-surface rounded-lg p-3 space-y-2">
-                          {analysis.personalTips.slice(0, 2).map((tip, index) => (
-                            <div key={index} className="flex items-start gap-2 text-sm">
-                              <span className="text-accent-secondary">•</span>
-                              <span className="text-gray-300">{tip}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                      ))}
+                    </div>
                   </div>
                 )}
+              </div>
+            )}
           </>
         ) : (
           <div className="flex flex-col h-full">
@@ -598,30 +351,55 @@ function App() {
                         <div className="w-12 h-12 mb-4 bg-amber-500/20 rounded-full flex items-center justify-center">
                           <span className="text-2xl">📋</span>
                         </div>
-                        <h2 className="text-base font-semibold text-gray-200 mb-2">{t('emptyState.blockedApp.title')}</h2>
+                        <h2 className="text-base font-semibold text-gray-200 mb-2">
+                          {t('emptyState.blockedApp.title')}
+                        </h2>
                         <p className="text-sm text-gray-400 text-center mb-4">
-                          <span className="text-amber-400 font-medium">{emptyState.appName || t('appName')}</span>
-                          <br />{t('emptyState.blockedApp.description')}
+                          <span className="text-amber-400 font-medium">
+                            {emptyState.appName || t('appName')}
+                          </span>
+                          <br />
+                          {t('emptyState.blockedApp.description')}
                         </p>
                         <div className="w-full max-w-xs space-y-3 text-left">
                           <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg border border-amber-500/20">
-                            <div className="flex-shrink-0 w-6 h-6 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                            <div className="flex-shrink-0 w-6 h-6 bg-amber-500/20 text-amber-400 rounded-full flex items-center justify-center text-xs font-bold">
+                              1
+                            </div>
                             <div>
-                              <p className="text-sm font-medium text-gray-200">{t('emptyState.blockedApp.step1Title')}</p>
+                              <p className="text-sm font-medium text-gray-200">
+                                {t('emptyState.blockedApp.step1Title')}
+                              </p>
                               <p className="text-xs text-gray-500 mt-0.5">
-                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
-                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">C</kbd> {t('emptyState.blockedApp.step1Desc')}
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">
+                                  ⌘
+                                </kbd>{' '}
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">
+                                  C
+                                </kbd>{' '}
+                                {t('emptyState.blockedApp.step1Desc')}
                               </p>
                             </div>
                           </div>
                           <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
-                            <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                            <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">
+                              2
+                            </div>
                             <div>
-                              <p className="text-sm font-medium text-gray-200">{t('emptyState.blockedApp.step2Title')}</p>
+                              <p className="text-sm font-medium text-gray-200">
+                                {t('emptyState.blockedApp.step2Title')}
+                              </p>
                               <p className="text-xs text-gray-500 mt-0.5">
-                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
-                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⇧</kbd>{' '}
-                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">P</kbd> {t('emptyState.blockedApp.step2Desc')}
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">
+                                  ⌘
+                                </kbd>{' '}
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">
+                                  ⇧
+                                </kbd>{' '}
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">
+                                  P
+                                </kbd>{' '}
+                                {t('emptyState.blockedApp.step2Desc')}
                               </p>
                             </div>
                           </div>
@@ -637,26 +415,45 @@ function App() {
                         <div className="w-12 h-12 mb-4 bg-accent-primary/20 rounded-full flex items-center justify-center">
                           <BarChart3 size={24} className="text-accent-primary" />
                         </div>
-                        <h2 className="text-base font-semibold text-gray-200 mb-2">{t('emptyState.noSelection.title')}</h2>
+                        <h2 className="text-base font-semibold text-gray-200 mb-2">
+                          {t('emptyState.noSelection.title')}
+                        </h2>
                         <p className="text-sm text-gray-400 text-center mb-4">
                           {t('emptyState.noSelection.description')}
                         </p>
                         <div className="w-full max-w-xs space-y-3 text-left">
                           <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg border border-accent-primary/20">
-                            <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                            <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">
+                              1
+                            </div>
                             <div>
-                              <p className="text-sm font-medium text-gray-200">{t('emptyState.noSelection.step1Title')}</p>
-                              <p className="text-xs text-gray-500 mt-0.5">{t('emptyState.noSelection.step1Desc')}</p>
+                              <p className="text-sm font-medium text-gray-200">
+                                {t('emptyState.noSelection.step1Title')}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {t('emptyState.noSelection.step1Desc')}
+                              </p>
                             </div>
                           </div>
                           <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
-                            <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                            <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">
+                              2
+                            </div>
                             <div>
-                              <p className="text-sm font-medium text-gray-200">{t('emptyState.noSelection.step2Title')}</p>
+                              <p className="text-sm font-medium text-gray-200">
+                                {t('emptyState.noSelection.step2Title')}
+                              </p>
                               <p className="text-xs text-gray-500 mt-0.5">
-                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
-                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⇧</kbd>{' '}
-                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">P</kbd> {t('emptyState.noSelection.step2Desc')}
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">
+                                  ⌘
+                                </kbd>{' '}
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">
+                                  ⇧
+                                </kbd>{' '}
+                                <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">
+                                  P
+                                </kbd>{' '}
+                                {t('emptyState.noSelection.step2Desc')}
                               </p>
                             </div>
                           </div>
@@ -678,7 +475,9 @@ function App() {
                         </button>
                         <div className="flex items-center gap-2 mb-2">
                           <Sparkles size={18} className="text-accent-primary" />
-                          <h3 className="text-sm font-semibold text-gray-100">{t('emptyState.onboarding.title')}</h3>
+                          <h3 className="text-sm font-semibold text-gray-100">
+                            {t('emptyState.onboarding.title')}
+                          </h3>
                         </div>
                         <p className="text-xs text-gray-300 leading-relaxed mb-3">
                           {t('emptyState.onboarding.description')}
@@ -686,49 +485,83 @@ function App() {
                           {t('emptyState.onboarding.subDescription')}
                         </p>
                         <div className="flex items-center gap-2 text-[10px] text-gray-400">
-                          <span className="px-1.5 py-0.5 bg-dark-surface/50 rounded">{t('emptyState.onboarding.tags.free')}</span>
-                          <span className="px-1.5 py-0.5 bg-dark-surface/50 rounded">{t('emptyState.onboarding.tags.offline')}</span>
-                          <span className="px-1.5 py-0.5 bg-dark-surface/50 rounded">{t('emptyState.onboarding.tags.privacy')}</span>
+                          <span className="px-1.5 py-0.5 bg-dark-surface/50 rounded">
+                            {t('emptyState.onboarding.tags.free')}
+                          </span>
+                          <span className="px-1.5 py-0.5 bg-dark-surface/50 rounded">
+                            {t('emptyState.onboarding.tags.offline')}
+                          </span>
+                          <span className="px-1.5 py-0.5 bg-dark-surface/50 rounded">
+                            {t('emptyState.onboarding.tags.privacy')}
+                          </span>
                         </div>
                       </div>
                     )}
 
                     <BarChart3 size={40} className="mb-4 text-accent-primary opacity-70" />
-                    <h2 className="text-base font-semibold text-gray-200 mb-4">{t('emptyState.welcome.title')}</h2>
+                    <h2 className="text-base font-semibold text-gray-200 mb-4">
+                      {t('emptyState.welcome.title')}
+                    </h2>
 
                     {/* Step-by-step guide */}
                     <div className="w-full max-w-xs space-y-3 text-left">
                       {/* Step 1 */}
                       <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
-                        <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                        <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">
+                          1
+                        </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-200">{t('emptyState.welcome.step1Title')}</p>
-                          <p className="text-xs text-gray-500 mt-0.5">{t('emptyState.welcome.step1Desc')}</p>
+                          <p className="text-sm font-medium text-gray-200">
+                            {t('emptyState.welcome.step1Title')}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {t('emptyState.welcome.step1Desc')}
+                          </p>
                         </div>
                       </div>
 
                       {/* Step 2 */}
                       <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
-                        <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                        <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">
+                          2
+                        </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-200">{t('emptyState.welcome.step2Title')}</p>
+                          <p className="text-sm font-medium text-gray-200">
+                            {t('emptyState.welcome.step2Title')}
+                          </p>
                           <p className="text-xs text-gray-500 mt-0.5">
-                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
-                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⇧</kbd>{' '}
-                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">P</kbd> {t('emptyState.welcome.step2Desc')}
+                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">
+                              ⌘
+                            </kbd>{' '}
+                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">
+                              ⇧
+                            </kbd>{' '}
+                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">
+                              P
+                            </kbd>{' '}
+                            {t('emptyState.welcome.step2Desc')}
                           </p>
                         </div>
                       </div>
 
                       {/* Step 3 */}
                       <div className="flex items-start gap-3 p-3 bg-dark-surface rounded-lg">
-                        <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">3</div>
+                        <div className="flex-shrink-0 w-6 h-6 bg-accent-primary/20 text-accent-primary rounded-full flex items-center justify-center text-xs font-bold">
+                          3
+                        </div>
                         <div>
-                          <p className="text-sm font-medium text-gray-200">{t('emptyState.welcome.step3Title')}</p>
+                          <p className="text-sm font-medium text-gray-200">
+                            {t('emptyState.welcome.step3Title')}
+                          </p>
                           <p className="text-xs text-gray-500 mt-0.5">
-                            <span className="text-accent-success">[{t('apply')}]</span> {t('emptyState.welcome.step3Desc')}{' '}
-                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">⌘</kbd>{' '}
-                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">Enter</kbd>
+                            <span className="text-accent-success">[{t('apply')}]</span>{' '}
+                            {t('emptyState.welcome.step3Desc')}{' '}
+                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">
+                              ⌘
+                            </kbd>{' '}
+                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-[10px]">
+                              Enter
+                            </kbd>
                           </p>
                         </div>
                       </div>
@@ -736,9 +569,7 @@ function App() {
 
                     {/* Tip */}
                     <div className="mt-4 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
-                      <p className="text-xs text-amber-400/90">
-                        {t('emptyState.welcome.tip')}
-                      </p>
+                      <p className="text-xs text-amber-400/90">{t('emptyState.welcome.tip')}</p>
                     </div>
                   </>
                 )}
@@ -751,7 +582,7 @@ function App() {
                 <textarea
                   value={inputText}
                   onChange={(e) => {
-                    setInputText(e.target.value);
+                    dispatch({ type: 'SET_INPUT_TEXT', text: e.target.value });
                     // Auto-expand: adjust height based on content
                     const target = e.target;
                     target.style.height = 'auto';
@@ -761,10 +592,7 @@ function App() {
                     // Cmd/Ctrl + Enter to submit
                     if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && inputText.trim()) {
                       e.preventDefault();
-                      setOriginalPrompt(inputText);
-                      analyzePrompt(inputText);
-                      setShowDirectInput(false);
-                      setInputText('');
+                      handleDirectInputSubmit(inputText);
                     }
                   }}
                   placeholder={t('directInput.placeholder')}
@@ -777,14 +605,7 @@ function App() {
                   <span>{t('directInput.submitHint')}</span>
                 </div>
                 <button
-                  onClick={() => {
-                    if (inputText.trim()) {
-                      setOriginalPrompt(inputText);
-                      analyzePrompt(inputText);
-                      setShowDirectInput(false);
-                      setInputText('');
-                    }
-                  }}
+                  onClick={() => handleDirectInputSubmit(inputText)}
                   disabled={!inputText.trim()}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-accent-primary hover:bg-accent-primary/80 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg text-sm font-medium transition-colors"
                 >
@@ -797,11 +618,15 @@ function App() {
             {/* Toggle button */}
             <div className="pt-4 border-t border-dark-border mt-4">
               <button
-                onClick={() => setShowDirectInput(!showDirectInput)}
+                onClick={() =>
+                  dispatch({ type: 'SET_SHOW_DIRECT_INPUT', show: !showDirectInput })
+                }
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 text-xs text-gray-400 hover:text-gray-200 hover:bg-dark-hover rounded-lg transition-colors"
               >
                 <Edit3 size={14} />
-                <span>{showDirectInput ? t('directInput.toggleBack') : t('directInput.toggle')}</span>
+                <span>
+                  {showDirectInput ? t('directInput.toggleBack') : t('directInput.toggle')}
+                </span>
               </button>
             </div>
           </div>
@@ -813,7 +638,7 @@ function App() {
         <div className="p-4 border-t border-dark-border bg-dark-surface">
           {/* Progress button */}
           <button
-            onClick={() => setViewMode('progress')}
+            onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'progress' })}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-dark-hover hover:bg-dark-border rounded-lg text-sm transition-colors"
           >
             <BarChart3 size={16} />
@@ -823,7 +648,7 @@ function App() {
       )}
 
       {/* Settings Modal */}
-      <Settings isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <Settings isOpen={settingsOpen} onClose={() => dispatch({ type: 'CLOSE_SETTINGS' })} />
     </div>
   );
 }
