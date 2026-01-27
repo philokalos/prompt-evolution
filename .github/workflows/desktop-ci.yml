@@ -1,0 +1,35 @@
+name: Desktop CI
+on:
+  push:
+    branches: [main]
+    paths: ['desktop/**']
+  pull_request:
+    branches: [main]
+    paths: ['desktop/**']
+
+jobs:
+  ci:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci
+      - name: TypeScript (main)
+        run: npx tsc -p tsconfig.main.json --noEmit
+      - name: TypeScript (preload)
+        run: npx tsc -p tsconfig.preload.json --noEmit
+      - name: TypeScript (renderer)
+        run: npm run typecheck
+      - name: ESLint
+        run: npm run lint
+      - name: Tests
+        run: npm run test:run
+      - name: Build
+        run: npm run build:all

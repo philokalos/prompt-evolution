@@ -29,6 +29,7 @@ import {
 } from './active-window-detector.js';
 import { initAutoUpdater, cleanupAutoUpdater } from './auto-updater.js';
 import { closeDatabase } from './db/connection.js';
+import { saveAnalysis } from './db/history-crud.js';
 import {
   showAIContextButton,
   hideAIContextButton,
@@ -733,10 +734,29 @@ function initGhostBarCallbacks(): void {
   });
 
   // Handle apply action: save to history
-  setOnApplyCallback((_state: GhostBarState) => {
+  setOnApplyCallback((state: GhostBarState) => {
     console.log('[Main] Ghost Bar apply triggered');
     // Clear badge since prompt was processed
     clearTrayBadge();
+
+    // T022: Save applied improvement to history
+    try {
+      const cached = getCachedAnalysis(state.originalText);
+      if (cached) {
+        saveAnalysis({
+          promptText: state.originalText,
+          overallScore: cached.overallScore,
+          grade: cached.grade,
+          goldenScores: cached.goldenScores,
+          issues: cached.issues,
+          improvedPrompt: state.improvedText,
+          sourceApp: state.sourceApp ?? undefined,
+        });
+        console.log('[Main] Ghost Bar: Applied improvement saved to history');
+      }
+    } catch (error) {
+      console.warn('[Main] Ghost Bar: Failed to save to history:', error);
+    }
   });
 }
 
