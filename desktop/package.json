@@ -50,6 +50,9 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/better-sqlite3": "^7.6.11",
     "@types/diff": "^7.0.2",
     "@types/node": "^20.11.0",
@@ -66,6 +69,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.26",
     "globals": "^17.0.0",
+    "jsdom": "^27.4.0",
     "playwright": "^1.57.0",
     "postcss": "^8.4.33",
     "sharp": "^0.34.5",
