@@ -1,17 +1,12 @@
-import { useReducer, useEffect, useCallback } from 'react';
+import { useReducer, useEffect, useCallback, useRef } from 'react';
 import type { RewriteResult } from '../components/PromptComparison';
 import type { SessionContextInfo } from '../components/ContextIndicator';
-import type { DetectedProject, EmptyStatePayload, AIVariantResult } from '../electron.d';
+import type { DetectedProject, EmptyStatePayload, HistoryRecommendation } from '../electron.d';
 import { initializeLanguage, changeLanguage } from '../../locales';
 
-// Analysis result types (shared with App.tsx)
-export interface Issue {
-  severity: 'high' | 'medium' | 'low';
-  category: string;
-  message: string;
-  suggestion: string;
-}
-
+// Renderer-specific AnalysisResult:
+// - Uses PromptComparison's RewriteResult (has isLoading, needsSetup, provider fields)
+// - Makes promptVariants required (IPC always returns it)
 export interface AnalysisResult {
   overallScore: number;
   grade: 'A' | 'B' | 'C' | 'D' | 'F';
@@ -23,7 +18,12 @@ export interface AnalysisResult {
     evaluation: number;
     next: number;
   };
-  issues: Issue[];
+  issues: Array<{
+    severity: 'high' | 'medium' | 'low';
+    category: string;
+    message: string;
+    suggestion: string;
+  }>;
   personalTips: string[];
   improvedPrompt?: string;
   promptVariants: RewriteResult[];
@@ -34,16 +34,6 @@ export interface AnalysisResult {
     scoreDiff: number;
     improvement: string | null;
   } | null;
-}
-
-interface HistoryRecommendation {
-  type: 'weakness' | 'improvement' | 'reference' | 'pattern';
-  priority: 'high' | 'medium' | 'low';
-  title: string;
-  message: string;
-  dimension?: string;
-  examplePrompt?: string;
-  improvement?: number;
 }
 
 export type ViewMode = 'analysis' | 'progress' | 'tips' | 'help';
@@ -188,6 +178,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
 export function useAppState(te: (key: string) => string) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
+  // Ref to avoid stale closure in mount-only IPC effect.
+  // analyzePrompt depends on `te` which changes on language switch;
+  // the ref always points to the latest version.
+  const analyzePromptRef = useRef<((text: string) => Promise<void>) | null>(null);
+
   // --- Callbacks ---
 
   const analyzePrompt = useCallback(
@@ -197,24 +192,29 @@ export function useAppState(te: (key: string) => string) {
       dispatch({ type: 'START_ANALYSIS' });
       try {
         const result = await window.electronAPI.analyzePrompt(text);
-        const analysisResult = result as AnalysisResult;
+        // Map IPC result (AnalysisResultWithContext) to renderer's AnalysisResult.
+        // The IPC result has promptVariants as optional; default to empty array.
+        const analysisResult: AnalysisResult = {
+          ...result,
+          promptVariants: result.promptVariants ?? [],
+        };
         dispatch({ type: 'SET_ANALYSIS', result: analysisResult });
 
         // Phase 3.1: Check if AI variant needs async loading
-        const aiVariantIndex = analysisResult.promptVariants?.findIndex(
-          (v: RewriteResult) => v.variant === 'ai' && v.isLoading
+        const aiVariantIndex = analysisResult.promptVariants.findIndex(
+          (v) => v.variant === 'ai' && v.isLoading
         );
 
-        if (aiVariantIndex !== undefined && aiVariantIndex >= 0) {
+        if (aiVariantIndex >= 0) {
           console.log('[Renderer] AI variant loading async...');
           window.electronAPI
             .getAIVariant(text)
-            .then((aiVariant: AIVariantResult) => {
+            .then((aiVariant) => {
               console.log('[Renderer] AI variant loaded:', aiVariant?.isAiGenerated);
               dispatch({
                 type: 'UPDATE_AI_VARIANT',
                 index: aiVariantIndex,
-                variant: aiVariant as RewriteResult,
+                variant: { ...aiVariant, isLoading: false },
               });
             })
             .catch((err: unknown) => {
@@ -274,6 +274,7 @@ export function useAppState(te: (key: string) => string) {
     },
     [te]
   );
+  analyzePromptRef.current = analyzePrompt;
 
   const handleCopy = useCallback(async (text: string) => {
     try {
@@ -383,7 +384,7 @@ export function useAppState(te: (key: string) => string) {
       }
       console.log('[Renderer] Dispatching RECEIVE_TEXT and analyzing');
       dispatch({ type: 'RECEIVE_TEXT', prompt: text, isSourceAppBlocked: blocked });
-      analyzePrompt(text);
+      analyzePromptRef.current?.(text);
     });
     console.log('[Renderer] Clipboard listener registered');
 
@@ -424,8 +425,7 @@ export function useAppState(te: (key: string) => string) {
       window.electronAPI.removeShortcutFailedListener();
       window.electronAPI.removeLanguageChangedListener();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // analyzePrompt is stable (useCallback with te dep), mount-only effect
+  }, []); // mount-only: IPC listeners use refs for latest callbacks
 
   return {
     state,
