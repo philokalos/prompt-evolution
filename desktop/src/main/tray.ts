@@ -1,8 +1,10 @@
 import { app, Tray, Menu, nativeImage, BrowserWindow } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
-import { t } from './i18n.js';
+import { t, getLanguageInfo, type UserLanguagePreference } from './i18n.js';
+import Store from 'electron-store';
 
+const store = new Store();
 let tray: Tray | null = null;
 let mainWindowRef: BrowserWindow | null = null;
 
@@ -208,11 +210,33 @@ function buildTrayMenu(mainWindow: BrowserWindow): void {
     },
     {
       label: t('tray:help'),
-      click: () => {
-        mainWindow.show();
-        mainWindow.focus();
-        mainWindow.webContents.send('navigate', 'help');
-      },
+      submenu: [
+        {
+          label: t('tray:help'),
+          click: () => {
+            mainWindow.show();
+            mainWindow.focus();
+            mainWindow.webContents.send('navigate', 'help');
+          },
+        },
+        {
+          label: t('tray:showTutorial'),
+          click: () => {
+            mainWindow.show();
+            mainWindow.focus();
+            mainWindow.webContents.send('show-onboarding');
+          },
+        },
+        { type: 'separator' },
+        {
+          label: t('tray:about'),
+          click: () => {
+            mainWindow.show();
+            mainWindow.focus();
+            mainWindow.webContents.send('show-about');
+          },
+        },
+      ],
     },
     { type: 'separator' },
     {
@@ -235,6 +259,36 @@ function buildTrayMenu(mainWindow: BrowserWindow): void {
               openAtLogin: menuItem.checked,
             });
           },
+        },
+        { type: 'separator' },
+        {
+          label: t('tray:language'),
+          submenu: [
+            {
+              label: t('settings:language.auto'),
+              type: 'radio',
+              checked: (store.get('language') as UserLanguagePreference || 'auto') === 'auto',
+              click: () => {
+                mainWindow.webContents.send('set-language', 'auto');
+              },
+            },
+            {
+              label: t('settings:language.en'),
+              type: 'radio',
+              checked: (store.get('language') as UserLanguagePreference || 'auto') === 'en',
+              click: () => {
+                mainWindow.webContents.send('set-language', 'en');
+              },
+            },
+            {
+              label: t('settings:language.ko'),
+              type: 'radio',
+              checked: (store.get('language') as UserLanguagePreference || 'auto') === 'ko',
+              click: () => {
+                mainWindow.webContents.send('set-language', 'ko');
+              },
+            },
+          ],
         },
         { type: 'separator' },
         {

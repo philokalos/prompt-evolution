@@ -113,6 +113,10 @@ export interface ElectronAPI {
   setLanguage: (lang: LanguageCode) => Promise<SetLanguageResult>;
   onLanguageChanged: (callback: (data: LanguageChangedEvent) => void) => void;
   removeLanguageChangedListener: () => void;
+
+  // UI modal triggers (optional, triggered via webContents.send)
+  onShowOnboarding?: (callback: () => void) => void;
+  onShowAbout?: (callback: () => void) => void;
 }
 
 // i18n Language types

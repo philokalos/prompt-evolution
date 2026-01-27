@@ -6,7 +6,7 @@
  * Electron module dependencies.
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { GhostBarState, GhostBarSettings, Grade } from '../ghost-bar-types.js';
 
 describe('Ghost Bar Types', () => {

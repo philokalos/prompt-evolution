@@ -14,6 +14,7 @@ import enAnalysis from './en/analysis.json';
 import enHelp from './en/help.json';
 import enErrors from './en/errors.json';
 import enTray from './en/tray.json';
+import enOnboarding from './en/onboarding.json';
 
 import koCommon from './ko/common.json';
 import koSettings from './ko/settings.json';
@@ -21,6 +22,7 @@ import koAnalysis from './ko/analysis.json';
 import koHelp from './ko/help.json';
 import koErrors from './ko/errors.json';
 import koTray from './ko/tray.json';
+import koOnboarding from './ko/onboarding.json';
 
 import { DEFAULT_LANGUAGE, type LanguageCode } from './types';
 
@@ -33,6 +35,7 @@ const resources = {
     help: enHelp,
     errors: enErrors,
     tray: enTray,
+    onboarding: enOnboarding,
   },
   ko: {
     common: koCommon,
@@ -41,6 +44,7 @@ const resources = {
     help: koHelp,
     errors: koErrors,
     tray: koTray,
+    onboarding: koOnboarding,
   },
 };
 
@@ -50,7 +54,7 @@ i18n.use(initReactI18next).init({
   lng: DEFAULT_LANGUAGE, // Will be updated by initializeLanguage()
   fallbackLng: DEFAULT_LANGUAGE,
   defaultNS: 'common',
-  ns: ['common', 'settings', 'analysis', 'help', 'errors', 'tray'],
+  ns: ['common', 'settings', 'analysis', 'help', 'errors', 'tray', 'onboarding'],
   interpolation: {
     escapeValue: false, // React already escapes
   },

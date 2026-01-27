@@ -24,7 +24,6 @@ import {
   startAIAppPolling,
   stopAIAppPolling,
   type DetectedProject,
-  type ActiveWindowInfo,
   type DetectedAIApp,
 } from './active-window-detector.js';
 import { initAutoUpdater, cleanupAutoUpdater } from './auto-updater.js';
@@ -55,8 +54,7 @@ import {
 } from './ghost-bar-analysis.js';
 import type { GhostBarSettings, GhostBarState } from './ghost-bar-types.js';
 import {
-  needsMigration,
-  migrateToProviders,
+  runAllMigrations,
 } from './settings-migration.js';
 import { validateProviderKey as validateProviderKeyFn } from './providers/provider-manager.js';
 import {
@@ -978,10 +976,8 @@ The component should follow React best practices and be reusable across the appl
 
 // App lifecycle
 app.whenReady().then(async () => {
-  // Run settings migration before anything else
-  if (needsMigration(store as unknown as Store<Record<string, unknown>>)) {
-    migrateToProviders(store as unknown as Store<Record<string, unknown>>);
-  }
+  // Run all settings migrations before anything else
+  runAllMigrations(store as unknown as Store<Record<string, unknown>>);
 
   // Initialize i18n for main process
   const languagePreference = store.get('language') as UserLanguagePreference;

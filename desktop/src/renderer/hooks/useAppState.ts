@@ -54,6 +54,7 @@ export interface AppState {
   showDirectInput: boolean;
   inputText: string;
   showOnboarding: boolean;
+  showAbout: boolean;
   // Context
   currentProject: DetectedProject | null;
   shortcutError: { shortcut: string; message: string } | null;
@@ -71,6 +72,7 @@ const initialState: AppState = {
   showDirectInput: false,
   inputText: '',
   showOnboarding: false,
+  showAbout: false,
   currentProject: null,
   shortcutError: null,
 };
@@ -95,6 +97,8 @@ export type AppAction =
   | { type: 'SET_INPUT_TEXT'; text: string }
   | { type: 'SHOW_ONBOARDING' }
   | { type: 'DISMISS_ONBOARDING' }
+  | { type: 'SHOW_ABOUT' }
+  | { type: 'DISMISS_ABOUT' }
   // Context
   | { type: 'SET_PROJECT'; project: DetectedProject | null }
   | { type: 'SET_SHORTCUT_ERROR'; error: { shortcut: string; message: string } }
@@ -159,6 +163,10 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, showOnboarding: true };
     case 'DISMISS_ONBOARDING':
       return { ...state, showOnboarding: false };
+    case 'SHOW_ABOUT':
+      return { ...state, showAbout: true };
+    case 'DISMISS_ABOUT':
+      return { ...state, showAbout: false };
 
     // Context
     case 'SET_PROJECT':
@@ -315,6 +323,16 @@ export function useAppState(te: (key: string) => string) {
     window.electronAPI.setSetting('onboardingDismissed', true);
   }, []);
 
+  const handleOnboardingComplete = useCallback(() => {
+    dispatch({ type: 'DISMISS_ONBOARDING' });
+    window.electronAPI.setSetting('hasCompletedOnboarding', true);
+    window.electronAPI.setSetting('onboardingDismissed', true);
+  }, []);
+
+  const dismissAbout = useCallback(() => {
+    dispatch({ type: 'DISMISS_ABOUT' });
+  }, []);
+
   const handleProjectSelect = useCallback(async (projectPath: string | null) => {
     try {
       await window.electronAPI.selectProject(projectPath);
@@ -417,6 +435,35 @@ export function useAppState(te: (key: string) => string) {
       dispatch({ type: 'SET_SHORTCUT_ERROR', error: data });
     });
 
+    // Listen for menu-triggered events
+    const showOnboardingListener = () => {
+      console.log('[Renderer] Show onboarding requested');
+      dispatch({ type: 'SHOW_ONBOARDING' });
+    };
+
+    const showAboutListener = () => {
+      console.log('[Renderer] Show about dialog requested');
+      dispatch({ type: 'SHOW_ABOUT' });
+    };
+
+    window.addEventListener('show-onboarding', showOnboardingListener as EventListener);
+    window.addEventListener('show-about', showAboutListener as EventListener);
+
+    // Also set up IPC listeners if available
+    if (window.electronAPI.onShowOnboarding) {
+      window.electronAPI.onShowOnboarding(() => {
+        console.log('[Renderer] Show onboarding via IPC');
+        dispatch({ type: 'SHOW_ONBOARDING' });
+      });
+    }
+
+    if (window.electronAPI.onShowAbout) {
+      window.electronAPI.onShowAbout(() => {
+        console.log('[Renderer] Show about dialog via IPC');
+        dispatch({ type: 'SHOW_ABOUT' });
+      });
+    }
+
     return () => {
       window.electronAPI.removeClipboardListener();
       window.electronAPI.removeEmptyStateListener();
@@ -424,6 +471,8 @@ export function useAppState(te: (key: string) => string) {
       window.electronAPI.removeNavigateListener();
       window.electronAPI.removeShortcutFailedListener();
       window.electronAPI.removeLanguageChangedListener();
+      window.removeEventListener('show-onboarding', showOnboardingListener as EventListener);
+      window.removeEventListener('show-about', showAboutListener as EventListener);
     };
   }, []); // mount-only: IPC listeners use refs for latest callbacks
 
@@ -437,6 +486,8 @@ export function useAppState(te: (key: string) => string) {
     handleMinimize,
     handleNewAnalysis,
     dismissOnboarding,
+    handleOnboardingComplete,
+    dismissAbout,
     handleProjectSelect,
     loadAllProjects,
     handleDirectInputSubmit,

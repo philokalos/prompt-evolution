@@ -1,45 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, MousePointer2, Zap, Clipboard, Sparkles, ChevronDown, AlertTriangle, Globe, Timer, Ghost } from 'lucide-react';
+import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, Clipboard, Ghost, ChevronDown, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import ProviderSettings from './ProviderSettings';
-import { changeLanguage } from '../../locales';
-
-interface GhostBarSettings {
-  enabled: boolean;
-  autoPaste: boolean;
-  dismissTimeout: number;
-}
+import type { ClipboardMode } from '../../main/settings-store';
 
 interface AppSettings {
   shortcut: string;
   alwaysOnTop: boolean;
-  hideOnCopy: boolean;
   showNotifications: boolean;
-  captureMode: 'auto' | 'selection' | 'clipboard';
-  enableProjectPolling: boolean;
-  pollingIntervalMs: number;
-  // Clipboard-related features
-  enableClipboardWatch: boolean;
-  autoAnalyzeOnCopy: boolean;
-  autoShowWindow: boolean;
-  // Advanced features
-  enableAIContextPopup: boolean;
-  // Language preference
-  language: 'auto' | 'en' | 'ko';
-  // Ghost Bar settings
-  ghostBar: GhostBarSettings;
-}
-
-// Language option values
-const LANGUAGE_VALUES = ['auto', 'en', 'ko'] as const;
-
-interface SettingsProps {
-  isOpen: boolean;
-  onClose: () => void;
+  clipboardMode: ClipboardMode;
+  ghostBar: {
+    enabled: boolean;
+    showOnlyOnImprovement: boolean;
+    minimumConfidence: number;
+  };
 }
 
 // Available shortcuts (ordered by conflict likelihood: safest first)
-// descKey is the translation key suffix under settings:shortcut
 const AVAILABLE_SHORTCUTS = [
   { value: 'CommandOrControl+Shift+;', label: '⌘⇧;', descKey: 'recommended' },
   { value: 'Alt+CommandOrControl+P', label: '⌥⌘P', descKey: 'keepP' },
@@ -50,19 +27,22 @@ const AVAILABLE_SHORTCUTS = [
   { value: 'CommandOrControl+Shift+K', label: '⌘⇧K', descKey: '' },
 ];
 
+interface SettingsProps {
+  isOpen: boolean;
+  onClose: () => void;
+}
+
 export default function Settings({ isOpen, onClose }: SettingsProps) {
   const { t } = useTranslation('settings');
   const { t: tc } = useTranslation('common');
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [showSavedFeedback, setShowSavedFeedback] = useState(false);
-  const [appVersion, setAppVersion] = useState<string>('');
 
   // Section collapse states
-  const [showGuide, setShowGuide] = useState(false);
-  const [showGettingStarted, setShowGettingStarted] = useState(true);
-  const [showCoreFeatures, setShowCoreFeatures] = useState(true);
-  const [showClipboardFeatures, setShowClipboardFeatures] = useState(true);
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAppearance, setShowAppearance] = useState(true);
+  const [showKeyboard, setShowKeyboard] = useState(false);
+  const [showClipboard, setShowClipboard] = useState(false);
+  const [showAI, setShowAI] = useState(false);
 
   // Escape key handler
   useEffect(() => {
@@ -79,7 +59,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Load settings and version on mount
+  // Load settings on mount
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -92,8 +72,6 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
 
     if (isOpen) {
       loadSettings();
-      // Load app version
-      window.electronAPI.getAppVersion().then(setAppVersion).catch(console.error);
     }
   }, [isOpen]);
 
@@ -109,28 +87,6 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
       setTimeout(() => setShowSavedFeedback(false), 2000);
     } catch (error) {
       console.error('Failed to save setting:', error);
-    }
-  };
-
-  // Language change handler
-  const handleLanguageChange = async (language: 'auto' | 'en' | 'ko') => {
-    if (!settings) return;
-
-    try {
-      const result = await window.electronAPI.setLanguage(language);
-      if (result.success && result.resolvedLanguage) {
-        // Update local state
-        setSettings({ ...settings, language });
-
-        // Update react-i18next
-        await changeLanguage(result.resolvedLanguage as 'en' | 'ko');
-
-        // Show saved feedback
-        setShowSavedFeedback(true);
-        setTimeout(() => setShowSavedFeedback(false), 2000);
-      }
-    } catch (error) {
-      console.error('Failed to change language:', error);
     }
   };
 
@@ -165,79 +121,48 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
         <div className="p-4 space-y-4 overflow-y-auto max-h-[60vh]">
           {settings ? (
             <>
-              {/* 🚀 Getting Started Section */}
+              {/* 1. Appearance & Behavior */}
               <Section
-                title={t('sections.gettingStarted.title')}
-                icon="🚀"
-                isOpen={showGettingStarted}
-                onToggle={() => setShowGettingStarted(!showGettingStarted)}
+                title={t('sections.appearance.title')}
+                icon={Eye}
+                isOpen={showAppearance}
+                onToggle={() => setShowAppearance(!showAppearance)}
               >
-                {/* Quick Guide (Collapsible) */}
-                <div className="mb-4">
-                  <button
-                    onClick={() => setShowGuide(!showGuide)}
-                    className="flex items-center justify-between w-full p-2.5 bg-gradient-to-r from-accent-primary/10 to-purple-500/10 border border-accent-primary/20 rounded-lg hover:bg-accent-primary/5 transition-colors"
-                  >
-                    <span className="text-sm font-semibold text-accent-primary">{t('sections.gettingStarted.guide.title')}</span>
-                    <ChevronDown
-                      size={16}
-                      className={`text-accent-primary transition-transform ${showGuide ? 'rotate-180' : ''}`}
-                    />
-                  </button>
-                  {showGuide && (
-                    <div className="mt-2 p-3 bg-gradient-to-r from-accent-primary/5 to-purple-500/5 border border-accent-primary/10 rounded-lg space-y-2">
-                      <ol className="text-xs text-gray-300 space-y-1.5 list-decimal list-inside">
-                        <li>{t('sections.gettingStarted.guide.step1')}</li>
-                        <li>{t('sections.gettingStarted.guide.step2')}</li>
-                        <li>{t('sections.gettingStarted.guide.step3')}</li>
-                        <li>{t('sections.gettingStarted.guide.step4')}</li>
-                      </ol>
-                      <div className="pt-2 border-t border-accent-primary/10 space-y-1">
-                        <p className="text-xs text-gray-300">
-                          <strong className="text-purple-400">{t('sections.gettingStarted.guide.trayTip')}</strong>
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          • <kbd className="px-1 bg-dark-hover rounded text-[10px]">⌘</kbd> + <kbd className="px-1 bg-dark-hover rounded text-[10px]">Enter</kbd> {t('sections.gettingStarted.guide.cmdEnter')}
-                        </p>
-                        <p className="text-xs text-gray-400">
-                          • <kbd className="px-1 bg-dark-hover rounded text-[10px]">⌘</kbd> + <kbd className="px-1 bg-dark-hover rounded text-[10px]">1-4</kbd> {t('sections.gettingStarted.guide.cmd14')}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                <div className="space-y-3">
+                  <SettingToggle
+                    icon={Eye}
+                    label={t('sections.appearance.alwaysOnTop')}
+                    description={t('sections.appearance.alwaysOnTopDesc')}
+                    checked={settings.alwaysOnTop}
+                    onChange={(v) => updateSetting('alwaysOnTop', v)}
+                  />
 
-                {/* Language */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
-                    <Globe size={14} />
-                    {t('language.title')}
-                  </label>
-                  <select
-                    value={settings.language || 'auto'}
-                    onChange={(e) => handleLanguageChange(e.target.value as 'auto' | 'en' | 'ko')}
-                    className="w-full px-3 py-2 bg-dark-hover border border-dark-border rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-accent-primary"
-                  >
-                    {LANGUAGE_VALUES.map((val) => (
-                      <option key={val} value={val}>
-                        {t(`language.${val}`)}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-gray-500">
-                    {t('language.description')}
-                  </p>
+                  <SettingToggle
+                    icon={Bell}
+                    label={t('sections.appearance.showNotifications')}
+                    description={t('sections.appearance.showNotificationsDesc')}
+                    checked={settings.showNotifications}
+                    onChange={(v) => updateSetting('showNotifications', v)}
+                  />
                 </div>
+              </Section>
 
-                {/* Shortcut Key */}
+              {/* 2. Keyboard Shortcuts */}
+              <Section
+                title={t('sections.keyboard.title')}
+                icon={Keyboard}
+                isOpen={showKeyboard}
+                onToggle={() => setShowKeyboard(!showKeyboard)}
+              >
                 <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
-                    <Keyboard size={14} />
-                    {t('shortcut.title')}
-                    <span className="ml-auto px-2 py-0.5 bg-accent-primary/20 text-accent-primary text-xs rounded">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-gray-300">
+                      {t('sections.keyboard.globalShortcut')}
+                    </label>
+                    <span className="px-2 py-0.5 bg-accent-primary/20 text-accent-primary text-xs rounded font-mono">
                       {AVAILABLE_SHORTCUTS.find(s => s.value === settings.shortcut)?.label}
                     </span>
-                  </label>
+                  </div>
                   <select
                     value={settings.shortcut}
                     onChange={(e) => updateSetting('shortcut', e.target.value)}
@@ -250,303 +175,69 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                     ))}
                   </select>
                   <p className="text-xs text-gray-500">
-                    {t('shortcut.description')}
+                    {t('sections.keyboard.description')}
                   </p>
                 </div>
-
-                {/* Text Capture Mode */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-300">
-                    <MousePointer2 size={14} />
-                    {t('captureMode.title')}
-                  </label>
-                  <select
-                    value={settings.captureMode}
-                    onChange={(e) => updateSetting('captureMode', e.target.value as 'auto' | 'selection' | 'clipboard')}
-                    className="w-full px-3 py-2 bg-dark-hover border border-dark-border rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-accent-primary"
-                  >
-                    <option value="auto">{t('captureMode.auto')}</option>
-                    <option value="selection">{t('captureMode.selection')}</option>
-                    <option value="clipboard">{t('captureMode.clipboard')}</option>
-                  </select>
-                  <div className="text-xs text-gray-500 space-y-1">
-                    <p><strong className="text-gray-400">{t('captureMode.auto').split(' ')[0]}:</strong> {t('captureMode.autoDesc')}</p>
-                    <p><strong className="text-gray-400">{t('captureMode.selection').split(' ')[0]}:</strong> {t('captureMode.selectionDesc')}</p>
-                    <p><strong className="text-gray-400">{t('captureMode.clipboard').split(' ')[0]}:</strong> {t('captureMode.clipboardDesc')}</p>
-                  </div>
-                </div>
               </Section>
 
-              {/* ⚙️ Core Features Section */}
+              {/* 3. Clipboard Integration */}
               <Section
-                title={t('sections.coreFeatures.title')}
-                icon="⚙️"
-                isOpen={showCoreFeatures}
-                onToggle={() => setShowCoreFeatures(!showCoreFeatures)}
+                title={t('sections.clipboard.title')}
+                icon={Clipboard}
+                isOpen={showClipboard}
+                onToggle={() => setShowClipboard(!showClipboard)}
               >
-                {/* Multi-Provider AI Settings */}
-                <ProviderSettings />
-
-                {/* Window Behavior */}
-                <div className="pt-3 border-t border-dark-border space-y-3">
-                  <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide">{t('sections.coreFeatures.window')}</h4>
-
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <Eye size={14} className="text-gray-400" />
-                        <span className="text-sm">{t('sections.coreFeatures.alwaysOnTop')}</span>
-                      </div>
-                      <span className="text-xs text-gray-500">{t('sections.coreFeatures.alwaysOnTopDesc')}</span>
+                <div className="space-y-4">
+                  {/* Clipboard Mode Dropdown */}
+                  <div className="space-y-2">
+                    <label className="text-sm text-gray-300">
+                      {t('sections.clipboard.mode')}
+                    </label>
+                    <select
+                      value={settings.clipboardMode}
+                      onChange={(e) => updateSetting('clipboardMode', e.target.value as ClipboardMode)}
+                      className="w-full px-3 py-2 bg-dark-hover border border-dark-border rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-accent-primary"
+                    >
+                      <option value="disabled">{t('sections.clipboard.disabled')}</option>
+                      <option value="manual">{t('sections.clipboard.manual')}</option>
+                      <option value="auto-visible">{t('sections.clipboard.autoVisible')}</option>
+                      <option value="auto-hide">{t('sections.clipboard.autoHide')}</option>
+                    </select>
+                    <div className="text-xs text-gray-500 space-y-1">
+                      <p><strong className="text-gray-400">{t('sections.clipboard.disabled')}:</strong> {t('sections.clipboard.disabledDesc')}</p>
+                      <p><strong className="text-gray-400">{t('sections.clipboard.manual')}:</strong> {t('sections.clipboard.manualDesc')}</p>
+                      <p><strong className="text-gray-400">{t('sections.clipboard.autoVisible')}:</strong> {t('sections.clipboard.autoVisibleDesc')}</p>
+                      <p><strong className="text-gray-400">{t('sections.clipboard.autoHide')}:</strong> {t('sections.clipboard.autoHideDesc')}</p>
                     </div>
-                    <ToggleSwitch
-                      checked={settings.alwaysOnTop}
-                      onChange={(v) => updateSetting('alwaysOnTop', v)}
-                    />
                   </div>
 
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <Eye size={14} className="text-gray-400" />
-                        <span className="text-sm">{t('sections.coreFeatures.hideOnCopy')}</span>
-                      </div>
-                      <span className="text-xs text-gray-500">{t('sections.coreFeatures.hideOnCopyDesc')}</span>
-                    </div>
-                    <ToggleSwitch
-                      checked={settings.hideOnCopy}
-                      onChange={(v) => updateSetting('hideOnCopy', v)}
-                    />
-                  </div>
-
-                  {/* Settings conflict warning */}
-                  {settings.alwaysOnTop && settings.hideOnCopy && (
-                    <div className="flex items-start gap-2 p-2 mt-1 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                      <AlertTriangle size={14} className="text-yellow-500 mt-0.5 flex-shrink-0" />
-                      <span className="text-xs text-yellow-500/90">
-                        {t('sections.coreFeatures.conflictWarning')}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <Zap size={14} className="text-gray-400" />
-                        <span className="text-sm">{t('sections.coreFeatures.autoShowWindow')}</span>
-                      </div>
-                      <span className="text-xs text-gray-500">{t('sections.coreFeatures.autoShowWindowDesc')}</span>
-                    </div>
-                    <ToggleSwitch
-                      checked={settings.autoShowWindow ?? true}
-                      onChange={(v) => updateSetting('autoShowWindow', v)}
-                    />
-                  </div>
-                </div>
-
-                {/* Notifications */}
-                <div className="pt-3 border-t border-dark-border">
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <Bell size={14} className="text-gray-400" />
-                        <span className="text-sm">{t('sections.coreFeatures.showNotifications')}</span>
-                      </div>
-                      <span className="text-xs text-gray-500">{t('sections.coreFeatures.showNotificationsDesc')}</span>
-                    </div>
-                    <ToggleSwitch
-                      checked={settings.showNotifications}
-                      onChange={(v) => updateSetting('showNotifications', v)}
-                    />
-                  </div>
-                </div>
-              </Section>
-
-              {/* 📋 Clipboard Features Section */}
-              <Section
-                title={t('sections.clipboardFeatures.title')}
-                icon="📋"
-                isOpen={showClipboardFeatures}
-                onToggle={() => setShowClipboardFeatures(!showClipboardFeatures)}
-              >
-                {/* Clipboard Watch */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <Clipboard size={14} className="text-gray-400" />
-                        <span className="text-sm">{t('sections.clipboardFeatures.clipboardWatch')}</span>
-                        {settings.ghostBar?.enabled && !settings.enableClipboardWatch && (
-                          <span className="px-1.5 py-0.5 bg-purple-500/20 text-purple-400 text-[10px] rounded">
-                            {t('sections.clipboardFeatures.enabledViaGhostBar')}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-gray-500">{t('sections.clipboardFeatures.clipboardWatchDesc')}</span>
-                    </div>
-                    <ToggleSwitch
-                      checked={settings.enableClipboardWatch ?? false}
-                      onChange={(v) => updateSetting('enableClipboardWatch', v)}
-                    />
-                  </div>
-
-                  {(settings.enableClipboardWatch || settings.ghostBar?.enabled) && (
-                    <div className="flex items-center justify-between py-2 pl-6">
-                      <div className="flex flex-col gap-0.5">
-                        <div className="flex items-center gap-2">
-                          <Zap size={14} className="text-gray-400" />
-                          <span className="text-sm">{t('sections.clipboardFeatures.autoAnalyze')}</span>
-                        </div>
-                        <span className="text-xs text-gray-500">{t('sections.clipboardFeatures.autoAnalyzeDesc')}</span>
-                      </div>
-                      <ToggleSwitch
-                        checked={settings.autoAnalyzeOnCopy ?? false}
-                        onChange={(v) => updateSetting('autoAnalyzeOnCopy', v)}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Ghost Bar */}
-                <div className="pt-3 border-t border-dark-border space-y-3">
-                  <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
-                    <p className="text-xs text-gray-300 leading-relaxed">
-                      {t('sections.clipboardFeatures.ghostBar.description')}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center justify-between py-2">
-                    <div className="flex flex-col gap-0.5">
-                      <div className="flex items-center gap-2">
-                        <Ghost size={14} className="text-purple-400" />
-                        <span className="text-sm">{t('sections.clipboardFeatures.ghostBar.enable')}</span>
-                      </div>
-                      <span className="text-xs text-gray-500">{t('sections.clipboardFeatures.ghostBar.enableDesc')}</span>
-                    </div>
-                    <ToggleSwitch
+                  {/* Ghost Bar Toggle */}
+                  <div className="pt-3 border-t border-dark-border">
+                    <SettingToggle
+                      icon={Ghost}
+                      label={t('sections.clipboard.ghostBar')}
+                      description={t('sections.clipboard.ghostBarDesc')}
                       checked={settings.ghostBar?.enabled ?? false}
                       onChange={(v) => updateSetting('ghostBar', { ...settings.ghostBar, enabled: v })}
                     />
-                  </div>
-
-                  {settings.ghostBar?.enabled && (
-                    <>
-                      {/* Auto Paste */}
-                      <div className="flex items-center justify-between py-2 pl-4 border-l-2 border-purple-500/30">
-                        <div className="flex flex-col gap-0.5">
-                          <div className="flex items-center gap-2">
-                            <Clipboard size={14} className="text-gray-400" />
-                            <span className="text-sm">{t('sections.clipboardFeatures.ghostBar.autoPaste')}</span>
-                          </div>
-                          <span className="text-xs text-gray-500">{t('sections.clipboardFeatures.ghostBar.autoPasteDesc')}</span>
-                        </div>
-                        <ToggleSwitch
-                          checked={settings.ghostBar?.autoPaste ?? true}
-                          onChange={(v) => updateSetting('ghostBar', { ...settings.ghostBar, autoPaste: v })}
-                        />
-                      </div>
-
-                      {/* Dismiss Timeout */}
-                      <div className="py-2 pl-4 border-l-2 border-purple-500/30">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Timer size={14} className="text-gray-400" />
-                          <span className="text-sm">{t('sections.clipboardFeatures.ghostBar.dismissTimeout')}</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <input
-                            type="range"
-                            min="1000"
-                            max="30000"
-                            step="1000"
-                            value={settings.ghostBar?.dismissTimeout ?? 5000}
-                            onChange={(e) => updateSetting('ghostBar', {
-                              ...settings.ghostBar,
-                              dismissTimeout: parseInt(e.target.value)
-                            })}
-                            className="flex-1 h-1.5 bg-dark-hover rounded-full appearance-none cursor-pointer
-                                     [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3
-                                     [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full
-                                     [&::-webkit-slider-thumb]:bg-purple-500"
-                          />
-                          <span className="text-xs text-gray-400 w-12 text-right">
-                            {((settings.ghostBar?.dismissTimeout ?? 5000) / 1000).toFixed(0)}s
-                          </span>
-                        </div>
-                        <span className="text-xs text-gray-500">{t('sections.clipboardFeatures.ghostBar.dismissTimeoutDesc')}</span>
-                      </div>
-
-                      {/* Keyboard Shortcuts Info */}
-                      <div className="pt-3 border-t border-dark-border">
-                        <h4 className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">
-                          {t('sections.clipboardFeatures.ghostBar.shortcuts.title')}
-                        </h4>
-                        <div className="space-y-1.5 text-xs text-gray-400">
-                          <div className="flex justify-between">
-                            <span>{t('sections.clipboardFeatures.ghostBar.shortcuts.apply')}</span>
-                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-gray-300">⌘⇧↵</kbd>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>{t('sections.clipboardFeatures.ghostBar.shortcuts.dismiss')}</span>
-                            <kbd className="px-1.5 py-0.5 bg-dark-hover rounded text-gray-300">Esc</kbd>
-                          </div>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                {/* Auto Apply (info) */}
-                <div className="pt-3 border-t border-dark-border">
-                  <div className="p-3 bg-accent-primary/10 border border-accent-primary/20 rounded-lg space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Zap size={14} className="text-accent-primary" />
-                      <h4 className="text-sm font-medium text-accent-primary">{t('sections.clipboardFeatures.autoApply.title')}</h4>
-                    </div>
-                    <p className="text-xs text-gray-300 leading-relaxed">
-                      {t('sections.clipboardFeatures.autoApply.description')}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {t('sections.clipboardFeatures.autoApply.note')}
-                    </p>
-                  </div>
-                </div>
-              </Section>
-
-              {/* 🔧 Advanced Section */}
-              <Section
-                title={t('sections.advanced.title')}
-                icon="🔧"
-                isOpen={showAdvanced}
-                onToggle={() => setShowAdvanced(!showAdvanced)}
-              >
-                {/* AI Context Popup */}
-                <div className="flex items-center justify-between py-2">
-                  <div className="flex flex-col gap-0.5">
-                    <div className="flex items-center gap-2">
-                      <Sparkles size={14} className="text-gray-400" />
-                      <span className="text-sm">{t('sections.advanced.aiContextPopup')}</span>
-                    </div>
-                    <span className="text-xs text-gray-500">{t('sections.advanced.aiContextPopupDesc')}</span>
-                    {settings.enableAIContextPopup && (
-                      <div className="mt-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/20 rounded text-[10px] text-amber-400">
-                        {t('sections.advanced.aiContextPopupWarning')}
+                    {settings.ghostBar?.enabled && (
+                      <div className="mt-2 p-2 bg-purple-500/10 border border-purple-500/20 rounded text-xs text-gray-400">
+                        {t('sections.clipboard.ghostBarNote')}
                       </div>
                     )}
                   </div>
-                  <ToggleSwitch
-                    checked={settings.enableAIContextPopup ?? false}
-                    onChange={(v) => updateSetting('enableAIContextPopup', v)}
-                  />
                 </div>
               </Section>
 
-              {/* ℹ️ App Info */}
-              <div className="pt-4 border-t border-dark-border">
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p>PromptLint v{appVersion || '...'}</p>
-                  <p>{tc('copyright', { year: new Date().getFullYear() })}</p>
-                </div>
-              </div>
+              {/* 4. AI Provider */}
+              <Section
+                title={t('sections.ai.title')}
+                icon={SettingsIcon}
+                isOpen={showAI}
+                onToggle={() => setShowAI(!showAI)}
+              >
+                <ProviderSettings />
+              </Section>
             </>
           ) : (
             <div className="flex items-center justify-center py-8">
@@ -572,13 +263,13 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
 // Section Component
 function Section({
   title,
-  icon,
+  icon: Icon,
   isOpen,
   onToggle,
   children,
 }: {
   title: string;
-  icon: React.ReactNode;
+  icon: LucideIcon;
   isOpen: boolean;
   onToggle: () => void;
   children: React.ReactNode;
@@ -590,7 +281,7 @@ function Section({
         className="flex items-center justify-between w-full mb-3 group"
       >
         <div className="flex items-center gap-2">
-          <span className="text-base">{icon}</span>
+          <Icon size={14} className="text-accent-primary" />
           <h3 className="text-sm font-medium text-gray-200 group-hover:text-white transition-colors">
             {title}
           </h3>
@@ -601,6 +292,34 @@ function Section({
         />
       </button>
       {isOpen && <div className="space-y-4">{children}</div>}
+    </div>
+  );
+}
+
+// Setting Toggle Component
+function SettingToggle({
+  icon: Icon,
+  label,
+  description,
+  checked,
+  onChange,
+}: {
+  icon: LucideIcon;
+  label: string;
+  description: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between py-2">
+      <div className="flex flex-col gap-0.5 flex-1">
+        <div className="flex items-center gap-2">
+          <Icon size={14} className="text-gray-400" />
+          <span className="text-sm">{label}</span>
+        </div>
+        <span className="text-xs text-gray-500">{description}</span>
+      </div>
+      <ToggleSwitch checked={checked} onChange={onChange} />
     </div>
   );
 }
@@ -616,7 +335,7 @@ function ToggleSwitch({
   return (
     <button
       onClick={() => onChange(!checked)}
-      className={`relative w-10 h-5 rounded-full transition-colors ${
+      className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ${
         checked ? 'bg-accent-primary' : 'bg-dark-border'
       }`}
     >

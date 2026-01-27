@@ -2,7 +2,7 @@
  * IPC Handlers: Clipboard & Apply
  */
 
-import { clipboard, ipcMain, Notification, type BrowserWindow } from 'electron';
+import { clipboard, ipcMain, type BrowserWindow } from 'electron';
 import type { ApplyTextResult } from '../text-selection.js';
 
 export interface ClipboardHandlerDeps {

@@ -3,7 +3,7 @@
  * Tests migration from single Claude API key to multi-provider format.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { ProviderConfig } from '../providers/types.js';
 
 // Mock electron-store as a Map-backed object
@@ -49,8 +49,6 @@ import {
   getProvidersFromStore,
   saveProvidersToStore,
 } from '../settings-migration.js';
-
-type MockStore = ReturnType<typeof createMockStore>;
 
 describe('Settings Migration', () => {
   describe('needsMigration', () => {

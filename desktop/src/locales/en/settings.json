@@ -11,6 +11,36 @@
     "ko": "한국어"
   },
   "sections": {
+    "appearance": {
+      "title": "Appearance & Behavior",
+      "alwaysOnTop": "Always on top",
+      "alwaysOnTopDesc": "Keep analysis window above other windows",
+      "showNotifications": "Show notifications",
+      "showNotificationsDesc": "Get macOS notifications for analysis completion, errors, etc."
+    },
+    "keyboard": {
+      "title": "Keyboard Shortcuts",
+      "globalShortcut": "Global shortcut",
+      "description": "Press this shortcut from any app to analyze prompts. Changes apply immediately."
+    },
+    "clipboard": {
+      "title": "Clipboard Integration",
+      "mode": "Clipboard Mode",
+      "disabled": "Disabled",
+      "disabledDesc": "No clipboard watching",
+      "manual": "Manual Analysis",
+      "manualDesc": "Watch clipboard, trigger analysis manually",
+      "autoVisible": "Auto Analysis + Stay Visible",
+      "autoVisibleDesc": "Auto analyze, window stays open",
+      "autoHide": "Auto Analysis + Auto Hide",
+      "autoHideDesc": "Auto analyze, window hides after",
+      "ghostBar": "Enable Ghost Bar",
+      "ghostBarDesc": "Show floating bar with improved prompt after copying",
+      "ghostBarNote": "Ghost Bar appears near cursor after copying. Press ⌘⇧Enter to apply or Esc to dismiss. Auto-dismisses after 7 seconds."
+    },
+    "ai": {
+      "title": "AI Provider"
+    },
     "gettingStarted": {
       "title": "Getting Started",
       "guide": {
@@ -125,6 +155,11 @@
   },
   "providers": {
     "title": "AI Providers",
+    "selectProvider": "Select AI Provider",
+    "apiKey": "API Key",
+    "singleProviderNote": "Switch providers anytime. Your API keys are saved per provider and stored locally only.",
+    "loadError": "Failed to load provider settings",
+    "saveError": "Failed to save provider settings",
     "add": "Add",
     "addProvider": "Add provider:",
     "noProviders": "No AI providers registered",

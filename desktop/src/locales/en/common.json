@@ -34,6 +34,12 @@
   "appName": "PromptLint",
   "version": "Version {{version}}",
   "copyright": "© {{year}} philokalos",
+  "about": {
+    "title": "About PromptLint",
+    "version": "Version {{version}}",
+    "description": "Real-time prompt quality analysis with AI-powered personalized learning. Like Grammarly for prompts.",
+    "github": "View on GitHub"
+  },
   "alwaysOnTop": "Always on top",
   "openAtLogin": "Open at login",
   "devTools": "Developer Tools",

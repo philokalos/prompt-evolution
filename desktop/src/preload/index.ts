@@ -173,6 +173,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.removeAllListeners('navigate');
   },
 
+  // UI modal triggers (from menu)
+  onShowOnboarding: (callback: () => void): void => {
+    ipcRenderer.removeAllListeners('show-onboarding');
+    ipcRenderer.on('show-onboarding', () => callback());
+  },
+
+  onShowAbout: (callback: () => void): void => {
+    ipcRenderer.removeAllListeners('show-about');
+    ipcRenderer.on('show-about', () => callback());
+  },
+
   // Shortcut registration failure event
   onShortcutFailed: (callback: (data: { shortcut: string; message: string }) => void): void => {
     ipcRenderer.removeAllListeners('shortcut-failed');
@@ -333,6 +344,9 @@ declare global {
       // Navigation
       onNavigate: (callback: (view: string) => void) => void;
       removeNavigateListener: () => void;
+      // UI modal triggers
+      onShowOnboarding: (callback: () => void) => void;
+      onShowAbout: (callback: () => void) => void;
       // Shortcut registration failure
       onShortcutFailed: (callback: (data: { shortcut: string; message: string }) => void) => void;
       removeShortcutFailedListener: () => void;

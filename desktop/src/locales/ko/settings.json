@@ -11,6 +11,36 @@
     "ko": "한국어"
   },
   "sections": {
+    "appearance": {
+      "title": "모양 및 동작",
+      "alwaysOnTop": "항상 위에 표시",
+      "alwaysOnTopDesc": "다른 창 위에 분석 창이 항상 보이도록 유지",
+      "showNotifications": "알림 받기",
+      "showNotificationsDesc": "분석 완료, 오류 등을 macOS 알림으로 안내"
+    },
+    "keyboard": {
+      "title": "키보드 단축키",
+      "globalShortcut": "전역 단축키",
+      "description": "모든 앱에서 이 단축키를 눌러 프롬프트를 분석하세요. 변경 즉시 적용됩니다."
+    },
+    "clipboard": {
+      "title": "클립보드 통합",
+      "mode": "클립보드 모드",
+      "disabled": "비활성화",
+      "disabledDesc": "클립보드 감시 안 함",
+      "manual": "수동 분석",
+      "manualDesc": "클립보드 감시, 수동으로 분석 트리거",
+      "autoVisible": "자동 분석 + 창 유지",
+      "autoVisibleDesc": "자동 분석, 창이 열린 상태 유지",
+      "autoHide": "자동 분석 + 자동 숨김",
+      "autoHideDesc": "자동 분석, 분석 후 창 자동 숨김",
+      "ghostBar": "Ghost Bar 활성화",
+      "ghostBarDesc": "복사 후 플로팅 바에 개선된 프롬프트 표시",
+      "ghostBarNote": "복사 후 커서 근처에 Ghost Bar가 나타납니다. ⌘⇧Enter로 적용하거나 Esc로 닫을 수 있습니다. 7초 후 자동으로 사라집니다."
+    },
+    "ai": {
+      "title": "AI 프로바이더"
+    },
     "gettingStarted": {
       "title": "시작하기",
       "guide": {
@@ -125,6 +155,11 @@
   },
   "providers": {
     "title": "AI 프로바이더",
+    "selectProvider": "AI 프로바이더 선택",
+    "apiKey": "API 키",
+    "singleProviderNote": "언제든지 프로바이더를 전환할 수 있습니다. API 키는 프로바이더별로 저장되며 이 기기에만 보관됩니다.",
+    "loadError": "프로바이더 설정을 불러오는 데 실패했습니다",
+    "saveError": "프로바이더 설정을 저장하는 데 실패했습니다",
     "add": "추가",
     "addProvider": "프로바이더 추가:",
     "noProviders": "등록된 AI 프로바이더가 없습니다",

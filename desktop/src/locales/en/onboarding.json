@@ -1,0 +1,45 @@
+{
+  "title": "Welcome to PromptLint",
+  "stepProgress": "Step {{current}} of {{total}}",
+  "skip": "Skip",
+  "previous": "Previous",
+  "next": "Next",
+  "getStarted": "Get Started",
+  "tips": "Tips",
+  "step1": {
+    "title": "Global Hotkey Access",
+    "description": "Press the global shortcut anytime to analyze your prompts. PromptLint works across all apps - IDEs, browsers, text editors, and more.",
+    "tips": [
+      "Default shortcut: ⌘⇧; (most compatible)",
+      "Change in Settings if it conflicts with other apps",
+      "Works with selected text or clipboard content"
+    ]
+  },
+  "step2": {
+    "title": "Real-time Analysis",
+    "description": "Get instant GOLDEN framework scoring: Goal, Output, Limits, Data, Evaluation, Next steps. See what's missing and how to improve.",
+    "tips": [
+      "Higher scores mean clearer, more effective prompts",
+      "Red indicators show critical missing elements",
+      "Click issues for specific improvement suggestions"
+    ]
+  },
+  "step3": {
+    "title": "Clipboard Integration",
+    "description": "Enable clipboard watching to automatically analyze copied text. Choose manual or auto-analysis modes based on your workflow.",
+    "tips": [
+      "Auto-hide mode: Analyze and hide window automatically",
+      "Manual mode: Analyze only when you trigger it",
+      "Ghost Bar: Quick preview of improved prompts"
+    ]
+  },
+  "step4": {
+    "title": "AI-Powered Improvements",
+    "description": "Get 3 rule-based prompt variants instantly. Add your API key for AI-powered rewrites with 83%+ improvement rates.",
+    "tips": [
+      "Rule-based variants work offline (no API needed)",
+      "AI variants: Conservative, Balanced, Comprehensive",
+      "Copy improved prompts with one click"
+    ]
+  }
+}

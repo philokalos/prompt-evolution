@@ -13,35 +13,40 @@ import type { ProviderConfig } from './providers/types.js';
 import { hasAnyProvider } from './providers/provider-manager.js';
 import type { UserLanguagePreference } from './i18n.js';
 
+// Clipboard mode type
+export type ClipboardMode = 'disabled' | 'manual' | 'auto-visible' | 'auto-hide';
+
+// AI provider type
+export type AIProvider = 'claude' | 'openai' | 'gemini';
+
 // Settings schema
 export interface AppSettings {
   shortcut: string;
   windowBounds: { width: number; height: number };
   alwaysOnTop: boolean;
-  hideOnCopy: boolean;
   showNotifications: boolean;
-  captureMode: 'auto' | 'selection' | 'clipboard';
+  captureMode: 'auto' | 'selection' | 'clipboard'; // Hidden from UI, forced to 'auto'
   enableProjectPolling: boolean;
   pollingIntervalMs: number;
-  claudeApiKey: string;
-  useAiRewrite: boolean;
-  // Innovative activation methods
-  enableClipboardWatch: boolean;
-  enableAIContextPopup: boolean;
-  autoAnalyzeOnCopy: boolean;
+  claudeApiKey: string; // Legacy, kept for backward compatibility
+  useAiRewrite: boolean; // Legacy, kept for backward compatibility
+  // Clipboard integration
+  clipboardMode: ClipboardMode;
+  // AI provider (single selection)
+  aiProvider: AIProvider;
   autoShowWindow: boolean;
   // Manual project override
   manualProjectPath: string;
   // First launch flags
   hasSeenWelcome: boolean;
   hasSeenAccessibilityDialog: boolean;
+  hasCompletedOnboarding: boolean;
   // Language preference
   language: UserLanguagePreference;
-  // Ghost Bar settings
+  // Ghost Bar settings (simplified)
   ghostBar: {
     enabled: boolean;
-    autoPaste: boolean;
-    dismissTimeout: number;
+    // Removed: autoPaste (hardcoded false), dismissTimeout (hardcoded 7000)
     showOnlyOnImprovement: boolean;
     minimumConfidence: number;
   };
@@ -55,25 +60,22 @@ export const store = new Store<AppSettings>({
     shortcut: 'CommandOrControl+Shift+P',
     windowBounds: { width: 420, height: 600 },
     alwaysOnTop: true,
-    hideOnCopy: false,
     showNotifications: true,
-    captureMode: 'auto',
+    captureMode: 'auto', // Hidden from UI, always 'auto'
     enableProjectPolling: true,
     pollingIntervalMs: 2000,
-    claudeApiKey: '',
-    useAiRewrite: false,
-    enableClipboardWatch: false,
-    enableAIContextPopup: false,
-    autoAnalyzeOnCopy: false,
+    claudeApiKey: '', // Legacy
+    useAiRewrite: false, // Legacy
+    clipboardMode: 'disabled' as ClipboardMode,
+    aiProvider: 'claude' as AIProvider,
     autoShowWindow: true,
     manualProjectPath: '',
     hasSeenWelcome: false,
     hasSeenAccessibilityDialog: false,
+    hasCompletedOnboarding: false,
     language: 'auto' as UserLanguagePreference,
     ghostBar: {
       enabled: false,
-      autoPaste: true,
-      dismissTimeout: 5000,
       showOnlyOnImprovement: true,
       minimumConfidence: 0.15,
     },
