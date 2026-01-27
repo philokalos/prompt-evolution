@@ -10,8 +10,6 @@ import {
   Send,
   Plus,
   HelpCircle,
-  ChevronDown,
-  ChevronUp,
   Sparkles,
 } from 'lucide-react';
 import GoldenRadar from './components/GoldenRadar';
@@ -23,6 +21,8 @@ import PromptComparison from './components/PromptComparison';
 import ContextIndicator, { SessionContextInfo } from './components/ContextIndicator';
 import HistoryRecommendations from './components/HistoryRecommendations';
 import Settings from './components/Settings';
+import Onboarding from './components/Onboarding';
+import AboutDialog from './components/AboutDialog';
 import type { DetectedProject } from './electron.d';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from './hooks/useAppState';
@@ -61,6 +61,8 @@ function App() {
     handleMinimize,
     handleNewAnalysis,
     dismissOnboarding,
+    handleOnboardingComplete,
+    dismissAbout,
     handleProjectSelect,
     loadAllProjects,
     handleDirectInputSubmit,
@@ -70,7 +72,6 @@ function App() {
     originalPrompt,
     analysis,
     isAnalyzing,
-    showDetails,
     emptyState,
     isSourceAppBlocked,
     viewMode,
@@ -78,6 +79,7 @@ function App() {
     showDirectInput,
     inputText,
     showOnboarding,
+    showAbout,
     currentProject,
     shortcutError,
   } = state;
@@ -224,7 +226,7 @@ function App() {
           </div>
         ) : analysis ? (
           <>
-            {/* Session Context Indicator */}
+            {/* 1. Context Indicator - 기존 유지 */}
             <ContextIndicator
               context={
                 analysis.sessionContext ||
@@ -234,7 +236,7 @@ function App() {
               onLoadProjects={loadAllProjects}
             />
 
-            {/* [Hero] Prompt Comparison - Before→After 변환을 가장 먼저 */}
+            {/* 2. Variants (개선 배지 포함) - 최우선 배치 */}
             {analysis.promptVariants.length > 0 && (
               <PromptComparison
                 originalPrompt={originalPrompt}
@@ -245,96 +247,63 @@ function App() {
               />
             )}
 
-            {/* [Summary] 간략 GOLDEN Score + 접이식 토글 */}
-            <div className="bg-dark-surface rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <span className="text-xs text-gray-500">GOLDEN</span>
-                    <div className="text-xl font-bold">{analysis.overallScore}%</div>
-                  </div>
-                  <span
-                    className={`grade-badge text-3xl font-bold ${getGradeColor(analysis.grade)}`}
+            {/* 3. Top Issues - 상위 3개만 표시 */}
+            {analysis.issues.length > 0 && (
+              <div className="space-y-2">
+                <IssueList
+                  issues={analysis.issues.slice(0, 3)}
+                />
+                {analysis.issues.length > 3 && (
+                  <button
+                    onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'progress' })}
+                    className="w-full text-xs text-gray-500 hover:text-gray-300 py-2"
                   >
-                    {analysis.grade}
-                  </span>
-                </div>
-                <button
-                  onClick={() => dispatch({ type: 'TOGGLE_DETAILS' })}
-                  className="flex items-center gap-1 px-3 py-1.5 text-xs text-gray-400 hover:text-gray-200 bg-dark-hover hover:bg-dark-border rounded-lg transition-colors"
-                >
-                  {showDetails ? (
-                    <>
-                      <ChevronUp size={14} />
-                      <span>{t('collapse')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <ChevronDown size={14} />
-                      <span>{t('showDetails')}</span>
-                    </>
-                  )}
-                </button>
+                    View all {analysis.issues.length} issues →
+                  </button>
+                )}
               </div>
+            )}
 
-              {/* 핵심 개선점 한 줄 요약 */}
-              {analysis.issues.length > 0 && !showDetails && (
-                <div className="mt-3 pt-3 border-t border-dark-border">
-                  <div className="flex items-start gap-2 text-sm">
-                    <Lightbulb size={14} className="text-accent-warning mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-400">{analysis.issues[0].suggestion}</span>
-                  </div>
-                </div>
-              )}
+            {/* 4. GOLDEN Radar - 작게 표시 */}
+            <div className="bg-dark-surface rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-medium text-gray-400">GOLDEN Score</span>
+                <span className={`text-lg font-bold ${getGradeColor(analysis.grade)}`}>
+                  {analysis.overallScore}%
+                </span>
+                <span className={`grade-badge text-xl font-bold ${getGradeColor(analysis.grade)}`}>
+                  {analysis.grade}
+                </span>
+              </div>
+              <div className="flex justify-center">
+                <GoldenRadar scores={analysis.goldenScores} size={120} />
+              </div>
             </div>
 
-            {/* [Expandable] 세부 분석 - 접이식 */}
-            {showDetails && (
-              <div className="space-y-4">
-                {/* Radar Chart */}
-                <div className="bg-dark-surface rounded-lg p-4">
-                  <div className="flex justify-center">
-                    <GoldenRadar scores={analysis.goldenScores} size={180} />
-                  </div>
+            {/* 5. History Recommendations - 있으면 표시 */}
+            {(analysis.historyRecommendations?.length ||
+              analysis.comparisonWithHistory?.improvement) && (
+              <HistoryRecommendations
+                recommendations={analysis.historyRecommendations || []}
+                comparisonWithHistory={analysis.comparisonWithHistory}
+              />
+            )}
+
+            {/* 6. Personal Tips - 있으면 표시 */}
+            {analysis.personalTips.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
+                  <Lightbulb size={14} className="text-accent-primary" />
+                  <span>Tips</span>
                 </div>
-
-                {/* Issues */}
-                <IssueList issues={analysis.issues} />
-
-                {/* History-based Recommendations */}
-                {(analysis.historyRecommendations?.length ||
-                  analysis.comparisonWithHistory?.improvement) && (
-                  <HistoryRecommendations
-                    recommendations={analysis.historyRecommendations || []}
-                    comparisonWithHistory={analysis.comparisonWithHistory}
-                  />
-                )}
-
-                {/* Personal Tips */}
-                {analysis.personalTips.length > 0 && (
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <Lightbulb size={16} className="text-accent-primary" />
-                        <span>{t('navigation.tips')}</span>
-                      </div>
-                      <button
-                        onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'tips' })}
-                        className="text-xs text-accent-primary hover:underline"
-                      >
-                        {t('viewMore')}
-                      </button>
+                <div className="bg-dark-surface rounded-lg p-3 space-y-2">
+                  {analysis.personalTips.slice(0, 2).map((tip, index) => (
+                    <div key={index} className="flex items-start gap-2 text-xs">
+                      <span className="text-accent-secondary">•</span>
+                      <span className="text-gray-400">{tip}</span>
                     </div>
-                    <div className="bg-dark-surface rounded-lg p-3 space-y-2">
-                      {analysis.personalTips.slice(0, 2).map((tip, index) => (
-                        <div key={index} className="flex items-start gap-2 text-sm">
-                          <span className="text-accent-secondary">•</span>
-                          <span className="text-gray-300">{tip}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             )}
           </>
@@ -656,6 +625,12 @@ function App() {
 
       {/* Settings Modal */}
       <Settings isOpen={settingsOpen} onClose={() => dispatch({ type: 'CLOSE_SETTINGS' })} />
+
+      {/* Onboarding Modal */}
+      <Onboarding isOpen={showOnboarding} onComplete={handleOnboardingComplete} />
+
+      {/* About Dialog */}
+      <AboutDialog isOpen={showAbout} onClose={dismissAbout} />
     </div>
   );
 }

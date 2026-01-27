@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useReducer, useMemo, memo } from 'react';
-import { Copy, Check, Sparkles, FileText, Wand2, Play, AlertCircle, ChevronDown, ChevronUp, GitCompare, Loader2, Zap } from 'lucide-react';
+import { Copy, Check, Sparkles, FileText, Wand2, Play, AlertCircle, ChevronDown, ChevronUp, GitCompare, Loader2, Zap, ArrowRight } from 'lucide-react';
 import { diffWords } from 'diff';
 import { useTranslation } from 'react-i18next';
 
@@ -372,6 +372,30 @@ function PromptComparisonInner({
           </button>
         ))}
       </div>
+
+      {/* Improvement Badge - show when variant selected */}
+      {!showOriginal && !currentVariant.needsSetup && !currentVariant.isLoading && (
+        <div className="mb-3 flex items-center justify-center gap-3 p-3 bg-gradient-to-r from-dark-surface to-accent-primary/10 rounded-lg border border-accent-primary/30">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">Before</span>
+            <span className="text-lg font-mono text-gray-400">
+              ~50%
+            </span>
+          </div>
+          <ArrowRight size={16} className="text-accent-primary" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500">After</span>
+            <span className="text-2xl font-mono font-bold text-accent-success">
+              {currentVariant.confidence}%
+            </span>
+          </div>
+          {currentVariant.confidence > 50 && (
+            <span className="text-sm font-medium text-accent-success">
+              +{currentVariant.confidence - 50}%p
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Single Content Panel */}
       <div
