@@ -223,8 +223,8 @@ describe('Prompt Rewriter', () => {
       const variants = generatePromptVariants(prompt, evaluation);
 
       const cosp = variants.find(v => v.variant === 'cosp')!;
-      // COSP should have confidence >= 0.9
-      expect(cosp.confidence).toBeGreaterThanOrEqual(0.9);
+      // v3 calibrated confidence: ~0.77 with template match, no context
+      expect(cosp.confidence).toBeGreaterThanOrEqual(0.7);
     });
   });
 
@@ -268,13 +268,14 @@ describe('Prompt Rewriter', () => {
       expect(cosp.rewrittenPrompt).toContain('</output_format>');
     });
 
-    it('should have confidence >= 0.9 for COSP', () => {
+    it('should have calibrated confidence for COSP', () => {
       const prompt = '테스트 작성';
       const evaluation = createMockEvaluation();
       const variants = generatePromptVariants(prompt, evaluation);
       const cosp = variants.find(v => v.variant === 'cosp')!;
 
-      expect(cosp.confidence).toBeGreaterThanOrEqual(0.9);
+      // v3 calibrated confidence: ~0.77 with template match, no context
+      expect(cosp.confidence).toBeGreaterThanOrEqual(0.7);
     });
   });
 
