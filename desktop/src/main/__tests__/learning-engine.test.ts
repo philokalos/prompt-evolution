@@ -615,5 +615,296 @@ describe('Learning Engine', () => {
 
       expect(mockState.analyzeProjectPatterns).toHaveBeenCalledWith('/Users/test/project');
     });
+
+    it('should handle get-context-recommendations', async () => {
+      registerLearningEngineHandlers();
+
+      const recommendationsHandler = mockState.ipcMainHandle.mock.calls.find(
+        (call: unknown[]) => call[0] === 'get-context-recommendations'
+      )?.[1] as (_event: unknown, category: string | undefined, projectPath: string | undefined) => Promise<unknown>;
+
+      await recommendationsHandler({}, 'code-generation', '/Users/test/project');
+
+      expect(mockState.getContextRecommendations).toHaveBeenCalledWith('code-generation', '/Users/test/project');
+    });
+
+    it('should handle get-ai-variant when AI is not enabled', async () => {
+      mockState.getAIRewriteSettings.mockReturnValue({ enabled: false, apiKey: null });
+      registerLearningEngineHandlers();
+
+      const aiVariantHandler = mockState.ipcMainHandle.mock.calls.find(
+        (call: unknown[]) => call[0] === 'get-ai-variant'
+      )?.[1] as (_event: unknown, text: string) => Promise<unknown>;
+
+      const result = await aiVariantHandler({}, 'Test prompt');
+
+      expect(result).toMatchObject({
+        variant: 'ai',
+        needsSetup: true,
+        isAiGenerated: false,
+      });
+    });
+
+    it('should handle get-weekly-stats with custom weeks', async () => {
+      registerLearningEngineHandlers();
+
+      const weeklyStatsHandler = mockState.ipcMainHandle.mock.calls.find(
+        (call: unknown[]) => call[0] === 'get-weekly-stats'
+      )?.[1] as (_event: unknown, weeks?: number) => Promise<unknown>;
+
+      await weeklyStatsHandler({}, 8);
+
+      expect(mockState.getWeeklyStats).toHaveBeenCalledWith(8);
+    });
+
+    it('should handle get-monthly-stats with custom months', async () => {
+      registerLearningEngineHandlers();
+
+      const monthlyStatsHandler = mockState.ipcMainHandle.mock.calls.find(
+        (call: unknown[]) => call[0] === 'get-monthly-stats'
+      )?.[1] as (_event: unknown, months?: number) => Promise<unknown>;
+
+      await monthlyStatsHandler({}, 12);
+
+      expect(mockState.getMonthlyStats).toHaveBeenCalledWith(12);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Edge Cases and Error Handling
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  describe('Edge Cases', () => {
+    it('should handle empty prompt text', async () => {
+      const result = await analyzePrompt('');
+
+      expect(result).toBeDefined();
+      expect(result.overallScore).toBeGreaterThan(0);
+    });
+
+    it('should handle very long prompt text', async () => {
+      const longText = 'word '.repeat(1000);
+      const result = await analyzePrompt(longText);
+
+      expect(result).toBeDefined();
+      expect(result.promptVariants.length).toBeGreaterThan(0);
+    });
+
+    it('should handle special characters in prompt', async () => {
+      const specialText = 'Test <>&"\'```\n\t';
+      const result = await analyzePrompt(specialText);
+
+      expect(result).toBeDefined();
+    });
+
+    it('should handle non-IDE app without project', async () => {
+      mockState.getLastCapturedContext.mockReturnValue({
+        project: null,
+        windowInfo: {
+          appName: 'Safari',
+          windowTitle: 'Google Search',
+        },
+        timestamp: new Date(),
+      });
+
+      const result = await analyzePrompt('Test prompt');
+
+      expect(result.sessionContext).toBeUndefined();
+      expect(mockState.getSessionContextForCapturedProject).not.toHaveBeenCalled();
+    });
+
+    it('should handle database save error with error message', async () => {
+      mockState.saveAnalysis.mockImplementation(() => {
+        throw new Error('Database connection lost');
+      });
+
+      const result = await analyzePrompt('Test prompt');
+
+      expect(result.dbSaveError).toBe('분석 결과 저장에 실패했습니다. 진행 추적이 기록되지 않았습니다.');
+    });
+
+    it('should handle history enrichment failure gracefully', async () => {
+      mockState.getActiveWindowSessionContext.mockResolvedValue({
+        projectPath: '/Users/test/project',
+        projectId: '-Users-test-project',
+        sessionId: 'session-123',
+        currentTask: 'Testing',
+        techStack: ['React'],
+        recentTools: [],
+        recentFiles: [],
+        lastActivity: new Date(),
+        source: 'active-window',
+        confidence: 'high',
+      });
+      mockState.enrichAnalysisWithHistory.mockImplementation(() => {
+        throw new Error('History DB error');
+      });
+
+      const result = await analyzePrompt('Test prompt');
+
+      // Should still return result even if history enrichment fails
+      expect(result).toBeDefined();
+      expect(result.historyRecommendations).toBeUndefined();
+    });
+
+    it('should not enrich history when no project path', async () => {
+      mockState.getActiveWindowSessionContext.mockResolvedValue({
+        projectPath: undefined,
+        projectId: undefined,
+        sessionId: 'session-123',
+        currentTask: undefined,
+        techStack: [],
+        recentTools: [],
+        recentFiles: [],
+        lastActivity: new Date(),
+        source: 'active-window',
+        confidence: 'low',
+      });
+
+      const result = await analyzePrompt('Test prompt');
+
+      expect(mockState.enrichAnalysisWithHistory).not.toHaveBeenCalled();
+      expect(result.historyRecommendations).toBeUndefined();
+    });
+
+    it('should use category from classification in history enrichment', async () => {
+      mockState.getActiveWindowSessionContext.mockResolvedValue({
+        projectPath: '/Users/test/project',
+        projectId: '-Users-test-project',
+        sessionId: 'session-123',
+        currentTask: 'Testing',
+        techStack: ['React'],
+        recentTools: [],
+        recentFiles: [],
+        lastActivity: new Date(),
+        source: 'active-window',
+        confidence: 'high',
+      });
+      mockState.mockClassify.mockReturnValue({
+        intent: 'instruction',
+        category: 'refactoring',
+        confidence: 0.9,
+      });
+
+      await analyzePrompt('Refactor this code');
+
+      expect(mockState.enrichAnalysisWithHistory).toHaveBeenCalledWith(
+        expect.any(Object),
+        '/Users/test/project',
+        'refactoring'
+      );
+    });
+
+    it('should handle code block in prompt', async () => {
+      const result = await analyzePrompt('```typescript\nconst x = 1;\n```');
+
+      // Should analyze code block
+      expect(result).toBeDefined();
+      expect(result.goldenScores).toBeDefined();
+    });
+
+    it('should handle question in prompt', async () => {
+      const result = await analyzePrompt('How do I fix this error?');
+
+      // Should analyze question
+      expect(result).toBeDefined();
+      expect(result.overallScore).toBeGreaterThan(0);
+    });
+
+    it('should handle very long text prompts', async () => {
+      const longPrompt = 'word '.repeat(60); // > 50 words
+      const result = await analyzePrompt(longPrompt);
+
+      // Should handle long prompts without error
+      expect(result).toBeDefined();
+      expect(result.goldenScores.data).toBeDefined();
+    });
+
+    it('should handle very short prompts', async () => {
+      const result = await analyzePrompt('Test');
+
+      // Should handle short prompts
+      expect(result).toBeDefined();
+      expect(result.goldenScores.goal).toBeDefined();
+    });
+
+    it('should handle single character prompt', async () => {
+      const result = await analyzePrompt('a');
+
+      expect(result).toBeDefined();
+      expect(result.grade).toBeDefined();
+    });
+
+    it('should generate variants for normal prompts', async () => {
+      const result = await analyzePrompt('Create a function to sort');
+
+      expect(result.promptVariants.length).toBeGreaterThan(0);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Session Context Integration Tests
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  describe('Session Context Integration', () => {
+    it('should save project path to database when available', async () => {
+      mockState.getActiveWindowSessionContext.mockResolvedValue({
+        projectPath: '/Users/test/my-project',
+        projectId: '-Users-test-my-project',
+        sessionId: 'session-456',
+        currentTask: 'Building feature',
+        techStack: ['Vue'],
+        recentTools: [],
+        recentFiles: [],
+        lastActivity: new Date(),
+        source: 'active-window',
+        confidence: 'high',
+      });
+
+      await analyzePrompt('Test prompt');
+
+      expect(mockState.saveAnalysis).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectPath: '/Users/test/my-project',
+        })
+      );
+    });
+
+    it('should save intent and category to database', async () => {
+      mockState.mockClassify.mockReturnValue({
+        intent: 'question',
+        category: 'debugging',
+        confidence: 0.8,
+      });
+
+      await analyzePrompt('Why is this failing?');
+
+      expect(mockState.saveAnalysis).toHaveBeenCalledWith(
+        expect.objectContaining({
+          intent: 'question',
+          category: 'debugging',
+        })
+      );
+    });
+
+    it('should include session context in analysis result', async () => {
+      const sessionContext = {
+        projectPath: '/Users/test/project',
+        projectId: '-Users-test-project',
+        sessionId: 'session-789',
+        currentTask: 'Testing',
+        techStack: ['Angular'],
+        recentTools: ['Read'],
+        recentFiles: ['app.ts'],
+        lastActivity: new Date(),
+        source: 'active-window' as const,
+        confidence: 'medium' as const,
+      };
+      mockState.getActiveWindowSessionContext.mockResolvedValue(sessionContext);
+
+      const result = await analyzePrompt('Test');
+
+      expect(result.sessionContext).toEqual(sessionContext);
+    });
   });
 });
