@@ -54,6 +54,7 @@ export interface Insight {
   evidence: string[];
   recommendations: string[];
   affectedCategory?: TaskCategory;
+  goldenDimension?: 'goal' | 'output' | 'limits' | 'data' | 'evaluation' | 'next';
   metric?: {
     name: string;
     value: number;
@@ -373,6 +374,7 @@ function detectProblems(
         '모호한 표현을 피하세요',
         '구체적인 키워드를 사용하세요',
       ],
+      goldenDimension: 'goal',
       metric: {
         name: '평균 명확성',
         value: avgClarity,
@@ -397,6 +399,7 @@ function detectProblems(
         '파일 경로를 명시하세요',
         '이전 대화의 컨텍스트를 언급하세요',
       ],
+      goldenDimension: 'data',
       metric: {
         name: '평균 컨텍스트',
         value: avgContext,
@@ -458,6 +461,7 @@ function detectImprovements(
         '에러 메시지가 있다면 함께 첨부하세요',
         '원하는 결과물의 예시를 제공하세요',
       ],
+      goldenDimension: 'data',
     });
   }
 

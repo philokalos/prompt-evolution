@@ -29,6 +29,14 @@ export interface StatsResponse {
   projects: number;
   lastSync: string | null;
   lastAnalysis: string | null;
+  goldenScores: {
+    goal: number;
+    output: number;
+    limits: number;
+    data: number;
+    evaluation: number;
+    next: number;
+  };
 }
 
 export interface ProjectResponse {
@@ -190,6 +198,7 @@ export interface InsightItem {
   description: string;
   evidence: string[];
   severity: 'critical' | 'high' | 'medium' | 'low';
+  goldenDimension?: 'goal' | 'output' | 'limits' | 'data' | 'evaluation' | 'next';
 }
 
 export interface InsightsResponse {

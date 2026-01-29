@@ -181,61 +181,90 @@ export default function ProviderSettings({ onProvidersChanged }: ProviderSetting
         </div>
       )}
 
-      {/* Provider Dropdown */}
-      <div className="space-y-2">
-        <label className="text-xs text-gray-400">
+      {/* Provider Selection Cards */}
+      <div className="space-y-3">
+        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider ml-1">
           {t('providers.selectProvider')}
         </label>
-        <select
-          value={selectedProvider}
-          onChange={(e) => handleProviderChange(e.target.value as 'claude' | 'openai' | 'gemini')}
-          className="w-full px-3 py-2 bg-dark-hover border border-dark-border rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-accent-primary"
-        >
-          <option value="claude">{getProviderName('claude')}</option>
-          <option value="openai">{getProviderName('openai')}</option>
-          <option value="gemini">{getProviderName('gemini')}</option>
-        </select>
-        <p className="text-xs text-gray-500">
-          {getProviderDescription(selectedProvider)}
-        </p>
+        <div className="grid grid-cols-3 gap-3">
+          {(['claude', 'openai', 'gemini'] as const).map((pId) => {
+            const isSelected = selectedProvider === pId;
+            return (
+              <button
+                key={pId}
+                onClick={() => handleProviderChange(pId)}
+                className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all transform active:scale-95 ${isSelected
+                    ? 'bg-accent-primary/10 border-accent-primary shadow-[0_0_15px_-5px_var(--accent-primary)]'
+                    : 'bg-dark-surface border-dark-border hover:border-gray-600'
+                  }`}
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-xl shadow-inner ${isSelected ? 'bg-accent-primary text-white' : 'bg-dark-hover text-gray-400'
+                  }`}>
+                  {pId === 'claude' ? 'C' : pId === 'openai' ? 'O' : 'G'}
+                </div>
+                <span className={`text-xs font-bold ${isSelected ? 'text-gray-100' : 'text-gray-500'}`}>
+                  {getProviderName(pId)}
+                </span>
+                {isSelected && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-accent-primary shadow-[0_0_8px_var(--accent-primary)]" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="px-1">
+          <p className="text-xs text-app-text-tertiary leading-relaxed italic">
+            {getProviderDescription(selectedProvider)}
+          </p>
+        </div>
       </div>
 
-      {/* API Key Input */}
-      <div className="space-y-2">
-        <label className="text-xs text-gray-400">
-          {t('providers.apiKey')}
-        </label>
-        <div className="relative">
-          <input
-            type={showApiKey ? 'text' : 'password'}
-            value={apiKey}
-            onChange={(e) => handleApiKeyChange(e.target.value)}
-            onBlur={handleApiKeyBlur}
-            placeholder={`${info.keyPrefix}...`}
-            className="w-full px-3 py-2 pr-10 bg-dark-hover border border-dark-border rounded-lg text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-accent-primary font-mono"
-          />
-          <button
-            onClick={() => setShowApiKey(!showApiKey)}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-200"
-            type="button"
-          >
-            {showApiKey ? <EyeOff size={14} /> : <Eye size={14} />}
-          </button>
-        </div>
+      {/* API Key Input Section */}
+      <div className="bg-dark-hover/30 border border-dark-border rounded-2xl p-5 space-y-4 shadow-inner mt-4">
         <div className="flex items-center justify-between">
+          <label className="text-sm font-semibold text-gray-200">
+            {t('providers.apiKey')}
+          </label>
           <a
             href={info.docsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1 text-xs text-accent-primary hover:underline"
+            className="flex items-center gap-1.5 text-xs font-medium text-accent-primary hover:text-accent-secondary transition-colors"
             onClick={(e) => {
               e.preventDefault();
               window.electronAPI.openExternal(info.docsUrl);
             }}
           >
             {t('providers.getApiKey')}
-            <ExternalLink size={10} />
+            <ExternalLink size={12} strokeWidth={2.5} />
           </a>
+        </div>
+
+        <div className="relative group">
+          <div className="absolute left-4 top-1/2 -translate-y-1/2 p-1 text-gray-500 group-focus-within:text-accent-primary transition-colors">
+            <Key size={16} />
+          </div>
+          <input
+            type={showApiKey ? 'text' : 'password'}
+            value={apiKey}
+            onChange={(e) => handleApiKeyChange(e.target.value)}
+            onBlur={handleApiKeyBlur}
+            placeholder={`${info.keyPrefix}...`}
+            className="w-full pl-12 pr-12 py-3.5 bg-dark-surface border border-dark-border rounded-xl text-sm text-gray-100 focus:outline-none focus:ring-2 focus:ring-accent-primary font-mono transition-all placeholder-gray-600"
+          />
+          <button
+            onClick={() => setShowApiKey(!showApiKey)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-gray-500 hover:text-gray-200 transition-colors"
+            type="button"
+          >
+            {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
+        </div>
+
+        <div className="p-3 bg-accent-primary/5 border border-accent-primary/10 rounded-xl">
+          <p className="text-[11px] text-gray-400 font-medium leading-relaxed">
+            {t('providers.singleProviderNote')}
+          </p>
         </div>
       </div>
 

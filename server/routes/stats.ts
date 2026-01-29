@@ -31,6 +31,7 @@ statsRouter.get('/', async (req, res, next) => {
       projects,
       lastSync: stats.lastSync,
       lastAnalysis: stats.lastAnalysis,
+      goldenScores: stats.goldenScores,
     });
   } catch (error) {
     next(error);

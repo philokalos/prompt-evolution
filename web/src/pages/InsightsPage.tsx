@@ -21,30 +21,33 @@ export default function InsightsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Insights</h2>
+    <div className="space-y-6 pb-12">
+      <div className="flex items-center gap-3 mb-2">
+        <Lightbulb className="text-accent-primary" size={28} />
+        <h2 className="text-3xl font-bold tracking-tight text-app-text-primary">Intelligence Insights</h2>
+      </div>
 
-      {/* Summary */}
-      <div className="card">
-        <h3 className="text-lg font-semibold mb-4">Summary</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div>
-            <p className="text-sm text-gray-400">Conversations</p>
-            <p className="text-2xl font-bold">{insights?.summary.totalConversations ?? 0}</p>
+      {/* Summary Stats */}
+      <div className="card bg-dark-hover/30 border-dark-border shadow-inner">
+        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-6">Aggregate Performance</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-gray-500 uppercase">Conversations</p>
+            <p className="text-3xl font-extrabold text-app-text-primary">{insights?.summary.totalConversations ?? 0}</p>
           </div>
-          <div>
-            <p className="text-sm text-gray-400">Prompts</p>
-            <p className="text-2xl font-bold">{insights?.summary.totalPrompts ?? 0}</p>
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-gray-500 uppercase">Total Prompts</p>
+            <p className="text-3xl font-extrabold text-app-text-primary">{insights?.summary.totalPrompts ?? 0}</p>
           </div>
-          <div>
-            <p className="text-sm text-gray-400">Effectiveness</p>
-            <p className="text-2xl font-bold text-accent-success">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-gray-500 uppercase text-accent-success">Effectiveness</p>
+            <p className="text-3xl font-extrabold text-accent-success">
               {((insights?.summary.overallEffectiveness ?? 0) * 100).toFixed(1)}%
             </p>
           </div>
-          <div>
-            <p className="text-sm text-gray-400">Quality</p>
-            <p className="text-2xl font-bold text-accent-secondary">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-gray-500 uppercase text-accent-secondary">Avg Quality</p>
+            <p className="text-3xl font-extrabold text-accent-secondary">
               {((insights?.summary.overallQuality ?? 0) * 100).toFixed(1)}%
             </p>
           </div>
@@ -53,63 +56,90 @@ export default function InsightsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Problems */}
-        <div className="card">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
             <AlertTriangle className="text-accent-primary" size={20} />
-            <h3 className="text-lg font-semibold">Problems</h3>
+            <h3 className="text-lg font-bold text-app-text-primary">Critical Issues</h3>
           </div>
-          {insights?.problems && insights.problems.length > 0 ? (
-            <ul className="space-y-3">
-              {insights.problems.map((problem, i) => (
-                <li key={i} className="border-l-2 border-accent-primary pl-3">
-                  <p className="font-medium">{problem.title}</p>
-                  <p className="text-sm text-gray-400">{problem.description}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-400">No problems detected</p>
-          )}
+          <div className="space-y-4">
+            {insights?.problems && insights.problems.length > 0 ? (
+              insights.problems.map((problem, i) => (
+                <div key={i} className="card border-l-4 border-l-accent-primary hover:translate-x-1 transition-transform">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h4 className="font-bold text-app-text-primary leading-tight">{problem.title}</h4>
+                    {problem.goldenDimension && (
+                      <span className="shrink-0 px-2 py-0.5 bg-accent-primary/10 text-accent-primary text-[10px] font-bold rounded-full border border-accent-primary/20 uppercase">
+                        {problem.goldenDimension}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-app-text-secondary leading-relaxed">{problem.description}</p>
+                </div>
+              ))
+            ) : (
+              <div className="card py-8 text-center bg-transparent border-dashed border-dark-border">
+                <p className="text-gray-500 text-sm">No critical issues detected</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Improvements */}
-        <div className="card">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
             <Lightbulb className="text-accent-warning" size={20} />
-            <h3 className="text-lg font-semibold">Improvements</h3>
+            <h3 className="text-lg font-bold text-app-text-primary">Grow Opportunities</h3>
           </div>
-          {insights?.improvements && insights.improvements.length > 0 ? (
-            <ul className="space-y-3">
-              {insights.improvements.map((improvement, i) => (
-                <li key={i} className="border-l-2 border-accent-warning pl-3">
-                  <p className="font-medium">{improvement.title}</p>
-                  <p className="text-sm text-gray-400">{improvement.description}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-400">No improvements suggested</p>
-          )}
+          <div className="space-y-4">
+            {insights?.improvements && insights.improvements.length > 0 ? (
+              insights.improvements.map((improvement, i) => (
+                <div key={i} className="card border-l-4 border-l-accent-warning hover:translate-x-1 transition-transform">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h4 className="font-bold text-app-text-primary leading-tight">{improvement.title}</h4>
+                    {improvement.goldenDimension && (
+                      <span className="shrink-0 px-2 py-0.5 bg-accent-warning/10 text-accent-warning text-[10px] font-bold rounded-full border border-accent-warning/20 uppercase">
+                        {improvement.goldenDimension}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-app-text-secondary leading-relaxed">{improvement.description}</p>
+                </div>
+              ))
+            ) : (
+              <div className="card py-8 text-center bg-transparent border-dashed border-dark-border">
+                <p className="text-gray-500 text-sm">No improvements suggested</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Strengths */}
-        <div className="card">
-          <div className="flex items-center gap-2 mb-4">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
             <CheckCircle className="text-accent-success" size={20} />
-            <h3 className="text-lg font-semibold">Strengths</h3>
+            <h3 className="text-lg font-bold text-app-text-primary">Mastered Skills</h3>
           </div>
-          {insights?.strengths && insights.strengths.length > 0 ? (
-            <ul className="space-y-3">
-              {insights.strengths.map((strength, i) => (
-                <li key={i} className="border-l-2 border-accent-success pl-3">
-                  <p className="font-medium">{strength.title}</p>
-                  <p className="text-sm text-gray-400">{strength.description}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-gray-400">No strengths identified</p>
-          )}
+          <div className="space-y-4">
+            {insights?.strengths && insights.strengths.length > 0 ? (
+              insights.strengths.map((strength, i) => (
+                <div key={i} className="card border-l-4 border-l-accent-success hover:translate-x-1 transition-transform">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <h4 className="font-bold text-app-text-primary leading-tight">{strength.title}</h4>
+                    {strength.goldenDimension && (
+                      <span className="shrink-0 px-2 py-0.5 bg-accent-success/10 text-accent-success text-[10px] font-bold rounded-full border border-accent-success/20 uppercase">
+                        {strength.goldenDimension}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-app-text-secondary leading-relaxed">{strength.description}</p>
+                </div>
+              ))
+            ) : (
+              <div className="card py-8 text-center bg-transparent border-dashed border-dark-border">
+                <p className="text-gray-500 text-sm">Keep up the great work!</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

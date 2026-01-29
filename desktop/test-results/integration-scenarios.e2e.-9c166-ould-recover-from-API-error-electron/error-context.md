@@ -1,0 +1,52 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e6]: PromptLint
+    - generic [ref=e7]:
+      - button "기능 안내" [ref=e8] [cursor=pointer]:
+        - img [ref=e9]
+      - button "설정" [ref=e12] [cursor=pointer]:
+        - img [ref=e13]
+      - button "최소화" [ref=e16] [cursor=pointer]:
+        - img [ref=e17]
+      - button "닫기" [ref=e18] [cursor=pointer]:
+        - img [ref=e19]
+  - generic [ref=e23]:
+    - button "프로젝트가 감지되지 않았어요" [ref=e25] [cursor=pointer]:
+      - generic [ref=e26]:
+        - generic "프로젝트가 감지되지 않았어요" [ref=e27]
+        - generic [ref=e29]:
+          - img [ref=e30]
+          - generic [ref=e32]: 프로젝트가 감지되지 않았어요
+      - img [ref=e34]
+    - generic [ref=e36]:
+      - img [ref=e37]
+      - heading "프롬프트 품질 개선하기" [level=2] [ref=e39]
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - generic [ref=e42]: "1"
+          - generic [ref=e43]:
+            - paragraph [ref=e44]: 프롬프트 선택
+            - paragraph [ref=e45]: 개선하고 싶은 텍스트를 드래그해서 선택
+        - generic [ref=e46]:
+          - generic [ref=e47]: "2"
+          - generic [ref=e48]:
+            - paragraph [ref=e49]: 분석 실행
+            - paragraph [ref=e50]: ⌘ ⇧ P 누르기
+        - generic [ref=e51]:
+          - generic [ref=e52]: "3"
+          - generic [ref=e53]:
+            - paragraph [ref=e54]: 개선안 적용
+            - paragraph [ref=e55]:
+              - generic [ref=e56]: "[적용]"
+              - text: 버튼 또는 ⌘ Enter
+      - paragraph [ref=e58]: 💡 적용하면 원본 텍스트가 자동으로 개선된 프롬프트로 교체됩니다
+    - button "직접 입력하기" [ref=e60] [cursor=pointer]:
+      - img [ref=e61]
+      - generic [ref=e63]: 직접 입력하기
+  - button "내 진행 상황 보기" [ref=e65] [cursor=pointer]:
+    - img [ref=e66]
+    - generic [ref=e68]: 내 진행 상황 보기
+```

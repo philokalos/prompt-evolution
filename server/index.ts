@@ -13,15 +13,17 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+const isProd = process.env.NODE_ENV === 'production';
+app.use(cors({
+  origin: isProd ? false : '*', // Disable CORS in prod by default, or set to specific origin
+  methods: ['GET', 'POST'],
+}));
 app.use(express.json());
 
 // API routes
 app.use('/api', apiRouter);
 
 // Serve static files in production
-// In dev: __dirname = /project/server, so ../web/dist works
-// In prod: __dirname = /project/dist/server, so ../../web/dist works
 const webDistPath = path.join(__dirname, '../../web/dist');
 app.use(express.static(webDistPath));
 

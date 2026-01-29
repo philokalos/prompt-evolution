@@ -22,20 +22,32 @@ const CLAUDE_PROJECTS_PATH = join(homedir(), '.claude', 'projects');
  * JSONL 파일을 레코드 배열로 파싱
  */
 export function parseJsonlFile(filePath: string): ClaudeCodeRecord[] {
-  const content = readFileSync(filePath, 'utf-8');
-  const lines = content.split('\n').filter(line => line.trim());
-  
-  const records: ClaudeCodeRecord[] = [];
-  for (const line of lines) {
-    try {
-      const record = JSON.parse(line) as ClaudeCodeRecord;
-      records.push(record);
-    } catch {
-      // 파싱 실패한 라인은 스킵
-      continue;
+  try {
+    const content = readFileSync(filePath, 'utf-8');
+    const lines = content.split('\n');
+
+    const records: ClaudeCodeRecord[] = [];
+    let lineNumber = 0;
+
+    for (const line of lines) {
+      lineNumber++;
+      const trimmedLine = line.trim();
+      if (!trimmedLine) continue;
+
+      try {
+        const record = JSON.parse(trimmedLine) as ClaudeCodeRecord;
+        records.push(record);
+      } catch (err) {
+        // 파싱 실패한 라인은 상세 로그 출력 후 스킵
+        console.warn(`[Parser] Skipped malformed JSON at ${filePath}:${lineNumber}:`, (err as Error).message);
+        continue;
+      }
     }
+    return records;
+  } catch (err) {
+    console.error(`[Parser] Failed to read file ${filePath}:`, (err as Error).message);
+    return [];
   }
-  return records;
 }
 
 /**
@@ -44,19 +56,19 @@ export function parseJsonlFile(filePath: string): ClaudeCodeRecord[] {
 export function parseSession(projectName: string, sessionFile: string): ParsedConversation | null {
   const filePath = join(CLAUDE_PROJECTS_PATH, projectName, sessionFile);
   const records = parseJsonlFile(filePath);
-  
+
   if (records.length === 0) return null;
-  
+
   const sessionId = basename(sessionFile, '.jsonl');
   const summaries: string[] = [];
   const turns: ParsedTurn[] = [];
-  
+
   let model = '';
   let totalInputTokens = 0;
   let totalOutputTokens = 0;
   let startTime: Date | null = null;
   let endTime: Date | null = null;
-  
+
   for (const record of records) {
     // 타임스탬프 추적
     if (record.timestamp) {
@@ -64,13 +76,13 @@ export function parseSession(projectName: string, sessionFile: string): ParsedCo
       if (!startTime || ts < startTime) startTime = ts;
       if (!endTime || ts > endTime) endTime = ts;
     }
-    
+
     // Summary 수집
     if (record.type === 'summary') {
       summaries.push((record as SummaryRecord).summary);
       continue;
     }
-    
+
     // User 턴
     if (record.type === 'user') {
       const userRecord = record as UserRecord;
@@ -88,28 +100,28 @@ export function parseSession(projectName: string, sessionFile: string): ParsedCo
       });
       continue;
     }
-    
+
     // Assistant 턴
     if (record.type === 'assistant') {
       const assistantRecord = record as AssistantRecord;
       const content = assistantRecord.message.content;
-      
+
       // 모델 정보 추출
       if (assistantRecord.message.model && !model) {
         model = assistantRecord.message.model;
       }
-      
+
       // 토큰 사용량 누적
       if (assistantRecord.message.usage) {
         totalInputTokens += assistantRecord.message.usage.input_tokens || 0;
         totalOutputTokens += assistantRecord.message.usage.output_tokens || 0;
       }
-      
+
       // 콘텐츠 추출
       const textContent = extractText(content);
       const thinking = extractThinking(content);
       const toolsUsed = extractTools(content);
-      
+
       // 텍스트 콘텐츠가 있는 경우만 턴으로 추가
       if (textContent) {
         turns.push({
@@ -127,10 +139,10 @@ export function parseSession(projectName: string, sessionFile: string): ParsedCo
       }
     }
   }
-  
+
   // 프로젝트 경로 디코딩
   const projectPath = decodeProjectPath(projectName);
-  
+
   return {
     id: sessionId,
     project: projectName,
@@ -180,7 +192,7 @@ function extractThinking(content: AssistantContentItem[]): string | undefined {
 
 function extractTools(content: AssistantContentItem[]): string[] {
   return content
-    .filter((item): item is { type: 'tool_use'; name: string; id: string; input: Record<string, unknown> } => 
+    .filter((item): item is { type: 'tool_use'; name: string; id: string; input: Record<string, unknown> } =>
       item.type === 'tool_use'
     )
     .map(item => item.name);

@@ -14,6 +14,14 @@ export interface StatsData {
   projects: number;
   lastSync: string | null;
   lastAnalysis: string | null;
+  goldenScores: {
+    goal: number;
+    output: number;
+    limits: number;
+    data: number;
+    evaluation: number;
+    next: number;
+  };
 }
 
 /**
@@ -67,6 +75,31 @@ export function getOverallStats(db: Database): StatsData {
     )
     .get() as { lastAnalysis: string | null };
 
+  // Get average GOLDEN scores
+  const goldenScores = {
+    goal: 0,
+    output: 0,
+    limits: 0,
+    data: 0,
+    evaluation: 0,
+    next: 0,
+  };
+
+  const dimensions = ['goal', 'output', 'limits', 'data', 'evaluation', 'next'];
+  for (const dim of dimensions) {
+    const result = db
+      .prepare(
+        `
+        SELECT AVG(value) as avgScore
+        FROM quality_signals
+        WHERE signal_type = ?
+      `
+      )
+      .get(dim) as { avgScore: number | null };
+
+    (goldenScores as any)[dim] = Math.round((result.avgScore ?? 0) * 100);
+  }
+
   return {
     conversations: 0, // Will be set by caller using existing functions
     turns: 0, // Will be set by caller using existing functions
@@ -76,5 +109,6 @@ export function getOverallStats(db: Database): StatsData {
     projects: 0, // Will be set by caller using existing functions
     lastSync: lastSyncResult.lastSync,
     lastAnalysis: lastAnalysisResult.lastAnalysis,
+    goldenScores,
   };
 }
