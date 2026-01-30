@@ -1,7 +1,7 @@
 import { app, Tray, Menu, nativeImage, BrowserWindow } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
-import { t, getLanguageInfo, type UserLanguagePreference } from './i18n.js';
+import { t, type UserLanguagePreference } from './i18n.js';
 import Store from 'electron-store';
 
 const store = new Store();

@@ -18,7 +18,7 @@ vi.mock('openai', () => {
     }
   }
 
-  const MockOpenAI = vi.fn(function(this: any) {
+  const MockOpenAI = vi.fn(function(this: { chat?: { completions: { create: typeof mockCreate } } }) {
     this.chat = { completions: { create: mockCreate } };
   });
   MockOpenAI.APIError = MockAPIError;

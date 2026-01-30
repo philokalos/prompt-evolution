@@ -85,7 +85,7 @@ export function getOverallStats(db: Database): StatsData {
     next: 0,
   };
 
-  const dimensions = ['goal', 'output', 'limits', 'data', 'evaluation', 'next'];
+  const dimensions = ['goal', 'output', 'limits', 'data', 'evaluation', 'next'] as const;
   for (const dim of dimensions) {
     const result = db
       .prepare(
@@ -97,7 +97,7 @@ export function getOverallStats(db: Database): StatsData {
       )
       .get(dim) as { avgScore: number | null };
 
-    (goldenScores as any)[dim] = Math.round((result.avgScore ?? 0) * 100);
+    goldenScores[dim] = Math.round((result.avgScore ?? 0) * 100);
   }
 
   return {

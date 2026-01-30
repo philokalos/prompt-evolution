@@ -2,7 +2,7 @@
  * GoldenRadar Component Unit Tests
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { I18nextProvider } from 'react-i18next';
@@ -327,11 +327,11 @@ describe('GoldenRadar', () => {
       const scores = {
         goal: 50,
         output: 60,
-        // limits missing
+        limits: 0,
         data: 70,
-        // evaluation missing
+        evaluation: 0,
         next: 80,
-      } as any;
+      };
 
       renderWithI18n(<GoldenRadar scores={scores} />);
 

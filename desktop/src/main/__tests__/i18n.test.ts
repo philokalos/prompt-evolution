@@ -4,7 +4,6 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import * as fs from 'fs';
-import * as path from 'path';
 
 // Mock electron
 const mockGetLocale = vi.fn(() => 'en-US');
@@ -131,7 +130,7 @@ describe('i18n System', () => {
       setLanguage('en');
       const before = getCurrentLanguage();
 
-      setLanguage('invalid' as any);
+      setLanguage('invalid' as 'en' | 'ko' | 'auto');
       expect(getCurrentLanguage()).toBe(before); // Should not change
     });
   });
@@ -185,7 +184,7 @@ describe('i18n System', () => {
       const mockReadFileSync = vi.mocked(fs.readFileSync);
 
       mockExistsSync.mockReturnValue(true);
-      mockReadFileSync.mockImplementation((filePath: any) => {
+      mockReadFileSync.mockImplementation((filePath: string | Buffer | URL | number) => {
         const pathStr = filePath.toString();
 
         if (pathStr.includes('/en/common.json')) {

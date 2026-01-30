@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, Clipboard, Ghost, ChevronDown, type LucideIcon } from 'lucide-react';
+import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, Clipboard, Ghost, Sparkles, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import ProviderSettings from './ProviderSettings';
 import type { ClipboardMode } from '../../main/settings-store';

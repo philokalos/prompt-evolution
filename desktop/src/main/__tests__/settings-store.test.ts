@@ -2,7 +2,7 @@
  * Settings Store Unit Tests
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import type { ProviderConfig } from '../providers/types.js';
 
 // Mock electron and electron-store
@@ -21,8 +21,8 @@ vi.mock('electron', () => ({
 }));
 
 vi.mock('electron-store', () => ({
-  default: vi.fn(function(this: any) {
-    Object.assign(this, mockStore);
+  default: vi.fn(function(this: unknown) {
+    Object.assign(this as Record<string, unknown>, mockStore);
     return this;
   }),
 }));

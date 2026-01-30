@@ -2,8 +2,8 @@
  * Variant Generation Unit Tests
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { GuidelineEvaluation, RewriteResult } from '../types.js';
+import { describe, it, expect, vi } from 'vitest';
+import type { GuidelineEvaluation } from '../types.js';
 import type { SessionContext } from '../../session-context.js';
 
 // Mock claude-api

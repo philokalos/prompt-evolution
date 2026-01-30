@@ -1,0 +1,24 @@
+
+[1m[46m RUN [49m[22m [36mv4.0.16 [39m[90m/Users/philokalos/Development/active/claude-projects/prompt-evolution[39m
+      [2mCoverage enabled with [22m[33mv8[39m
+
+ [32m✓[39m src/analysis/patterns/category-patterns.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/analysis/patterns/signal-patterns.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+ [32m✓[39m src/analysis/patterns/intent-patterns.test.ts [2m([22m[2m12 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+ [32m✓[39m src/analysis/patterns/registry.test.ts [2m([22m[2m10 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m4 passed[39m[22m[90m (4)[39m
+[2m      Tests [22m [1m[32m40 passed[39m[22m[90m (40)[39m
+[2m   Start at [22m 02:03:42
+[2m   Duration [22m 244ms[2m (transform 225ms, setup 0ms, import 276ms, tests 26ms, environment 0ms)[22m
+
+[34m % [39m[2mCoverage report from [22m[33mv8[39m
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   91.75 |    80.48 |     100 |   92.85 |                   
+ ...ry-patterns.ts |   96.42 |    91.66 |     100 |     100 | 89                
+ ...nt-patterns.ts |   96.42 |    91.66 |     100 |     100 | 109               
+ registry.ts       |   72.72 |     64.7 |     100 |   72.72 | 31,43,47,63,75,79 
+ ...al-patterns.ts |     100 |      100 |     100 |     100 |                   
+-------------------|---------|----------|---------|---------|-------------------

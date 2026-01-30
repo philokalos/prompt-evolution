@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { parseJsonlFile, parseSession } from './session-parser.js';
 import { readFileSync } from 'fs';
-import { join } from 'path';
 
 // Mock fs module
 vi.mock('fs', () => ({

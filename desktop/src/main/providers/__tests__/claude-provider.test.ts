@@ -18,7 +18,7 @@ vi.mock('@anthropic-ai/sdk', () => {
     }
   }
 
-  const MockAnthropic = vi.fn(function(this: any) {
+  const MockAnthropic = vi.fn(function(this: { messages?: { create: typeof mockCreate } }) {
     this.messages = { create: mockCreate };
   });
   MockAnthropic.APIError = MockAPIError;
