@@ -233,22 +233,34 @@ describe('text-selection', () => {
   });
 
   describe('applyTextToApp', () => {
-    it('should apply text via clipboard and paste on macOS', async () => {
+    it('should apply text via clipboard and paste on macOS for non-blocked apps', async () => {
       mockState.execAsync.mockResolvedValue({ stdout: '' });
 
-      await applyTextToApp('new text', 'Visual Studio Code');
+      // Use a non-blocked app (VS Code is in BLOCKED_APPS)
+      const result = await applyTextToApp('new text', 'Safari');
 
       expect(mockState.clipboardText).toBe('new text');
       expect(mockState.execAsync).toHaveBeenCalled();
+      expect(result.success).toBe(true);
+    });
+
+    it('should use clipboard fallback for blocked apps', async () => {
+      const result = await applyTextToApp('new text', 'Visual Studio Code');
+
+      expect(mockState.clipboardText).toBe('new text');
+      expect(result.success).toBe(false);
+      expect(result.fallback).toBe('clipboard');
     });
 
     it('should only update clipboard on non-macOS', async () => {
       setPlatform('win32');
 
-      await applyTextToApp('new text', 'Some App');
+      const result = await applyTextToApp('new text', 'Some App');
 
       expect(mockState.clipboardText).toBe('new text');
       expect(mockState.execAsync).not.toHaveBeenCalled();
+      expect(result.success).toBe(false);
+      expect(result.fallback).toBe('clipboard');
     });
   });
 });
