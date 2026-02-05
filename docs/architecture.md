@@ -57,13 +57,27 @@ prompt-evolution/
 ├── desktop/                  # Electron desktop app (PromptLint)
 │   ├── src/
 │   │   ├── main/             # Main process (Node.js)
-│   │   │   ├── index.ts      # Entry, window, shortcuts
+│   │   │   ├── index.ts      # Entry point
+│   │   │   ├── window/       # Window management (extracted)
+│   │   │   │   ├── main-window.ts
+│   │   │   │   ├── positioning.ts
+│   │   │   │   └── shortcuts.ts
+│   │   │   ├── ipc/          # IPC handlers (extracted)
+│   │   │   │   ├── settings.ts
+│   │   │   │   ├── analysis.ts
+│   │   │   │   ├── history.ts
+│   │   │   │   └── ...
 │   │   │   ├── learning-engine.ts
 │   │   │   ├── prompt-rewriter.ts
 │   │   │   └── claude-api.ts
 │   │   ├── renderer/         # Renderer process (React)
 │   │   │   ├── App.tsx
 │   │   │   └── components/
+│   │   ├── shared/types/     # Shared type definitions (new)
+│   │   │   ├── ipc.ts        # IPC channel constants
+│   │   │   ├── analysis.ts   # Analysis result types
+│   │   │   ├── settings.ts   # Settings types
+│   │   │   └── electron-api.ts
 │   │   ├── preload/          # Electron preload bridge
 │   │   └── locales/          # i18n translations
 │   └── scripts/              # Build scripts
@@ -150,6 +164,16 @@ Renderer UI (Radar chart, issues, variants)
 - **Decision**: Build preload separately with explicit `.cjs` output
 - **Consequences**: Additional build step, but maintains security and compatibility
 
+### ADR-006: Modular IPC Handler Architecture
+- **Context**: Growing number of IPC handlers in main process becoming unwieldy
+- **Decision**: Extract IPC handlers into dedicated modules (`main/ipc/*.ts`) with dependency injection
+- **Consequences**: Better separation of concerns, easier testing, clearer handler ownership
+
+### ADR-007: Shared Types Organization
+- **Context**: Type definitions scattered across main, renderer, and preload
+- **Decision**: Centralize types in `shared/types/` with barrel exports
+- **Consequences**: Single source of truth for types, but preload still needs local runtime definitions due to `rootDir` constraint
+
 ### ADR-003: Shared Analysis Bundle for Desktop
 - **Context**: Desktop needs analysis modules but Electron packaging requires specific formats
 - **Decision**: Use esbuild to create CJS bundles from parent's ESM analysis modules
@@ -194,13 +218,24 @@ Renderer UI (Radar chart, issues, variants)
 Main Process (Node.js, ESM)              Renderer Process (Chromium)
 ┌────────────────────────────┐           ┌──────────────────────────┐
 │ index.ts                   │           │ App.tsx                  │
-│ - Window/tray/shortcuts    │◄───IPC───►│ - React UI               │
-│ - Text capture             │           │ - GOLDEN radar chart     │
+│ - App lifecycle            │◄───IPC───►│ - React UI               │
+│ - Module initialization    │           │ - GOLDEN radar chart     │
 │                            │           │ - Variant comparison     │
-│ learning-engine.ts         │           │                          │
-│ - Analysis orchestration   │           │ Preload Bridge           │
-│ - Variant generation       │           │ (window.electronAPI)     │
-│ - SQLite persistence       │           └──────────────────────────┘
+│ window/                    │           │                          │
+│ - main-window.ts           │           │ shared/types/            │
+│ - positioning.ts           │           │ - IPC channels & types   │
+│ - shortcuts.ts             │           │ - Analysis types         │
+│                            │           │                          │
+│ ipc/                       │           │ Preload Bridge           │
+│ - settings.ts              │           │ (window.electronAPI)     │
+│ - analysis.ts              │           └──────────────────────────┘
+│ - history.ts               │
+│ - clipboard.ts             │
+│                            │
+│ learning-engine.ts         │
+│ - Analysis orchestration   │
+│ - Variant generation       │
+│ - SQLite persistence       │
 │                            │
 │ active-window-detector.ts  │
 │ - IDE detection            │

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.13] - 2025-02-05
+
+### Changed
+- Centralize config and extract utilities with test coverage
+- Organize shared types into modular structure (`shared/types/`)
+- Extract window modules (`main-window.ts`, `positioning.ts`, `shortcuts.ts`)
+- Extract IPC handlers into dedicated modules (`main/ipc/`)
+
+### Fixed
+- Fix text-selection tests and add env-util tests
+
+## [0.1.12] - 2025-02-04
+
+### Changed
+- Extract isMASBuild utility and enable sandbox mode for MAS builds
+- Remove unnecessary network.server entitlement from MAS build
+
 ## [0.1.11] - 2025-01-30
 
 ### Added
