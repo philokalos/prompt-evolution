@@ -11,6 +11,7 @@ import { app, BrowserWindow, dialog, ipcMain } from 'electron';
 import electronLog from 'electron-log';
 const log = electronLog.default ?? electronLog;
 import { t } from './i18n.js';
+import { isMASBuild } from './utils/env-util.js';
 
 // 로깅 설정
 autoUpdater.logger = log;
@@ -68,6 +69,12 @@ function sendStatusToRenderer(status: Partial<UpdateStatus>): void {
  */
 export function initAutoUpdater(window: BrowserWindow): void {
   mainWindow = window;
+
+  // MAS builds strictly prohibit self-updating mechanisms
+  if (isMASBuild()) {
+    log.info('[AutoUpdater] MAS build detected - auto-update disabled');
+    return;
+  }
 
   // 개발 모드 체크
   if (!app.isPackaged) {

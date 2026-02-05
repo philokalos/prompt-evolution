@@ -93,8 +93,10 @@ vi.mock('path', async () => {
   };
 });
 
-// Mock os
+// Mock os with ESM compatibility
 vi.mock('os', () => ({
+  __esModule: true,
+  default: { homedir: () => '/Users/test' },
   homedir: () => '/Users/test',
 }));
 

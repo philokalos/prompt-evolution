@@ -11,57 +11,15 @@
 import { exec } from 'child_process';
 import { clipboard, systemPreferences, dialog, shell, app } from 'electron';
 import { promisify } from 'util';
-import * as fs from 'fs';
-import * as path from 'path';
+import { isMASBuild } from './utils/env-util.js';
 
 const execAsync = promisify(exec);
 
 // Delay helper
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-/**
- * Check if the app is running in MAS (Mac App Store) sandbox mode.
- * MAS apps cannot use AppleScript to control other applications.
- *
- * Detection method:
- * 1. Check if app is packaged AND running from /Applications with sandbox container
- * 2. Check for MAS receipt file (only present in MAS-distributed apps)
- */
-function isMASBuild(): boolean {
-  if (!app.isPackaged) {
-    return false; // Development mode - not sandboxed
-  }
-
-  try {
-    // MAS apps have a receipt file at Contents/_MASReceipt/receipt
-    const appPath = app.getAppPath();
-    const receiptPath = path.join(appPath, '..', '_MASReceipt', 'receipt');
-
-    if (fs.existsSync(receiptPath)) {
-      console.log('[TextSelection] MAS build detected - AppleScript features disabled');
-      return true;
-    }
-
-    // Alternative: Check if running from sandbox container
-    const homePath = app.getPath('home');
-    if (homePath.includes('/Library/Containers/')) {
-      console.log('[TextSelection] Sandbox container detected - AppleScript features disabled');
-      return true;
-    }
-  } catch {
-    // If detection fails, assume not MAS to preserve functionality
-  }
-
-  return false;
-}
-
-// Cache the MAS detection result (won't change during runtime)
-let _isMASBuild: boolean | null = null;
 function checkMASBuild(): boolean {
-  if (_isMASBuild === null) {
-    _isMASBuild = isMASBuild();
-  }
-  return _isMASBuild;
+  return isMASBuild();
 }
 
 /**
@@ -236,23 +194,23 @@ export async function showAccessibilityPermissionDialog(): Promise<boolean> {
   // Localized messages
   const messages = isKorean
     ? {
-        title: '접근성 권한 필요',
-        message: '텍스트 선택 캡처 기능을 사용하려면 접근성 권한이 필요합니다.',
-        detail:
-          'PromptLint가 다른 앱에서 선택한 텍스트를 자동으로 복사하려면 ' +
-          '시스템 환경설정 > 개인정보 보호 및 보안 > 접근성에서 PromptLint를 허용해주세요.\n\n' +
-          '권한 없이도 클립보드에 복사된 텍스트는 분석할 수 있습니다.',
-        buttons: ['설정 열기', '나중에'],
-      }
+      title: '접근성 권한 필요',
+      message: '텍스트 선택 캡처 기능을 사용하려면 접근성 권한이 필요합니다.',
+      detail:
+        'PromptLint가 다른 앱에서 선택한 텍스트를 자동으로 복사하려면 ' +
+        '시스템 환경설정 > 개인정보 보호 및 보안 > 접근성에서 PromptLint를 허용해주세요.\n\n' +
+        '권한 없이도 클립보드에 복사된 텍스트는 분석할 수 있습니다.',
+      buttons: ['설정 열기', '나중에'],
+    }
     : {
-        title: 'Accessibility Permission Required',
-        message: 'Accessibility permission is required to use text selection capture.',
-        detail:
-          'To allow PromptLint to automatically copy selected text from other apps, ' +
-          'please grant permission in System Settings > Privacy & Security > Accessibility.\n\n' +
-          'You can still analyze text copied to the clipboard without this permission.',
-        buttons: ['Open Settings', 'Later'],
-      };
+      title: 'Accessibility Permission Required',
+      message: 'Accessibility permission is required to use text selection capture.',
+      detail:
+        'To allow PromptLint to automatically copy selected text from other apps, ' +
+        'please grant permission in System Settings > Privacy & Security > Accessibility.\n\n' +
+        'You can still analyze text copied to the clipboard without this permission.',
+      buttons: ['Open Settings', 'Later'],
+    };
 
   const result = await dialog.showMessageBox({
     type: 'info',

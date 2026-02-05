@@ -14,60 +14,12 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
-import { app } from 'electron';
+import { isMASBuild } from './utils/env-util.js';
 
 const execAsync = promisify(exec);
 
-/**
- * Check if the app is running in MAS (Mac App Store) sandbox mode.
- * MAS apps cannot use AppleScript to control other applications.
- */
-function isMASBuild(): boolean {
-  console.log('[ActiveWindow] Checking MAS build status...');
-  console.log('[ActiveWindow] app.isPackaged:', app.isPackaged);
-
-  if (!app.isPackaged) {
-    console.log('[ActiveWindow] Not packaged, returning false');
-    return false;
-  }
-
-  try {
-    const receiptPath = path.join(app.getAppPath(), '..', '_MASReceipt', 'receipt');
-    console.log('[ActiveWindow] Receipt path:', receiptPath);
-    console.log('[ActiveWindow] Receipt exists:', fs.existsSync(receiptPath));
-
-    if (fs.existsSync(receiptPath)) {
-      console.log('[ActiveWindow] MAS receipt found!');
-      return true;
-    }
-
-    const homePath = app.getPath('home');
-    console.log('[ActiveWindow] Home path:', homePath);
-    console.log('[ActiveWindow] Contains /Library/Containers/:', homePath.includes('/Library/Containers/'));
-
-    if (homePath.includes('/Library/Containers/')) {
-      console.log('[ActiveWindow] Sandbox container path detected!');
-      return true;
-    }
-  } catch (error) {
-    // If detection fails, assume not MAS
-    console.log('[ActiveWindow] Detection error:', error);
-  }
-
-  console.log('[ActiveWindow] Not MAS build');
-  return false;
-}
-
-// Cache the MAS detection result
-let _isMASBuild: boolean | null = null;
 function checkMASBuild(): boolean {
-  if (_isMASBuild === null) {
-    _isMASBuild = isMASBuild();
-    if (_isMASBuild) {
-      console.log('[ActiveWindow] MAS build detected - AppleScript features disabled');
-    }
-  }
-  return _isMASBuild;
+  return isMASBuild();
 }
 
 // 지연 로딩: 순환 의존성 방지

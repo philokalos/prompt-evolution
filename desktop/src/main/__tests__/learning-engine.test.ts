@@ -111,8 +111,10 @@ vi.mock('path', () => ({
   dirname: (p: string) => p.split('/').slice(0, -1).join('/'),
 }));
 
-// Mock url
+// Mock url with ESM compatibility
 vi.mock('url', () => ({
+  __esModule: true,
+  default: { fileURLToPath: (url: string) => url.replace('file://', '') },
   fileURLToPath: (url: string) => url.replace('file://', ''),
 }));
 

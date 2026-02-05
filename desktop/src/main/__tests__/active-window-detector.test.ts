@@ -28,22 +28,33 @@ const mockState = vi.hoisted(() => ({
   findProjectPathByNameEnhanced: null as ((name: string) => string | null) | null,
 }));
 
-// Mock child_process
+// Mock child_process with ESM compatibility
 vi.mock('child_process', () => ({
+  __esModule: true,
+  default: { exec: vi.fn() },
   exec: vi.fn(),
 }));
 
-// Mock util
+// Mock util with ESM compatibility
 vi.mock('util', () => ({
+  __esModule: true,
+  default: { promisify: () => mockState.execAsync },
   promisify: () => mockState.execAsync,
 }));
 
-// Mock fs
+// Mock fs with ESM compatibility
 vi.mock('fs', () => ({
+  __esModule: true,
+  default: {
+    existsSync: (...args: unknown[]) => mockState.existsSync(...args),
+    statSync: (...args: unknown[]) => mockState.statSync(...args),
+    readdirSync: (...args: unknown[]) => mockState.readdirSync(...args),
+    appendFileSync: vi.fn(),
+  },
   existsSync: (...args: unknown[]) => mockState.existsSync(...args),
   statSync: (...args: unknown[]) => mockState.statSync(...args),
   readdirSync: (...args: unknown[]) => mockState.readdirSync(...args),
-  appendFileSync: vi.fn(), // For debug logging
+  appendFileSync: vi.fn(),
 }));
 
 // Mock electron
@@ -65,6 +76,11 @@ const originalEnv = process.env;
 // Mock the enhanced finder module
 vi.mock('../project-detector-enhanced.js', () => ({
   findProjectPathByNameEnhanced: (name: string) => mockState.findProjectPathByNameEnhanced?.(name) ?? null,
+}));
+
+// Mock env-util (centralized MAS detection)
+vi.mock('../utils/env-util.js', () => ({
+  isMASBuild: () => false,
 }));
 
 // Import after mocks

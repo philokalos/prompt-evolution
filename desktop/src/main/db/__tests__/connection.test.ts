@@ -21,8 +21,13 @@ const mockState = vi.hoisted(() => ({
   },
 }));
 
-// Mock fs
+// Mock fs with ESM compatibility
 vi.mock('fs', () => ({
+  __esModule: true,
+  default: {
+    existsSync: (...args: unknown[]) => mockState.existsSync(...args),
+    mkdirSync: (...args: unknown[]) => mockState.mkdirSync(...args),
+  },
   existsSync: (...args: unknown[]) => mockState.existsSync(...args),
   mkdirSync: (...args: unknown[]) => mockState.mkdirSync(...args),
 }));
