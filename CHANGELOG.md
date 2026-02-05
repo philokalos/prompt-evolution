@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.11] - 2025-01-30
+
+### Added
+- Enhanced core values: Radar chart improvements, Timeline visualization, categorized Insights
+- Ghost Bar history persistence with unit tests and CI/CD
+- Context-aware classification for improved COSP analysis quality
+- Comprehensive test coverage expansion from 58% to 90%
+  - Phase 1: IPC handlers, Ghost Bar, AI providers
+  - Phase 2: Settings Store and i18n System
+  - Phase 3: Renderer components (GoldenRadar, IssueList)
+  - Learning engine edge case tests
+
+### Changed
+- Redesigned Settings UI with 52% reduction in settings count
+- Simplified PromptLint UX with improvement badge
+- Split main process modules and hardened security
+- Consolidated App.tsx state management with useReducer
+- Removed Quick Action Mode in favor of Ghost Bar
+- Removed unused Project Settings and Template features
+
+### Fixed
+- Achieve perfect code quality - 0 errors, 0 warnings
+- Build script to preserve dist/src for server dependencies
+- Type safety issues in useAppState hook
+- COSP confidence test thresholds aligned with v3 calibration
+
 ## [0.1.10] - 2025-01-26
 
 ### Added

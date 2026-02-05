@@ -129,9 +129,11 @@ prompt-evolution/
 
 ## Documentation
 
+- [User Guide](./docs/user-guide.md) - Getting started and usage
 - [API Documentation](./docs/api.md) - REST API reference
 - [Architecture Guide](./docs/architecture.md) - System design
 - [PRD](./docs/PRD.md) - Product requirements
+- [Changelog](./CHANGELOG.md) - Release history
 
 ## Environment Variables
 
