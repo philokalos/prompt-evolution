@@ -3,7 +3,7 @@
  * Types for prompt analysis, scoring, and AI variant generation.
  */
 
-import type { DetectedProject, CapturedContext, VariantType } from './project.js';
+import type { CapturedContext, VariantType } from './project.js';
 
 // =============================================================================
 // Clipboard and Capture Types

@@ -18,13 +18,11 @@ import {
   applyNegationPenalty,
 } from './patterns/index.js';
 import {
-  POSITION_WEIGHTING,
   CLASSIFICATION_CONFIDENCE,
   CATEGORY_CONFIDENCE,
   FEATURE_THRESHOLDS,
 } from '../shared/config/index.js';
 import {
-  escapeRegex,
   matchWithWordBoundary,
   matchSubstring,
   getPositionWeight as getPositionWeightUtil,
