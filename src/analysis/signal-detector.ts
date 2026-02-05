@@ -9,6 +9,7 @@ import {
   countPatternMatches,
   type SignalType,
 } from './patterns.js';
+import { CONFIDENCE } from '../shared/config/index.js';
 
 /**
  * Detected signal from a turn
@@ -185,10 +186,18 @@ export function detectConversationSignals(
  */
 function calculateConfidence(keywordCount: number, contentLength: number): number {
   // Base confidence from keyword count
-  const baseConfidence = Math.min(keywordCount * 0.3, 0.9);
+  const baseConfidence = Math.min(
+    keywordCount * CONFIDENCE.BASE_MULTIPLIER,
+    CONFIDENCE.MAX
+  );
 
   // Adjust for content length (shorter content with keywords = higher confidence)
-  const lengthFactor = contentLength < 100 ? 1.1 : contentLength < 500 ? 1.0 : 0.9;
+  const lengthFactor =
+    contentLength < CONFIDENCE.SHORT_CONTENT_THRESHOLD
+      ? CONFIDENCE.SHORT_CONTENT_FACTOR
+      : contentLength < CONFIDENCE.MEDIUM_CONTENT_THRESHOLD
+        ? 1.0
+        : CONFIDENCE.LONG_CONTENT_FACTOR;
 
   return Math.min(baseConfidence * lengthFactor, 1.0);
 }

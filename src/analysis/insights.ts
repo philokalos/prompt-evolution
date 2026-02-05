@@ -31,6 +31,11 @@ import {
   type SelfImprovementFeedback,
   type PromptDataForImprovement,
 } from './self-improvement.js';
+import {
+  PROBLEM_DETECTION,
+  IMPROVEMENT_DETECTION,
+  STRENGTH_DETECTION,
+} from '../shared/config/index.js';
 
 /**
  * Time period for filtering
@@ -312,9 +317,9 @@ function detectProblems(
 
   // Problem: High retry rate / low effectiveness
   const lowEffectiveness = prompts.filter(
-    (p) => (p.effectiveness || 0.5) < 0.4
+    (p) => (p.effectiveness || 0.5) < PROBLEM_DETECTION.LOW_EFFECTIVENESS
   );
-  if (lowEffectiveness.length > prompts.length * 0.2) {
+  if (lowEffectiveness.length > prompts.length * PROBLEM_DETECTION.LOW_EFFECTIVENESS_RATIO) {
     problems.push({
       id: `problem-${insightId++}`,
       severity: 'warning',
@@ -341,7 +346,7 @@ function detectProblems(
   const unknownCount = prompts.filter(
     (p) => p.classification.taskCategory === 'unknown'
   ).length;
-  if (unknownCount > prompts.length * 0.3) {
+  if (unknownCount > prompts.length * PROBLEM_DETECTION.UNKNOWN_CATEGORY_RATIO) {
     problems.push({
       id: `problem-${insightId++}`,
       severity: 'warning',
@@ -361,7 +366,7 @@ function detectProblems(
 
   // Problem: Low clarity
   const avgClarity = patterns.averageQuality.clarity;
-  if (avgClarity < 0.5) {
+  if (avgClarity < PROBLEM_DETECTION.LOW_CLARITY) {
     problems.push({
       id: `problem-${insightId++}`,
       severity: 'critical',
@@ -386,7 +391,7 @@ function detectProblems(
 
   // Problem: Low context
   const avgContext = patterns.averageQuality.context;
-  if (avgContext < 0.4) {
+  if (avgContext < PROBLEM_DETECTION.LOW_CONTEXT) {
     problems.push({
       id: `problem-${insightId++}`,
       severity: 'warning',
@@ -429,7 +434,7 @@ function detectImprovements(
   // Improvement: Balance command/question ratio
   const commandRatio =
     patterns.intentDistribution.command / prompts.length;
-  if (commandRatio > 0.8) {
+  if (commandRatio > IMPROVEMENT_DETECTION.HIGH_COMMAND_RATIO) {
     improvements.push({
       id: `improvement-${insightId++}`,
       severity: 'info',
@@ -445,8 +450,10 @@ function detectImprovements(
   }
 
   // Improvement: Add more context
-  const lowContextPrompts = prompts.filter((p) => p.quality.context < 0.3);
-  if (lowContextPrompts.length > prompts.length * 0.5) {
+  const lowContextPrompts = prompts.filter(
+    (p) => p.quality.context < IMPROVEMENT_DETECTION.LOW_CONTEXT_SCORE
+  );
+  if (lowContextPrompts.length > prompts.length * IMPROVEMENT_DETECTION.LOW_CONTEXT_RATIO) {
     improvements.push({
       id: `improvement-${insightId++}`,
       severity: 'info',
@@ -467,7 +474,7 @@ function detectImprovements(
 
   // Improvement: Use templates for common tasks
   const topCategory = patterns.dominantCategory;
-  if (topCategory !== 'unknown' && patterns.categoryDistribution[topCategory] > prompts.length * 0.3) {
+  if (topCategory !== 'unknown' && patterns.categoryDistribution[topCategory] > prompts.length * IMPROVEMENT_DETECTION.CATEGORY_DOMINANCE_RATIO) {
     improvements.push({
       id: `improvement-${insightId++}`,
       severity: 'info',
@@ -503,9 +510,9 @@ function detectStrengths(
 
   // Strength: High effectiveness
   const highEffectiveness = prompts.filter(
-    (p) => (p.effectiveness || 0.5) >= 0.8
+    (p) => (p.effectiveness || 0.5) >= STRENGTH_DETECTION.HIGH_EFFECTIVENESS
   );
-  if (highEffectiveness.length > prompts.length * 0.3) {
+  if (highEffectiveness.length > prompts.length * STRENGTH_DETECTION.HIGH_EFFECTIVENESS_RATIO) {
     strengths.push({
       id: `strength-${insightId++}`,
       severity: 'success',
@@ -520,7 +527,7 @@ function detectStrengths(
   }
 
   // Strength: Good clarity
-  if (patterns.averageQuality.clarity >= 0.7) {
+  if (patterns.averageQuality.clarity >= STRENGTH_DETECTION.GOOD_CLARITY) {
     strengths.push({
       id: `strength-${insightId++}`,
       severity: 'success',
@@ -539,7 +546,7 @@ function detectStrengths(
   }
 
   // Strength: Good context
-  if (patterns.averageQuality.context >= 0.6) {
+  if (patterns.averageQuality.context >= STRENGTH_DETECTION.GOOD_CONTEXT) {
     strengths.push({
       id: `strength-${insightId++}`,
       severity: 'success',
@@ -555,7 +562,7 @@ function detectStrengths(
   const usedCategories = Object.entries(patterns.categoryDistribution).filter(
     ([, count]) => count > 0
   ).length;
-  if (usedCategories >= 4) {
+  if (usedCategories >= STRENGTH_DETECTION.DIVERSE_CATEGORIES_MIN) {
     strengths.push({
       id: `strength-${insightId++}`,
       severity: 'success',

@@ -10,6 +10,14 @@ import {
   type PromptIntent,
   type TaskCategory,
 } from './classifier.js';
+import {
+  EFFECTIVENESS_WEIGHTS as CONFIG_EFFECTIVENESS_WEIGHTS,
+  GRADE_THRESHOLDS,
+  QUALITY_WEIGHTS,
+  FEATURE_THRESHOLDS,
+  SCORER_THRESHOLDS,
+  COMPARISON_THRESHOLDS,
+} from '../shared/config/index.js';
 
 /**
  * Effectiveness score components
@@ -27,13 +35,9 @@ export interface EffectivenessComponents {
 
 /**
  * Weights for effectiveness calculation
+ * Re-exported from central config for backward compatibility
  */
-export const EFFECTIVENESS_WEIGHTS = {
-  sentiment: 0.35,
-  completion: 0.25,
-  efficiency: 0.25,
-  engagement: 0.15,
-};
+export const EFFECTIVENESS_WEIGHTS = CONFIG_EFFECTIVENESS_WEIGHTS;
 
 /**
  * Calculate effectiveness score from conversation signals
@@ -87,10 +91,10 @@ export function calculateEffectiveness(
 export type EffectivenessGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 
 export function getGrade(score: number): EffectivenessGrade {
-  if (score >= 0.9) return 'A';
-  if (score >= 0.75) return 'B';
-  if (score >= 0.6) return 'C';
-  if (score >= 0.4) return 'D';
+  if (score >= GRADE_THRESHOLDS.A) return 'A';
+  if (score >= GRADE_THRESHOLDS.B) return 'B';
+  if (score >= GRADE_THRESHOLDS.C) return 'C';
+  if (score >= GRADE_THRESHOLDS.D) return 'D';
   return 'F';
 }
 
@@ -137,14 +141,14 @@ export function analyzeEffectiveness(
   const recommendations: string[] = [];
 
   // Generate insights based on scores
-  if (score.sentimentScore >= 0.7) {
+  if (score.sentimentScore >= SCORER_THRESHOLDS.POSITIVE_SENTIMENT) {
     insights.push('긍정적인 피드백이 많음');
-  } else if (score.sentimentScore <= 0.3) {
+  } else if (score.sentimentScore <= SCORER_THRESHOLDS.NEGATIVE_SENTIMENT) {
     insights.push('부정적인 피드백이 많음');
     recommendations.push('프롬프트를 더 명확하게 작성해보세요');
   }
 
-  if (score.efficiencyScore < 0.5) {
+  if (score.efficiencyScore < SCORER_THRESHOLDS.LOW_EFFICIENCY) {
     insights.push('재시도가 많았음');
     recommendations.push('요구사항을 한 번에 명확히 전달해보세요');
     recommendations.push('구체적인 예시를 포함하면 정확도가 높아집니다');
@@ -203,7 +207,7 @@ export function compareEffectiveness(
 
   const difference = eff1.overall - eff2.overall;
   const winner =
-    Math.abs(difference) < 0.05
+    Math.abs(difference) < COMPARISON_THRESHOLDS.TIE_DIFFERENCE
       ? 'tie'
       : difference > 0
         ? 'conversation1'
@@ -211,13 +215,13 @@ export function compareEffectiveness(
 
   const insights: string[] = [];
 
-  if (Math.abs(eff1.sentimentScore - eff2.sentimentScore) > 0.2) {
+  if (Math.abs(eff1.sentimentScore - eff2.sentimentScore) > COMPARISON_THRESHOLDS.SIGNIFICANT_DIFFERENCE) {
     insights.push(
       `감정 점수 차이: ${eff1.sentimentScore > eff2.sentimentScore ? '첫 번째' : '두 번째'} 대화가 더 긍정적`
     );
   }
 
-  if (Math.abs(eff1.efficiencyScore - eff2.efficiencyScore) > 0.2) {
+  if (Math.abs(eff1.efficiencyScore - eff2.efficiencyScore) > COMPARISON_THRESHOLDS.SIGNIFICANT_DIFFERENCE) {
     insights.push(
       `효율성 차이: ${eff1.efficiencyScore > eff2.efficiencyScore ? '첫 번째' : '두 번째'} 대화가 더 효율적`
     );
@@ -294,10 +298,10 @@ export function calculateAggregateEffectiveness(
   ];
 
   areas.sort((a, b) => b.score - a.score);
-  const strongestArea = areas[0].score > 0.6 ? areas[0].name : null;
+  const strongestArea = areas[0].score > SCORER_THRESHOLDS.STRENGTH_AREA_THRESHOLD ? areas[0].name : null;
 
   areas.sort((a, b) => a.score - b.score);
-  const mostCommonIssue = areas[0].score < 0.5 ? areas[0].name : null;
+  const mostCommonIssue = areas[0].score < SCORER_THRESHOLDS.WEAKNESS_AREA_THRESHOLD ? areas[0].name : null;
 
   return {
     totalConversations: allSignals.length,
@@ -338,7 +342,12 @@ export function calculatePromptQuality(
   if (features.complexity === 'complex') structure += 0.1; // Too complex can be bad
   if (features.hasCodeBlock) structure += 0.1; // Code examples are good
   if (features.hasFilePath) structure += 0.1; // Specific references are good
-  if (features.wordCount >= 10 && features.wordCount <= 100) structure += 0.1;
+  if (
+    features.wordCount >= FEATURE_THRESHOLDS.MIN_GOOD_WORD_COUNT &&
+    features.wordCount <= FEATURE_THRESHOLDS.MAX_GOOD_WORD_COUNT
+  ) {
+    structure += 0.1;
+  }
   structure = Math.min(1, structure);
 
   // Context: Based on features suggesting context-rich prompt
@@ -346,12 +355,15 @@ export function calculatePromptQuality(
   if (features.hasCodeBlock) context += 0.2;
   if (features.hasFilePath) context += 0.2;
   if (features.hasUrl) context += 0.1;
-  if (features.wordCount > 20) context += 0.1;
+  if (features.wordCount > FEATURE_THRESHOLDS.MIN_CONTEXT_WORD_COUNT) context += 0.1;
   if (features.complexity !== 'simple') context += 0.1;
   context = Math.min(1, context);
 
   // Overall weighted score
-  const overall = clarity * 0.4 + structure * 0.35 + context * 0.25;
+  const overall =
+    clarity * QUALITY_WEIGHTS.clarity +
+    structure * QUALITY_WEIGHTS.structure +
+    context * QUALITY_WEIGHTS.context;
 
   return {
     clarity,
@@ -476,19 +488,19 @@ export function analyzeClassificationPatterns(
   // Generate recommendations
   const recommendations: string[] = [];
 
-  if (avgQuality.clarity < 0.5) {
+  if (avgQuality.clarity < SCORER_THRESHOLDS.CLARITY_RECOMMENDATION) {
     recommendations.push('프롬프트를 더 명확하고 구체적으로 작성해보세요');
   }
 
-  if (avgQuality.context < 0.4) {
+  if (avgQuality.context < SCORER_THRESHOLDS.CONTEXT_RECOMMENDATION) {
     recommendations.push('배경 정보나 코드 예시를 포함하면 더 정확한 응답을 받을 수 있습니다');
   }
 
-  if (categoryDistribution.unknown > prompts.length * 0.3) {
+  if (categoryDistribution.unknown > prompts.length * SCORER_THRESHOLDS.UNKNOWN_TYPE_RATIO) {
     recommendations.push('작업 유형을 명시적으로 언급하면 AI가 더 적절한 응답을 할 수 있습니다');
   }
 
-  if (intentDistribution.command > prompts.length * 0.8) {
+  if (intentDistribution.command > prompts.length * SCORER_THRESHOLDS.COMMAND_DOMINANCE_RATIO) {
     recommendations.push('때로는 질문형 프롬프트로 AI의 제안을 먼저 받아보세요');
   }
 

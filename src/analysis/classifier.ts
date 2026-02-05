@@ -17,6 +17,18 @@ import {
   applyCooccurrenceBonus,
   applyNegationPenalty,
 } from './patterns/index.js';
+import {
+  POSITION_WEIGHTING,
+  CLASSIFICATION_CONFIDENCE,
+  CATEGORY_CONFIDENCE,
+  FEATURE_THRESHOLDS,
+} from '../shared/config/index.js';
+import {
+  escapeRegex,
+  matchWithWordBoundary,
+  matchSubstring,
+  getPositionWeight as getPositionWeightUtil,
+} from './utils/index.js';
 
 // Import and re-export shared types
 import type {
@@ -65,9 +77,12 @@ export function extractFeatures(text: string): PromptFeatures {
 
   // Estimate complexity
   let complexity: 'simple' | 'moderate' | 'complex';
-  if (wordCount < 10 && !hasCodeBlock) {
+  if (wordCount < FEATURE_THRESHOLDS.SIMPLE_WORD_COUNT && !hasCodeBlock) {
     complexity = 'simple';
-  } else if (wordCount < 50 || (hasCodeBlock && wordCount < 100)) {
+  } else if (
+    wordCount < FEATURE_THRESHOLDS.MODERATE_WORD_COUNT ||
+    (hasCodeBlock && wordCount < FEATURE_THRESHOLDS.MODERATE_CODE_WORD_COUNT)
+  ) {
     complexity = 'moderate';
   } else {
     complexity = 'complex';
@@ -88,20 +103,10 @@ export function extractFeatures(text: string): PromptFeatures {
 
 /**
  * Calculate position weight for a keyword match
- * Keywords in the first 25% of text get 1.5x weight
+ * Wrapper around the shared utility for backward compatibility
  */
 function getPositionWeight(text: string, keyword: string): number {
-  const lowerText = text.toLowerCase();
-  const lowerKeyword = keyword.toLowerCase();
-  const position = lowerText.indexOf(lowerKeyword);
-
-  if (position === -1) return 1.0;
-
-  const textLength = text.length;
-  const threshold = textLength * 0.25;
-
-  // Keywords in first 25% get 1.5x weight
-  return position < threshold ? 1.5 : 1.0;
+  return getPositionWeightUtil(text, keyword);
 }
 
 /**
@@ -139,7 +144,7 @@ export function classifyIntent(text: string): {
 
     // Korean keywords: substring matching
     for (const keyword of patterns.ko) {
-      if (lowerText.includes(keyword.toLowerCase())) {
+      if (matchSubstring(lowerText, keyword)) {
         const weight = getPositionWeight(text, keyword);
         baseScore += 1;
         positionBonus += weight - 1; // Only count the bonus portion
@@ -149,9 +154,7 @@ export function classifyIntent(text: string): {
 
     // English keywords: word boundary matching
     for (const keyword of patterns.en) {
-      const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'i');
-      if (regex.test(text)) {
+      if (matchWithWordBoundary(text, keyword)) {
         const weight = getPositionWeight(text, keyword);
         baseScore += 1;
         positionBonus += weight - 1;
@@ -178,8 +181,8 @@ export function classifyIntent(text: string): {
 
   // Boost question score if has question mark
   if (features.hasQuestionMark) {
-    scores.question += 2;
-    scoreDetails.question.cooccurrence += 2;
+    scores.question += CLASSIFICATION_CONFIDENCE.QUESTION_MARK_BONUS;
+    scoreDetails.question.cooccurrence += CLASSIFICATION_CONFIDENCE.QUESTION_MARK_BONUS;
   }
 
   // Calculate final totals
@@ -220,22 +223,22 @@ export function classifyIntent(text: string): {
   if (totalScore > 0) {
     const scoreRatio = maxScore / totalScore;
     const gapBonus = maxScore > 0 ? Math.min((maxScore - secondMaxScore) / maxScore * 0.2, 0.15) : 0;
-    confidence = Math.min(scoreRatio + gapBonus + 0.1, 0.95);
+    confidence = Math.min(scoreRatio + gapBonus + 0.1, CLASSIFICATION_CONFIDENCE.MAX_CONFIDENCE);
   } else {
-    confidence = 0.4; // Lower default confidence when no matches
+    confidence = CLASSIFICATION_CONFIDENCE.NO_MATCH_DEFAULT;
   }
 
   // If no matches, try to infer from features
   if (maxScore === 0) {
     if (features.hasQuestionMark) {
       maxIntent = 'question';
-      confidence = 0.6; // Moderate confidence for punctuation-based inference
+      confidence = CLASSIFICATION_CONFIDENCE.QUESTION_MARK_INFERENCE;
     } else if (features.complexity === 'complex') {
       maxIntent = 'instruction';
-      confidence = 0.45;
+      confidence = CLASSIFICATION_CONFIDENCE.COMPLEXITY_INFERENCE;
     } else {
       maxIntent = 'command';
-      confidence = 0.4;
+      confidence = CLASSIFICATION_CONFIDENCE.NO_MATCH_DEFAULT;
     }
   }
 
@@ -273,7 +276,7 @@ export function classifyTaskCategory(text: string): {
 
     // Korean keywords: substring matching with position weighting
     for (const keyword of patterns.ko) {
-      if (lowerText.includes(keyword.toLowerCase())) {
+      if (matchSubstring(lowerText, keyword)) {
         const weight = getPositionWeight(text, keyword);
         scores[category] += weight;
         matchedKeywords.push(keyword);
@@ -282,9 +285,7 @@ export function classifyTaskCategory(text: string): {
 
     // English keywords: word boundary matching with position weighting
     for (const keyword of patterns.en) {
-      const escapedKeyword = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(`\\b${escapedKeyword}\\b`, 'i');
-      if (regex.test(text)) {
+      if (matchWithWordBoundary(text, keyword)) {
         const weight = getPositionWeight(text, keyword);
         scores[category] += weight;
         matchedKeywords.push(keyword);
@@ -325,19 +326,19 @@ export function classifyTaskCategory(text: string): {
     const scoreRatio = maxScore / totalScore;
     // Bonus for clear gap between top two categories
     const gapBonus = maxScore > 0 ? Math.min((maxScore - secondMaxScore) / maxScore * 0.15, 0.1) : 0;
-    confidence = Math.min(scoreRatio + gapBonus + 0.05, 0.95);
+    confidence = Math.min(scoreRatio + gapBonus + 0.05, CATEGORY_CONFIDENCE.MAX_CONFIDENCE);
   } else {
-    confidence = 0.25; // Lower default confidence when no matches
+    confidence = CATEGORY_CONFIDENCE.NO_MATCH_DEFAULT;
   }
 
   if (maxScore === 0) {
     maxCategory = 'unknown';
-    confidence = 0.2;
+    confidence = CATEGORY_CONFIDENCE.UNKNOWN_DEFAULT;
   }
 
   // Build multi-label classification
   const isMultiIntent = maxScore > 0 && secondMaxScore > 0 &&
-    (maxScore - secondMaxScore) / maxScore < 0.15;
+    (maxScore - secondMaxScore) / maxScore < CLASSIFICATION_CONFIDENCE.MULTI_INTENT_GAP_RATIO;
 
   const multiLabel: MultiLabelClassification = {
     primary: { category: maxCategory, confidence },

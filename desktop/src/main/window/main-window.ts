@@ -3,7 +3,7 @@
  * Handles BrowserWindow creation, configuration, and lifecycle.
  */
 
-import { app, BrowserWindow, session } from 'electron';
+import { BrowserWindow, session } from 'electron';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import type Store from 'electron-store';
