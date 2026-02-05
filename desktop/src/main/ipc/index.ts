@@ -8,3 +8,5 @@ export { registerClipboardHandlers, type ClipboardHandlerDeps } from './clipboar
 export { registerWindowHandlers, type WindowHandlerDeps } from './window-handlers.js';
 export { registerProjectHandlers, type ProjectHandlerDeps } from './project-handlers.js';
 export { registerProviderHandlers, type ProviderHandlerDeps } from './provider-handlers.js';
+export { registerAnalysisHandlers, type AnalysisHandlerDeps } from './analysis-handlers.js';
+export { registerHistoryHandlers, type HistoryHandlerDeps } from './history-handlers.js';

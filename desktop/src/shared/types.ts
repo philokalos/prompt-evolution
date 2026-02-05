@@ -1,6 +1,16 @@
-// Shared types between main and renderer processes
+/**
+ * Shared Types (Legacy Entry Point)
+ *
+ * This file re-exports from the new types/ directory for backward compatibility.
+ * New code should import directly from './types/index.js' or specific type modules.
+ *
+ * @deprecated Import from './types/index.js' instead
+ */
 
-// Re-export types from parent's shared types
+// Re-export everything from the new types directory
+export * from './types/index.js';
+
+// Re-export parent types (backward compatibility)
 export type {
   PromptIntent,
   TaskCategory,
@@ -15,62 +25,5 @@ export type {
   PromptHistory,
   PersonalStats,
   ProgressPoint,
+  AnalysisResultWithContext,
 } from '../../../src/shared/types/index.js';
-
-// Desktop-specific types (not in parent shared types)
-export interface UserSettings {
-  shortcut: string;
-  windowBounds: { width: number; height: number };
-  alwaysOnTop: boolean;
-  showTrayIcon: boolean;
-  autoLaunch: boolean;
-}
-
-// Ghost Bar UX types
-export type Grade = 'A' | 'B' | 'C' | 'D' | 'F';
-export type VariantType = 'ai' | 'balanced' | 'conservative' | 'comprehensive';
-
-export interface GhostBarState {
-  id: string;
-  originalText: string;
-  improvedText: string;
-  originalGrade: Grade;
-  improvedGrade: Grade;
-  originalScore: number;
-  improvedScore: number;
-  variantType: VariantType;
-  isBlockedApp: boolean;
-  sourceApp: string | null;
-}
-
-export interface GhostBarSettings {
-  enabled: boolean;
-  autoPaste: boolean;
-  dismissTimeout: number;
-  showOnlyOnImprovement: boolean;
-  minimumConfidence: number;
-}
-
-export interface GhostBarShowPayload {
-  originalGrade: Grade;
-  improvedGrade: Grade;
-  originalScore: number;
-  improvedScore: number;
-  isBlockedApp: boolean;
-  sourceApp: string | null;
-}
-
-export interface GhostBarUpdatePayload {
-  improvedGrade?: Grade;
-  improvedScore?: number;
-  variantType?: VariantType;
-}
-
-export interface ApplyResult {
-  success: boolean;
-  fallback?: 'clipboard';
-  message?: string;
-}
-
-// Re-export AnalysisResultWithContext from parent
-export type { AnalysisResultWithContext } from '../../../src/shared/types/index.js';

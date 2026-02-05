@@ -1,46 +1,28 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
 /**
- * Captured context at hotkey time (mirrors main process type)
- * Used to ensure correct project detection even if user switches windows
+ * Preload Script Types
+ *
+ * These are minimal runtime types used only in callback signatures.
+ * The full type definitions are in shared/types/ and electron.d.ts.
+ *
+ * Note: Preload uses CommonJS with isolated rootDir, so we define
+ * minimal types here to avoid cross-directory imports. This keeps
+ * the preload thin and avoids complex tsconfig changes.
  */
-interface CapturedContext {
-  windowInfo: {
-    appName: string;
-    windowTitle: string;
-    isIDE: boolean;
-  } | null;
-  project: {
-    projectPath: string;
-    projectName: string;
-    source: string;
-    confidence: number;
-    currentFile?: string;
-  } | null;
-  timestamp: string; // ISO string (Date serialized via IPC)
-}
 
-/**
- * Payload sent from main process with clipboard text and captured context
- */
+/** Clipboard payload received from main process */
 interface ClipboardPayload {
   text: string;
-  capturedContext: CapturedContext | null;
-  isSourceAppBlocked: boolean; // True if source app doesn't support AppleScript paste
+  capturedContext: unknown;
+  isSourceAppBlocked: boolean;
 }
 
-/**
- * Empty state reason when no text is captured
- */
-type EmptyStateReason = 'blocked-app' | 'no-selection' | 'empty-clipboard';
-
-/**
- * Payload sent when hotkey is pressed but no text is captured
- */
+/** Empty state payload when no text is captured */
 interface EmptyStatePayload {
-  reason: EmptyStateReason;
+  reason: 'blocked-app' | 'no-selection' | 'empty-clipboard';
   appName: string | null;
-  capturedContext: CapturedContext | null;
+  capturedContext: unknown;
 }
 
 // Expose protected APIs to renderer
@@ -246,125 +228,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
 });
 
-// Type definitions for TypeScript
-declare global {
-  /**
-   * Captured context at hotkey time
-   */
-  interface CapturedContext {
-    windowInfo: {
-      appName: string;
-      windowTitle: string;
-      isIDE: boolean;
-    } | null;
-    project: {
-      projectPath: string;
-      projectName: string;
-      source: string;
-      confidence: number;
-      currentFile?: string;
-    } | null;
-    timestamp: string;
-  }
-
-  /**
-   * Payload sent from main process with clipboard text and captured context
-   */
-  interface ClipboardPayload {
-    text: string;
-    capturedContext: CapturedContext | null;
-    isSourceAppBlocked: boolean;
-  }
-
-  /**
-   * Empty state reason when no text is captured
-   */
-  type EmptyStateReason = 'blocked-app' | 'no-selection' | 'empty-clipboard';
-
-  /**
-   * Payload sent when hotkey is pressed but no text is captured
-   */
-  interface EmptyStatePayload {
-    reason: EmptyStateReason;
-    appName: string | null;
-    capturedContext: CapturedContext | null;
-  }
-
-  interface Window {
-    electronAPI: {
-      getClipboard: () => Promise<string>;
-      setClipboard: (text: string) => Promise<boolean>;
-      getSettings: () => Promise<Record<string, unknown>>;
-      setSetting: (key: string, value: unknown) => Promise<boolean>;
-      hideWindow: () => Promise<boolean>;
-      minimizeWindow: () => Promise<boolean>;
-      applyImprovedPrompt: (text: string) => Promise<{ success: boolean; fallback?: string; message?: string }>;
-      analyzePrompt: (text: string) => Promise<unknown>;
-      getAIVariant: (text: string) => Promise<unknown>;
-      // Multi-provider AI API support
-      getProviders: () => Promise<unknown[]>;
-      setProviders: (providers: unknown[]) => Promise<boolean>;
-      validateProviderKey: (providerType: string, apiKey: string) => Promise<{ valid: boolean; error: string | null }>;
-      getPrimaryProvider: () => Promise<unknown>;
-      hasAnyProvider: () => Promise<boolean>;
-      getAIVariantWithProviders: (text: string, providers: unknown[]) => Promise<unknown>;
-      getHistory: (limit?: number) => Promise<unknown[]>;
-      getScoreTrend: (days?: number) => Promise<unknown[]>;
-      getGoldenAverages: (days?: number) => Promise<Record<string, number>>;
-      getTopWeaknesses: (limit?: number) => Promise<unknown[]>;
-      getStats: () => Promise<unknown>;
-      getWeeklyStats: (weeks?: number) => Promise<unknown[]>;
-      getMonthlyStats: (months?: number) => Promise<unknown[]>;
-      getImprovementAnalysis: () => Promise<unknown>;
-      getSessionContext: () => Promise<unknown>;
-      getCurrentProject: () => Promise<unknown>;
-      getAllOpenProjects: () => Promise<unknown[]>;
-      selectProject: (projectPath: string | null) => Promise<boolean>;
-      getProjectPatterns: (projectPath: string) => Promise<unknown>;
-      getContextRecommendations: (category: string | undefined, projectPath: string | undefined) => Promise<unknown>;
-      // Phase 3: Advanced analytics
-      getIssuePatterns: (days?: number) => Promise<unknown[]>;
-      getGoldenTrendByDimension: (weeks?: number) => Promise<unknown[]>;
-      getConsecutiveImprovements: (limit?: number) => Promise<unknown[]>;
-      getCategoryPerformance: () => Promise<unknown[]>;
-      getPredictedScore: (windowDays?: number) => Promise<unknown>;
-      signalReady: () => Promise<boolean>;
-      onClipboardText: (callback: (payload: ClipboardPayload) => void) => void;
-      removeClipboardListener: () => void;
-      onProjectChanged: (callback: (project: unknown) => void) => void;
-      removeProjectListener: () => void;
-      // Auto-updater
-      checkForUpdates: () => Promise<{ available: boolean; version?: string; error?: string }>;
-      downloadUpdate: () => Promise<{ success: boolean; error?: string }>;
-      installUpdate: () => Promise<void>;
-      getUpdateStatus: () => Promise<unknown>;
-      getAppVersion: () => Promise<string>;
-      onUpdateStatus: (callback: (status: unknown) => void) => void;
-      removeUpdateListener: () => void;
-      // Navigation
-      onNavigate: (callback: (view: string) => void) => void;
-      removeNavigateListener: () => void;
-      // UI modal triggers
-      onShowOnboarding: (callback: () => void) => void;
-      onShowAbout: (callback: () => void) => void;
-      // Shortcut registration failure
-      onShortcutFailed: (callback: (data: { shortcut: string; message: string }) => void) => void;
-      removeShortcutFailedListener: () => void;
-      // Prompt detection
-      onPromptDetected: (callback: (data: { text: string; confidence: number }) => void) => void;
-      removePromptDetectedListener: () => void;
-      // Empty state (no text captured)
-      onEmptyState: (callback: (payload: EmptyStatePayload) => void) => void;
-      removeEmptyStateListener: () => void;
-      // External links
-      openExternal: (url: string) => Promise<void>;
-      // Send one-way message
-      send: (channel: string, ...args: unknown[]) => void;
-      // i18n Language support
-      getLanguage: () => Promise<{ preference: string; resolved: string; systemLanguage: string }>;
-      setLanguage: (language: string) => Promise<{ success: boolean; resolvedLanguage?: string; error?: string }>;
-      onLanguageChanged: (callback: (data: { language: string; source: string }) => void) => void;
-      removeLanguageChangedListener: () => void;
-    };
-  }
-}
+// Note: Type definitions are imported from shared/types/electron-api.ts
+// which declares the global Window.electronAPI interface.
+// The types here are used for runtime callbacks only.
