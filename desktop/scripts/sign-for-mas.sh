@@ -5,6 +5,9 @@ set -e
 
 echo "🔐 Mac App Store 앱 서명 시작..."
 
+# 버전 자동 감지
+VERSION=$(node -p "require('./package.json').version")
+
 # 설정
 APP_PATH="release/mas-arm64/PromptLint.app"
 IDENTITY="3rd Party Mac Developer Application: Kyeol Kim (UTNLRZ42SP)"
@@ -12,10 +15,41 @@ INSTALLER_IDENTITY="3rd Party Mac Developer Installer: Kyeol Kim (UTNLRZ42SP)"
 ENTITLEMENTS="certs/entitlements.mas.plist"
 ENTITLEMENTS_INHERIT="certs/entitlements.mas.inherit.plist"
 PROVISIONING_PROFILE="certs/embedded.provisionprofile"
-PKG_OUTPUT="release/PromptLint-0.1.8-mas.pkg"
+PKG_OUTPUT="release/PromptLint-${VERSION}-mas.pkg"
 
+# ⚠️ 빌드 전 entitlements 검증: temporary-exception 이 포함되면 Apple 심사 거절됨
+echo ""
+echo "⚠️  Entitlements 사전 검증..."
+FORBIDDEN_ENTITLEMENTS=(
+  "com.apple.security.temporary-exception.apple-events"
+  "com.apple.security.automation.apple-events"
+  "com.apple.security.temporary-exception"
+)
+for forbidden in "${FORBIDDEN_ENTITLEMENTS[@]}"; do
+  if grep -q "$forbidden" "$ENTITLEMENTS"; then
+    echo "❌ 오류: $ENTITLEMENTS 에 금지된 entitlement 발견: $forbidden"
+    echo "   MAS 빌드에서는 Apple Events 관련 entitlement 을 사용할 수 없습니다."
+    echo "   Guideline 2.4.5(i) 위반으로 심사가 거절됩니다."
+    exit 1
+  fi
+  if grep -q "$forbidden" "$ENTITLEMENTS_INHERIT"; then
+    echo "❌ 오류: $ENTITLEMENTS_INHERIT 에 금지된 entitlement 발견: $forbidden"
+    exit 1
+  fi
+done
+echo "✅ Entitlements 검증 통과 (apple-events 없음)"
+
+echo ""
 echo "📦 앱 경로: $APP_PATH"
 echo "🔑 인증서: $IDENTITY"
+echo "📌 버전: $VERSION"
+
+# 앱 존재 여부 확인
+if [ ! -d "$APP_PATH" ]; then
+  echo "❌ 오류: $APP_PATH 가 존재하지 않습니다."
+  echo "   먼저 'npm run dist:mas' 를 실행하세요."
+  exit 1
+fi
 
 # 0. quarantine 속성 제거
 echo ""
@@ -132,6 +166,20 @@ codesign --sign "$IDENTITY" \
 echo ""
 echo "6️⃣ 서명 검증..."
 codesign --verify --deep --strict --verbose=2 "$APP_PATH"
+
+# 6.5 서명된 바이너리의 entitlements 확인 (apple-events 없어야 함)
+echo ""
+echo "6️⃣.5 서명된 entitlements 검증..."
+SIGNED_ENTITLEMENTS=$(codesign -d --entitlements - "$APP_PATH/Contents/MacOS/PromptLint" 2>&1 || true)
+if echo "$SIGNED_ENTITLEMENTS" | grep -qi "apple-events"; then
+  echo "❌ 경고: 서명된 바이너리에 apple-events entitlement이 발견되었습니다!"
+  echo "$SIGNED_ENTITLEMENTS"
+  echo ""
+  echo "이 상태로 제출하면 Guideline 2.4.5(i)로 거절됩니다."
+  echo "entitlements.mas.plist 를 확인하세요."
+  exit 1
+fi
+echo "✅ 서명된 바이너리에 apple-events entitlement 없음 확인"
 
 # 7. PKG 생성 전 quarantine 속성 다시 제거
 echo ""

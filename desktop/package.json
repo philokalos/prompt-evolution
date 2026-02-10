@@ -20,6 +20,7 @@
     "pack": "NODE_ENV=production npm run build:all && electron-builder --dir",
     "dist": "NODE_ENV=production npm run build:all && electron-builder",
     "dist:mac": "NODE_ENV=production npm run build:all && electron-builder --mac",
+    "dist:mas": "NODE_ENV=production npm run build:all && electron-builder --mac mas",
     "dist:win": "NODE_ENV=production npm run build:all && electron-builder --win",
     "generate-icons": "npx tsx scripts/generate-icons.ts",
     "screenshots": "node scripts/capture-screenshots.mjs",
@@ -147,11 +148,16 @@
     "mas": {
       "entitlements": "certs/entitlements.mas.plist",
       "entitlementsInherit": "certs/entitlements.mas.inherit.plist",
+      "entitlementsLoginHelper": "certs/entitlements.mas.inherit.plist",
       "hardenedRuntime": false,
       "identity": "Kyeol Kim (UTNLRZ42SP)",
       "type": "distribution",
       "minimumSystemVersion": "12.0",
-      "provisioningProfile": "certs/embedded.provisionprofile"
+      "provisioningProfile": "certs/embedded.provisionprofile",
+      "gatekeeperAssess": false,
+      "extendInfo": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "win": {
       "icon": "assets/icons/icon.ico",
