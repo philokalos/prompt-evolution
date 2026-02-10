@@ -1,0 +1,1 @@
+../../../.claude/agents/firebase-validator.md
