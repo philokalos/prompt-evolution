@@ -18,3 +18,4 @@ desktop/src/shared/*.d.ts
 
 # Speckit
 .specify/
+.vercel
