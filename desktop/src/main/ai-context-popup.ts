@@ -60,6 +60,7 @@ export function showAIContextButton(onClick: () => void): void {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
       preload: path.join(__dirname, '../preload/index.cjs'),
     },
   });
@@ -128,6 +129,7 @@ function getFloatingButtonHTML(): string {
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
   <style>
     * {
       margin: 0;

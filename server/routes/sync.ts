@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import {
   importIncremental,
   analyzeRecent,
@@ -9,16 +10,21 @@ import { getSchedulerStatus, getNextScheduledSync } from '../services/scheduler.
 
 export const syncRouter = Router();
 
-type SyncMode = 'incremental' | 'analyze' | 'full';
+const syncBodySchema = z.object({
+  mode: z.enum(['incremental', 'analyze', 'full']).default('incremental'),
+  project: z.string().max(200).regex(/^[\w\s./-]+$/).optional(),
+  hoursBack: z.number().int().min(1).max(720).default(24),
+});
 
 // POST /api/sync - Trigger manual data sync
 syncRouter.post('/', async (req, res, next) => {
   try {
-    const { mode = 'incremental', project, hoursBack = 24 } = req.body as {
-      mode?: SyncMode;
-      project?: string;
-      hoursBack?: number;
-    };
+    const parsed = syncBodySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Invalid request', details: parsed.error.flatten() });
+      return;
+    }
+    const { mode, project, hoursBack } = parsed.data;
     const startTime = Date.now();
 
     let result;

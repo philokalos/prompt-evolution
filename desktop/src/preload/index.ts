@@ -199,19 +199,39 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Open external URL
   openExternal: (url: string): Promise<void> => ipcRenderer.invoke('open-external', url),
 
-  // Send one-way message to main process (for floating button)
+  // Send one-way message to main process (channel-restricted)
   send: (channel: string, ...args: unknown[]): void => {
-    ipcRenderer.send(channel, ...args);
+    const ALLOWED_SEND_CHANNELS = [
+      'floating-button-click',
+      'ghost-bar:expand',
+      'ghost-bar:dismiss',
+      'ghost-bar:ready',
+    ];
+    if (ALLOWED_SEND_CHANNELS.includes(channel)) {
+      ipcRenderer.send(channel, ...args);
+    }
   },
 
-  // Receive message from main process (for Ghost Bar)
+  // Receive message from main process (channel-restricted)
   receive: (channel: string, callback: (...args: unknown[]) => void): void => {
-    ipcRenderer.on(channel, (_event, ...args) => callback(...args));
+    const ALLOWED_RECEIVE_CHANNELS = [
+      'ghost-bar:show',
+      'ghost-bar:hide',
+    ];
+    if (ALLOWED_RECEIVE_CHANNELS.includes(channel)) {
+      ipcRenderer.on(channel, (_event, ...args) => callback(...args));
+    }
   },
 
-  // Invoke and wait for response
+  // Invoke and wait for response (channel-restricted)
   invoke: (channel: string, ...args: unknown[]): Promise<unknown> => {
-    return ipcRenderer.invoke(channel, ...args);
+    const ALLOWED_INVOKE_CHANNELS = [
+      'ghost-bar:apply',
+    ];
+    if (ALLOWED_INVOKE_CHANNELS.includes(channel)) {
+      return ipcRenderer.invoke(channel, ...args);
+    }
+    return Promise.reject(new Error(`IPC channel not allowed: ${channel}`));
   },
 
   // i18n Language support

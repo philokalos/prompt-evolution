@@ -30,7 +30,7 @@ export interface ReportOptions {
  * Generate HTML report from insights data
  */
 export function generateHtmlReport(report: InsightsReport, options: ReportOptions): string {
-  const title = options.title || 'Prompt Evolution 인사이트 리포트';
+  const title = escapeHtml(options.title || 'Prompt Evolution 인사이트 리포트');
 
   const html = `<!DOCTYPE html>
 <html lang="ko">
@@ -46,8 +46,8 @@ export function generateHtmlReport(report: InsightsReport, options: ReportOption
   <div class="container">
     <header>
       <h1>📊 ${title}</h1>
-      <p class="subtitle">생성: ${report.generatedAt.toLocaleString('ko-KR')}</p>
-      <p class="period">기간: ${report.period}</p>
+      <p class="subtitle">생성: ${escapeHtml(report.generatedAt.toLocaleString('ko-KR'))}</p>
+      <p class="period">기간: ${escapeHtml(report.period)}</p>
     </header>
 
     ${generateSummarySection(report)}
@@ -684,10 +684,10 @@ function generateProblemsSection(problems: Insight[]): string {
 
   const items = problems.map(p => `
     <div class="problem-item ${p.severity === 'warning' ? 'warning' : ''}">
-      <div class="item-title">${getSeverityIcon(p.severity)} ${p.title}</div>
-      <div class="item-desc">${p.description}</div>
-      ${p.evidence.length > 0 ? `<div class="examples">${p.evidence.slice(0, 3).map((e: string) => `• ${truncate(e, 60)}`).join('<br>')}</div>` : ''}
-      ${p.recommendations.length > 0 ? `<div class="recommendation">💡 ${p.recommendations[0]}</div>` : ''}
+      <div class="item-title">${getSeverityIcon(p.severity)} ${escapeHtml(p.title)}</div>
+      <div class="item-desc">${escapeHtml(p.description)}</div>
+      ${p.evidence.length > 0 ? `<div class="examples">${p.evidence.slice(0, 3).map((e: string) => `• ${escapeHtml(truncate(e, 60))}`).join('<br>')}</div>` : ''}
+      ${p.recommendations.length > 0 ? `<div class="recommendation">💡 ${escapeHtml(p.recommendations[0])}</div>` : ''}
     </div>
   `).join('');
 
@@ -704,9 +704,9 @@ function generateImprovementsSection(improvements: Insight[]): string {
 
   const items = improvements.map(i => `
     <div class="improvement-item">
-      <div class="item-title">ℹ️ ${i.title}</div>
-      <div class="item-desc">${i.description}</div>
-      ${i.recommendations.length > 0 ? `<div class="recommendation">💡 ${i.recommendations[0]}</div>` : ''}
+      <div class="item-title">ℹ️ ${escapeHtml(i.title)}</div>
+      <div class="item-desc">${escapeHtml(i.description)}</div>
+      ${i.recommendations.length > 0 ? `<div class="recommendation">💡 ${escapeHtml(i.recommendations[0])}</div>` : ''}
     </div>
   `).join('');
 
@@ -723,8 +723,8 @@ function generateStrengthsSection(strengths: Insight[]): string {
 
   const items = strengths.map(s => `
     <div class="strength-item">
-      <div class="item-title">🟢 ${s.title}</div>
-      <div class="item-desc">${s.description}</div>
+      <div class="item-title">🟢 ${escapeHtml(s.title)}</div>
+      <div class="item-desc">${escapeHtml(s.description)}</div>
     </div>
   `).join('');
 
@@ -745,7 +745,7 @@ function generateCategorySection(categories: CategoryInsight[]): string {
     const barWidth = Math.max(5, (c.count / maxCount) * 100);
     return `
       <div class="category-item">
-        <div class="category-name">${getCategoryIcon(c.category)} ${c.category}</div>
+        <div class="category-name">${getCategoryIcon(c.category)} ${escapeHtml(c.category)}</div>
         <div class="category-bar-container">
           <div class="category-bar" style="width: ${barWidth}%">${c.count}개</div>
         </div>
@@ -771,8 +771,8 @@ function generateRecommendationsSection(recommendations: PrioritizedRecommendati
   const items = sorted.map(r => `
     <div class="priority-item">
       <div>
-        <strong>${r.title}</strong>
-        <div class="item-desc">${r.description}</div>
+        <strong>${escapeHtml(r.title)}</strong>
+        <div class="item-desc">${escapeHtml(r.description)}</div>
         <div class="recommendation">예상 효과: ${getImpactLabel(r.expectedImpact)} | 난이도: ${getEffortLabel(r.effort)}</div>
       </div>
     </div>
@@ -882,7 +882,7 @@ function generateGuidelinesSection(summary?: GuidelinesSummary): string {
           <div class="compliance-value" style="color: #22c55e;">
             ${Math.round(g.averageScore * 100)}%
           </div>
-          <div class="compliance-label">${g.name}</div>
+          <div class="compliance-label">${escapeHtml(g.name)}</div>
         </div>
       `).join('')}
       ${weakestGuidelines.slice(0, 1).map(g => `
@@ -890,7 +890,7 @@ function generateGuidelinesSection(summary?: GuidelinesSummary): string {
           <div class="compliance-value" style="color: #ef4444;">
             ${Math.round(g.averageScore * 100)}%
           </div>
-          <div class="compliance-label">${g.name} (개선 필요)</div>
+          <div class="compliance-label">${escapeHtml(g.name)} (개선 필요)</div>
         </div>
       `).join('')}
     </div>
@@ -997,7 +997,7 @@ function generatePromptLibrarySection(library?: PromptLibrary): string {
   const entriesHtml = topEntries.map((entry, _idx) => `
     <div class="library-card">
       <div class="library-header">
-        <span class="library-category">${entry.category}</span>
+        <span class="library-category">${escapeHtml(entry.category)}</span>
         <div class="library-score">
           <span>⭐</span>
           <span>${Math.round(entry.effectiveness * 100)}%</span>
@@ -1033,7 +1033,7 @@ function generatePromptLibrarySection(library?: PromptLibrary): string {
       <p style="color: #a1a1aa; margin-bottom: 1rem;">
         총 ${library.totalPrompts}개 프롬프트에서 ${library.entries.length}개 패턴 추출 |
         평균 효과성: ${Math.round(avgEffectiveness * 100)}% |
-        주요 카테고리: ${topCategories.map(([cat]) => cat).join(', ')}
+        주요 카테고리: ${topCategories.map(([cat]) => escapeHtml(cat)).join(', ')}
       </p>
 
       <h3 class="subsection-title">🏆 효과적인 프롬프트 Top ${topEntries.length}</h3>
@@ -1058,14 +1058,14 @@ function generateSelfImprovementSection(feedback?: SelfImprovementFeedback): str
     return `
       <div class="improvement-area">
         <div class="improvement-header">
-          <span class="improvement-title">📈 ${area.area}</span>
+          <span class="improvement-title">📈 ${escapeHtml(area.area)}</span>
           <div class="improvement-score-badge">
             <span class="score-current">${Math.round(area.currentScore * 100)}%</span>
             <span class="score-arrow">→</span>
             <span class="score-target">${Math.round(area.targetScore * 100)}%</span>
           </div>
         </div>
-        <div class="item-desc">${area.specificAdvice}</div>
+        <div class="item-desc">${escapeHtml(area.specificAdvice)}</div>
         ${example ? `
           <div class="before-after">
             <div class="before-box">
@@ -1087,8 +1087,8 @@ function generateSelfImprovementSection(feedback?: SelfImprovementFeedback): str
     <div class="learning-item">
       <div class="learning-rank">${priority.rank}</div>
       <div class="learning-content">
-        <h4>${priority.topic}</h4>
-        <p class="learning-reason">${priority.reason}</p>
+        <h4>${escapeHtml(priority.topic)}</h4>
+        <p class="learning-reason">${escapeHtml(priority.reason)}</p>
       </div>
     </div>
   `).join('');
@@ -1097,7 +1097,7 @@ function generateSelfImprovementSection(feedback?: SelfImprovementFeedback): str
   const goalsHtml = feedback.weeklyGoals?.slice(0, 5).map(goal => `
     <div class="goal-item">
       <div class="goal-checkbox">✓</div>
-      <span class="goal-text">${goal.goal}</span>
+      <span class="goal-text">${escapeHtml(goal.goal)}</span>
       <span class="goal-difficulty">${getDifficultyLabel(goal.difficulty)}</span>
     </div>
   `).join('') || '';
@@ -1105,8 +1105,8 @@ function generateSelfImprovementSection(feedback?: SelfImprovementFeedback): str
   // Strengths
   const strengthsHtml = feedback.strengths.slice(0, 3).map(strength => `
     <div class="strength-item">
-      <div class="item-title">✨ ${strength.area} (${Math.round(strength.score * 100)}%)</div>
-      <div class="item-desc">${strength.evidence.slice(0, 2).join(' | ')}</div>
+      <div class="item-title">✨ ${escapeHtml(strength.area)} (${Math.round(strength.score * 100)}%)</div>
+      <div class="item-desc">${strength.evidence.slice(0, 2).map(e => escapeHtml(e)).join(' | ')}</div>
     </div>
   `).join('');
 

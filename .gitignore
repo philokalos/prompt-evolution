@@ -11,6 +11,13 @@ reports/
 # Build artifacts
 *.tsbuildinfo
 coverage/
+
+# Sensitive files
+*.p12
+*.pem
+*.key
+*.db
+*.sqlite
 src/shared/types/*.js
 src/shared/types/*.d.ts
 desktop/src/shared/*.js

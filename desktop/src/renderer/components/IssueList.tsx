@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
 import { AlertTriangle, ChevronDown, ChevronRight, Lightbulb, CheckCircle2 } from 'lucide-react';
 
 interface Issue {
@@ -184,7 +184,9 @@ export default function IssueList({ issues, onApplySuggestion }: IssueListProps)
       {/* Quick tips */}
       {severityCounts.high > 0 && (
         <div className="p-3 bg-red-500/10 rounded-lg border border-red-500/20">
-          <p className="text-xs text-red-400" dangerouslySetInnerHTML={{ __html: t('issues.priorityTip') }} />
+          <p className="text-xs text-red-400">
+            <Trans i18nKey="issues.priorityTip" ns="analysis" components={{ 1: <strong /> }} />
+          </p>
         </div>
       )}
     </div>

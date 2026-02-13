@@ -3,7 +3,7 @@
  */
 
 import { readFileSync } from 'fs';
-import { join, basename } from 'path';
+import { join, basename, resolve } from 'path';
 import { homedir } from 'os';
 import type {
   ClaudeCodeRecord,
@@ -54,7 +54,11 @@ export function parseJsonlFile(filePath: string): ClaudeCodeRecord[] {
  * 세션 파일을 구조화된 대화로 변환
  */
 export function parseSession(projectName: string, sessionFile: string): ParsedConversation | null {
-  const filePath = join(CLAUDE_PROJECTS_PATH, projectName, sessionFile);
+  const filePath = resolve(CLAUDE_PROJECTS_PATH, projectName, sessionFile);
+  if (!filePath.startsWith(CLAUDE_PROJECTS_PATH)) {
+    console.error(`[Parser] Path traversal detected: ${projectName}/${sessionFile}`);
+    return null;
+  }
   const records = parseJsonlFile(filePath);
 
   if (records.length === 0) return null;

@@ -357,7 +357,7 @@ function createWindow(): void {
         responseHeaders: {
           ...details.responseHeaders,
           'Content-Security-Policy': [
-            "default-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';",
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;",
           ],
         },
       });
@@ -387,6 +387,20 @@ function createWindow(): void {
   mainWindow.once('ready-to-show', () => {
     console.log('[Main] Window ready to show');
     mainWindow?.show();
+  });
+
+  // Navigation security: prevent renderer from navigating to untrusted URLs
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const allowedOrigins = ['file://', `http://localhost:${devPort}`];
+    if (!allowedOrigins.some(origin => url.startsWith(origin))) {
+      event.preventDefault();
+      console.warn('[Security] Blocked navigation to:', url);
+    }
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    console.warn('[Security] Blocked window.open:', url);
+    return { action: 'deny' };
   });
 
   // Handle renderer errors

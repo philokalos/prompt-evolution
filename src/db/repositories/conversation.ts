@@ -67,8 +67,12 @@ export function getAllConversations(options?: {
   order?: 'ASC' | 'DESC';
 }): ConversationRow[] {
   const db = getDatabase();
-  const orderBy = options?.orderBy || 'started_at';
-  const order = options?.order || 'DESC';
+  const VALID_ORDER_BY = ['started_at', 'created_at', 'turn_count'] as const;
+  const VALID_ORDER = ['ASC', 'DESC'] as const;
+  const orderBy = VALID_ORDER_BY.includes(options?.orderBy as typeof VALID_ORDER_BY[number])
+    ? options!.orderBy! : 'started_at';
+  const order = VALID_ORDER.includes(options?.order as typeof VALID_ORDER[number])
+    ? options!.order! : 'DESC';
   const limit = options?.limit || 100;
   const offset = options?.offset || 0;
 

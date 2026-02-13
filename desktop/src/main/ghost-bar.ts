@@ -94,6 +94,7 @@ export function createGhostBar(preloadPath?: string): void {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: true,
       preload: resolvedPreloadPath,
     },
   });
@@ -438,6 +439,7 @@ function getGhostBarHTML(): string {
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
   <style>
     * {
       margin: 0;

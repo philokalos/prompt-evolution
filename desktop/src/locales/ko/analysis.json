@@ -156,7 +156,7 @@
     },
     "suggestion": "제안",
     "applySuggestion": "이 제안 적용하기",
-    "priorityTip": "💡 <strong>높음</strong> 문제를 먼저 해결하면 품질이 크게 좋아져요."
+    "priorityTip": "💡 <1>높음</1> 문제를 먼저 해결하면 품질이 크게 좋아져요."
   },
   "progress": {
     "title": "내 진행 상황",

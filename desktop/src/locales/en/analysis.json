@@ -156,7 +156,7 @@
     },
     "suggestion": "Suggestion",
     "applySuggestion": "Apply this suggestion",
-    "priorityTip": "💡 Fix <strong>High</strong> priority issues first for best improvement."
+    "priorityTip": "💡 Fix <1>High</1> priority issues first for best improvement."
   },
   "progress": {
     "title": "My Progress",

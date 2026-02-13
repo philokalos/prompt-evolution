@@ -291,14 +291,14 @@ function buildTrayMenu(mainWindow: BrowserWindow): void {
           ],
         },
         { type: 'separator' },
-        {
+        ...(!app.isPackaged ? [{
           label: t('common:devTools'),
           click: () => {
             if (mainWindow) {
               mainWindow.webContents.openDevTools({ mode: 'detach' });
             }
           },
-        },
+        }] : []),
       ],
     },
     { type: 'separator' },

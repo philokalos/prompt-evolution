@@ -22,6 +22,27 @@ export interface SettingsHandlerDeps {
   globalShortcut: Electron.GlobalShortcut;
 }
 
+const ALLOWED_SETTING_KEYS = new Set([
+  'shortcut',
+  'captureMode',
+  'alwaysOnTop',
+  'enableProjectPolling',
+  'pollingIntervalMs',
+  'enableClipboardWatch',
+  'ghostBar',
+  'enableAIContextPopup',
+  'autoAnalyzeOnCopy',
+  'showNotifications',
+  'autoShowWindow',
+  'hideOnCopy',
+  'providers',
+  'claudeApiKey',
+  'useAiRewrite',
+  'hasSeenWelcome',
+  'hasCompletedOnboarding',
+  'hasSeenAccessibilityDialog',
+]);
+
 export function registerSettingsHandlers(deps: SettingsHandlerDeps): void {
   const {
     store, mainWindow, registerShortcut, initProjectPolling,
@@ -36,6 +57,10 @@ export function registerSettingsHandlers(deps: SettingsHandlerDeps): void {
 
   ipcMain.handle('set-setting', (_event, key: string, value: unknown): { success: boolean; error?: string } => {
     try {
+      if (!ALLOWED_SETTING_KEYS.has(key)) {
+        return { success: false, error: `Setting key not allowed: ${key}` };
+      }
+
       // For shortcut changes, unregister old first
       const oldShortcut = key === 'shortcut' ? (store.get('shortcut') as string) : null;
 

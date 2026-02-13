@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { apiRouter } from './routes/index.js';
@@ -12,13 +14,36 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Middleware
+// Security headers
+app.use(helmet());
+
+// CORS - restrict to known local origins
 const isProd = process.env.NODE_ENV === 'production';
 app.use(cors({
-  origin: isProd ? false : '*', // Disable CORS in prod by default, or set to specific origin
+  origin: isProd ? false : ['http://localhost:5173', 'http://localhost:5174', `http://localhost:${PORT}`],
   methods: ['GET', 'POST'],
 }));
-app.use(express.json());
+
+// Rate limiting
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 60,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Too many requests, please try again later.' },
+});
+app.use('/api', apiLimiter);
+
+const syncLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Sync rate limit exceeded. Try again in a minute.' },
+});
+app.use('/api/sync', syncLimiter);
+
+app.use(express.json({ limit: '1mb' }));
 
 // API routes
 app.use('/api', apiRouter);

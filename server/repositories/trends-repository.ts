@@ -108,15 +108,16 @@ export function getQualityTrend(
 /**
  * Get date format for SQL strftime based on groupBy
  */
+const DATE_FORMATS: Record<GroupBy, string> = {
+  day: '%Y-%m-%d',
+  week: '%Y-W%W',
+  month: '%Y-%m',
+};
+
 function getDateFormat(groupBy: GroupBy): string {
-  switch (groupBy) {
-    case 'day':
-      return '%Y-%m-%d';
-    case 'week':
-      return '%Y-W%W';
-    case 'month':
-      return '%Y-%m';
-    default:
-      return '%Y-%m-%d';
+  const format = DATE_FORMATS[groupBy];
+  if (!format) {
+    return DATE_FORMATS.day;
   }
+  return format;
 }

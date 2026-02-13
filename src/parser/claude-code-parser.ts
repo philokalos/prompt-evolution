@@ -4,10 +4,18 @@
  */
 
 import { readdirSync, statSync } from 'fs';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { homedir } from 'os';
 
 const CLAUDE_PROJECTS_PATH = join(homedir(), '.claude', 'projects');
+
+function validateProjectPath(projectName: string): string {
+  const resolved = resolve(CLAUDE_PROJECTS_PATH, projectName);
+  if (!resolved.startsWith(CLAUDE_PROJECTS_PATH)) {
+    throw new Error(`Invalid project name: path traversal detected`);
+  }
+  return resolved;
+}
 
 /**
  * 모든 프로젝트 목록 조회
@@ -29,7 +37,7 @@ export function listProjects(): string[] {
  * 프로젝트 내 세션 파일 목록 조회
  */
 export function listSessions(projectName: string): string[] {
-  const projectPath = join(CLAUDE_PROJECTS_PATH, projectName);
+  const projectPath = validateProjectPath(projectName);
   try {
     const entries = readdirSync(projectPath);
     return entries.filter(entry => entry.endsWith('.jsonl'));
