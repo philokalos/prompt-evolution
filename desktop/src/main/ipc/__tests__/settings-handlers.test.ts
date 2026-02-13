@@ -146,12 +146,23 @@ describe('Settings Handlers', () => {
       });
 
       const handler = mockIpcHandlers.get('set-setting');
-      const result = await handler!(null, 'key', 'value');
+      const result = await handler!(null, 'captureMode', 'auto');
 
       expect(result).toMatchObject({
         success: false,
         error: expect.stringContaining('saveError'),
       });
+    });
+
+    it('should reject disallowed setting keys', async () => {
+      const handler = mockIpcHandlers.get('set-setting');
+      const result = await handler!(null, 'notAllowedKey', 'value');
+
+      expect(result).toMatchObject({
+        success: false,
+        error: expect.stringContaining('not allowed'),
+      });
+      expect(mockStore.set).not.toHaveBeenCalled();
     });
   });
 

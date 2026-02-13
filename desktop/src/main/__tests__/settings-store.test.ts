@@ -34,6 +34,7 @@ const mockSaveProvidersToStore = vi.fn();
 vi.mock('../settings-migration.js', () => ({
   getProvidersFromStore: mockGetProvidersFromStore,
   saveProvidersToStore: mockSaveProvidersToStore,
+  decryptApiKey: (val: string) => val, // pass-through in tests
 }));
 
 // Mock provider-manager

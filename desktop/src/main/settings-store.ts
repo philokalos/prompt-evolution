@@ -8,6 +8,7 @@ import Store from 'electron-store';
 import {
   getProvidersFromStore,
   saveProvidersToStore,
+  decryptApiKey,
 } from './settings-migration.js';
 import type { ProviderConfig } from './providers/types.js';
 import { hasAnyProvider } from './providers/provider-manager.js';
@@ -86,8 +87,9 @@ export const store = new Store<AppSettings>({
  * Get AI rewrite settings for use by learning engine
  */
 export function getAIRewriteSettings(): { apiKey: string; enabled: boolean } {
+  const raw = store.get('claudeApiKey') || '';
   return {
-    apiKey: store.get('claudeApiKey') || '',
+    apiKey: raw ? decryptApiKey(raw) : '',
     enabled: store.get('useAiRewrite') || false,
   };
 }

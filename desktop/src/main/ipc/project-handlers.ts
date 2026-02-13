@@ -3,6 +3,8 @@
  */
 
 import { ipcMain } from 'electron';
+import { resolve } from 'path';
+import { homedir } from 'os';
 import type { DetectedProject } from '../active-window-detector.js';
 
 export interface ProjectHandlerDeps {
@@ -59,15 +61,24 @@ export function registerProjectHandlers(deps: ProjectHandlerDeps): void {
         console.warn('[Main] select-project: Path too long');
         return { success: false, error: 'Path too long' };
       }
-      if (!/^[\w\s./-]+$/.test(projectPath)) {
-        console.warn('[Main] select-project: Invalid path characters');
-        return { success: false, error: 'Invalid characters in path' };
+
+      // Resolve and validate against path traversal
+      const resolved = resolve(projectPath);
+      const home = homedir();
+      if (!resolved.startsWith(home) && !resolved.startsWith('/tmp')) {
+        console.warn('[Main] select-project: Path outside allowed directories');
+        return { success: false, error: 'Path outside allowed directories' };
       }
+
+      setSelectedProjectPath(resolved);
+      store.set('manualProjectPath', resolved);
+      console.log(`[Main] Project selected: ${resolved}`);
+      return { success: true };
     }
 
-    setSelectedProjectPath(projectPath as string | null);
-    store.set('manualProjectPath', projectPath || '');
-    console.log(`[Main] Project ${projectPath ? 'selected: ' + projectPath : 'reset to auto-detect'}`);
+    setSelectedProjectPath(null);
+    store.set('manualProjectPath', '');
+    console.log('[Main] Project reset to auto-detect');
     return { success: true };
   });
 }

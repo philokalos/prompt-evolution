@@ -3,9 +3,43 @@
  * Migrates from single Claude API key to multi-provider format
  */
 
+import { safeStorage } from 'electron';
 import Store from 'electron-store';
 import type { ProviderConfig } from './providers/types.js';
 import { migrateFromSingleKey } from './providers/provider-manager.js';
+
+/**
+ * Encrypt an API key using Electron safeStorage.
+ * Falls back to plaintext if safeStorage is unavailable (e.g., Linux without keychain).
+ */
+function encryptApiKey(key: string): string {
+  if (!key || key.trim() === '') return '';
+  try {
+    if (safeStorage.isEncryptionAvailable()) {
+      return 'enc:' + safeStorage.encryptString(key).toString('base64');
+    }
+  } catch {
+    // Fallback to plaintext
+  }
+  return key;
+}
+
+/**
+ * Decrypt an API key. Handles both encrypted (enc: prefix) and legacy plaintext.
+ */
+export function decryptApiKey(stored: string): string {
+  if (!stored || stored.trim() === '') return '';
+  if (stored.startsWith('enc:')) {
+    try {
+      const buffer = Buffer.from(stored.slice(4), 'base64');
+      return safeStorage.decryptString(buffer);
+    } catch {
+      return '';
+    }
+  }
+  // Legacy plaintext — return as-is
+  return stored;
+}
 
 const MIGRATION_VERSION_KEY = 'providerMigrationVersion';
 const SETTINGS_SCHEMA_VERSION_KEY = 'settingsSchemaVersion';
@@ -68,14 +102,21 @@ export function getProvidersFromStore(store: Store<Record<string, unknown>>): Pr
   // First check for new format
   const providers = store.get('providers') as ProviderConfig[] | undefined;
   if (providers && providers.length > 0) {
-    return providers;
+    return providers.map(p => ({
+      ...p,
+      apiKey: decryptApiKey(p.apiKey),
+    }));
   }
 
   // Fallback to migration from old format (in case migration wasn't run)
   const claudeApiKey = store.get('claudeApiKey') as string | undefined;
   const useAiRewrite = store.get('useAiRewrite') as boolean | undefined;
 
-  return migrateFromSingleKey(claudeApiKey, useAiRewrite);
+  const migrated = migrateFromSingleKey(
+    claudeApiKey ? decryptApiKey(claudeApiKey) : claudeApiKey,
+    useAiRewrite,
+  );
+  return migrated;
 }
 
 /**
@@ -85,12 +126,17 @@ export function saveProvidersToStore(
   store: Store<Record<string, unknown>>,
   providers: ProviderConfig[]
 ): void {
-  store.set('providers', providers);
+  // Encrypt API keys before storing
+  const encrypted = providers.map(p => ({
+    ...p,
+    apiKey: p.apiKey ? encryptApiKey(p.apiKey) : '',
+  }));
+  store.set('providers', encrypted);
 
   // Also update legacy fields for backward compatibility
   const claudeProvider = providers.find(p => p.provider === 'claude');
   if (claudeProvider) {
-    store.set('claudeApiKey', claudeProvider.apiKey);
+    store.set('claudeApiKey', claudeProvider.apiKey ? encryptApiKey(claudeProvider.apiKey) : '');
     store.set('useAiRewrite', claudeProvider.isEnabled);
   }
 }

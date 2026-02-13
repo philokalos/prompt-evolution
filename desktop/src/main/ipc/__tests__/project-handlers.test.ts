@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
+import { homedir } from 'os';
 import type { ProjectHandlerDeps } from '../project-handlers.js';
 import type { DetectedProject } from '../../active-window-detector.js';
 
@@ -16,6 +17,8 @@ vi.mock('electron', () => ({
     }),
   },
 }));
+
+const HOME = homedir();
 
 describe('Project Handlers', () => {
   let deps: ProjectHandlerDeps;
@@ -45,7 +48,7 @@ describe('Project Handlers', () => {
 
   const mockProject: DetectedProject = {
     projectName: 'test-project',
-    projectPath: '/home/user/projects/test-project',
+    projectPath: `${HOME}/projects/test-project`,
     confidence: 0.9,
     source: 'vscode',
   };
@@ -53,7 +56,7 @@ describe('Project Handlers', () => {
   describe('get-current-project', () => {
     it('should return manually selected project when available', async () => {
       const allProjects: DetectedProject[] = [mockProject];
-      (deps.getSelectedProjectPath as Mock).mockReturnValue('/home/user/projects/test-project');
+      (deps.getSelectedProjectPath as Mock).mockReturnValue(`${HOME}/projects/test-project`);
       (deps.detectAllOpenProjects as Mock).mockResolvedValue(allProjects);
 
       const handler = mockIpcHandlers.get('get-current-project');
@@ -64,7 +67,7 @@ describe('Project Handlers', () => {
     });
 
     it('should reset to auto-detect when selected project not found', async () => {
-      (deps.getSelectedProjectPath as Mock).mockReturnValue('/home/user/projects/missing');
+      (deps.getSelectedProjectPath as Mock).mockReturnValue(`${HOME}/projects/missing`);
       (deps.detectAllOpenProjects as Mock).mockResolvedValue([mockProject]);
       (deps.getCurrentProject as Mock).mockReturnValue(mockProject);
 
@@ -116,7 +119,7 @@ describe('Project Handlers', () => {
         mockProject,
         {
           projectName: 'another-project',
-          projectPath: '/home/user/projects/another',
+          projectPath: `${HOME}/projects/another`,
           confidence: 0.8,
           source: 'terminal',
         },
@@ -150,11 +153,12 @@ describe('Project Handlers', () => {
 
   describe('select-project', () => {
     it('should select project with valid path', async () => {
+      const testPath = `${HOME}/projects/test-project`;
       const handler = mockIpcHandlers.get('select-project');
-      const result = await handler!(null, '/home/user/projects/test-project');
+      const result = await handler!(null, testPath);
 
-      expect(deps.setSelectedProjectPath).toHaveBeenCalledWith('/home/user/projects/test-project');
-      expect(mockStore.set).toHaveBeenCalledWith('manualProjectPath', '/home/user/projects/test-project');
+      expect(deps.setSelectedProjectPath).toHaveBeenCalledWith(testPath);
+      expect(mockStore.set).toHaveBeenCalledWith('manualProjectPath', testPath);
       expect(result).toEqual({ success: true });
     });
 
@@ -184,42 +188,43 @@ describe('Project Handlers', () => {
       expect(deps.setSelectedProjectPath).not.toHaveBeenCalled();
     });
 
-    it('should reject path with invalid characters', async () => {
+    it('should reject path outside allowed directories', async () => {
       const handler = mockIpcHandlers.get('select-project');
-      const result = await handler!(null, '/home/user/test<>:"|?*');
+      const result = await handler!(null, '/etc/passwd');
 
-      expect(result).toEqual({ success: false, error: 'Invalid characters in path' });
+      expect(result).toEqual({ success: false, error: 'Path outside allowed directories' });
       expect(deps.setSelectedProjectPath).not.toHaveBeenCalled();
     });
 
-    it('should accept path with spaces', async () => {
+    it('should accept path with spaces under home', async () => {
+      const testPath = `${HOME}/my projects/test app`;
       const handler = mockIpcHandlers.get('select-project');
-      const result = await handler!(null, '/home/user/my projects/test app');
+      const result = await handler!(null, testPath);
 
       expect(result).toEqual({ success: true });
       expect(deps.setSelectedProjectPath).toHaveBeenCalled();
     });
 
-    it('should accept path with dots and dashes', async () => {
+    it('should accept path with dots and dashes under home', async () => {
+      const testPath = `${HOME}/my-project.v2/src`;
       const handler = mockIpcHandlers.get('select-project');
-      const result = await handler!(null, '/home/user/my-project.v2/src');
+      const result = await handler!(null, testPath);
 
       expect(result).toEqual({ success: true });
       expect(deps.setSelectedProjectPath).toHaveBeenCalled();
     });
 
-    it('should reject Windows-style path with colon', async () => {
-      // Windows paths with drive letters (C:/) are rejected by the regex
+    it('should reject path traversal attempts', async () => {
       const handler = mockIpcHandlers.get('select-project');
-      const result = await handler!(null, 'C:/Users/test/projects/app');
+      const result = await handler!(null, `${HOME}/../../etc/passwd`);
 
-      expect(result).toEqual({ success: false, error: 'Invalid characters in path' });
+      expect(result).toEqual({ success: false, error: 'Path outside allowed directories' });
       expect(deps.setSelectedProjectPath).not.toHaveBeenCalled();
     });
 
-    it('should accept Unix-style absolute path', async () => {
+    it('should accept tmp path', async () => {
       const handler = mockIpcHandlers.get('select-project');
-      const result = await handler!(null, '/Users/test/projects/app');
+      const result = await handler!(null, '/tmp/test-project');
 
       expect(result).toEqual({ success: true });
       expect(deps.setSelectedProjectPath).toHaveBeenCalled();

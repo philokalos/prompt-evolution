@@ -168,7 +168,7 @@ describe('Analysis Handlers', () => {
   describe('get-session-context-for-path', () => {
     it('should call getSessionContextForPath with target path', async () => {
       const handler = mockIpcHandlers.get('get-session-context-for-path');
-      const targetPath = '/custom/path';
+      const targetPath = '/tmp/custom/path';
 
       await handler!(null, targetPath);
 
@@ -177,19 +177,26 @@ describe('Analysis Handlers', () => {
 
     it('should return context for specific path', async () => {
       const handler = mockIpcHandlers.get('get-session-context-for-path');
-      const result = await handler!(null, '/specific/path');
+      const result = await handler!(null, '/tmp/specific/path');
 
       expect(result).toEqual({
         projectPath: '/specific/path',
         gitBranch: 'main',
       });
     });
+
+    it('should reject invalid path', async () => {
+      const handler = mockIpcHandlers.get('get-session-context-for-path');
+      const result = await handler!(null, '');
+
+      expect(result).toEqual({ error: 'Invalid path' });
+    });
   });
 
   describe('get-project-patterns', () => {
     it('should call analyzeProjectPatterns with project path', async () => {
       const handler = mockIpcHandlers.get('get-project-patterns');
-      const projectPath = '/my/project';
+      const projectPath = '/tmp/my/project';
 
       await handler!(null, projectPath);
 
@@ -198,12 +205,19 @@ describe('Analysis Handlers', () => {
 
     it('should return project patterns', async () => {
       const handler = mockIpcHandlers.get('get-project-patterns');
-      const result = await handler!(null, '/project');
+      const result = await handler!(null, '/tmp/project');
 
       expect(result).toEqual({
         patterns: ['code-generation', 'debugging'],
         averageScore: 0.7,
       });
+    });
+
+    it('should reject invalid project path', async () => {
+      const handler = mockIpcHandlers.get('get-project-patterns');
+      const result = await handler!(null, 123);
+
+      expect(result).toEqual({ error: 'Invalid project path' });
     });
   });
 
@@ -211,7 +225,7 @@ describe('Analysis Handlers', () => {
     it('should call getContextRecommendations with category and path', async () => {
       const handler = mockIpcHandlers.get('get-context-recommendations');
       const category = 'code-generation';
-      const projectPath = '/project/path';
+      const projectPath = '/tmp/project/path';
 
       await handler!(null, category, projectPath);
 
@@ -228,7 +242,7 @@ describe('Analysis Handlers', () => {
 
     it('should return recommendations', async () => {
       const handler = mockIpcHandlers.get('get-context-recommendations');
-      const result = await handler!(null, 'debugging', '/path');
+      const result = await handler!(null, 'debugging', '/tmp/path');
 
       expect(result).toEqual({
         recommendations: ['Add more context', 'Specify output format'],
