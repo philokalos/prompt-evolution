@@ -23,5 +23,6 @@
   },
   "tooltip": "PromptLint - Press {{shortcut}} to analyze",
   "tooltipDefault": "PromptLint - Prompt correction",
-  "tooltipNewPrompt": "PromptLint - New prompt detected!"
+  "tooltipNewPrompt": "PromptLint - New prompt detected!",
+  "analyzeInstructions": "Analyze Project Instructions"
 }

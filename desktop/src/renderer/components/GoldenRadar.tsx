@@ -12,6 +12,7 @@ interface GoldenRadarProps {
     next: number;
   };
   size?: number;
+  dimensionLabels?: Record<string, string>;
 }
 
 const GOLDEN_LABELS = [
@@ -25,7 +26,7 @@ const GOLDEN_LABELS = [
 
 const GRID_LEVELS = [20, 40, 60, 80, 100] as const;
 
-export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
+export default function GoldenRadar({ scores, size = 200, dimensionLabels }: GoldenRadarProps) {
   const { t } = useTranslation(['analysis', 'help']);
   const center = size / 2;
   const maxRadius = size / 2 - 30;
@@ -36,13 +37,24 @@ export default function GoldenRadar({ scores, size = 200 }: GoldenRadarProps) {
   const getDimensionInfo = useCallback((label: string) => {
     const keyMap: Record<string, string> = { G: 'goal', O: 'output', L: 'limits', D: 'data', E: 'evaluation', N: 'next' };
     const key = keyMap[label] || label.toLowerCase();
+
+    // Use custom dimension labels if provided (e.g., for instruction linter mode)
+    if (dimensionLabels?.[key]) {
+      return {
+        title: dimensionLabels[key],
+        short: dimensionLabels[`${key}Desc`] ?? '',
+        detail: '',
+        improvement: '',
+      };
+    }
+
     return {
       title: t(`help:golden.${key}.title`),
       short: t(`help:golden.${key}.short`),
       detail: t(`help:golden.${key}.detail`),
       improvement: t(`help:golden.${key}.improvement`),
     };
-  }, [t]);
+  }, [t, dimensionLabels]);
 
   // Calculate points for each dimension
   const points = useMemo(() => {

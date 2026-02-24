@@ -103,6 +103,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPredictedScore: (windowDays?: number): Promise<unknown> =>
     ipcRenderer.invoke('get-predicted-score', windowDays),
 
+  // Copy & Switch (for blocked apps)
+  copyAndSwitch: (text: string, sourceApp: string): Promise<{ success: boolean; copiedToClipboard: boolean; appSwitched: boolean; message?: string }> =>
+    ipcRenderer.invoke('copy-and-switch', { text, sourceApp }),
+
+  // Instruction Linter
+  lintInstructionFile: (filePath: string): Promise<unknown> =>
+    ipcRenderer.invoke('lint-instruction-file', { filePath }),
+  detectInstructionFiles: (projectPath?: string): Promise<unknown[]> =>
+    ipcRenderer.invoke('detect-instruction-files', { projectPath }),
+  getInstructionHistory: (filePath?: string, limit?: number): Promise<unknown[]> =>
+    ipcRenderer.invoke('get-instruction-history', { filePath, limit }),
+  generateClaudeMd: (projectPath: string): Promise<unknown> =>
+    ipcRenderer.invoke('generate-claude-md', { projectPath }),
+  saveInstructionFile: (filePath: string, content: string, backup?: boolean): Promise<{ success: boolean; backupPath?: string; message?: string }> =>
+    ipcRenderer.invoke('save-instruction-file', { filePath, content, backup }),
+
   // Renderer ready signal (fixes IPC race condition)
   signalReady: (): Promise<boolean> => ipcRenderer.invoke('renderer-ready'),
 

@@ -12,6 +12,7 @@ import {
   DESKTOP_SCHEMA_BASE,
   DESKTOP_SCHEMA_V2_INDEXES,
   SCHEMA_V3_MIGRATIONS,
+  SCHEMA_V4_MIGRATIONS,
   DESKTOP_SCHEMA_VERSION,
 } from './schema.js';
 
@@ -258,6 +259,20 @@ function runMigrations(database: Database.Database): void {
       console.log('[DB] Migration to version 3 complete');
     } catch (error) {
       console.warn('[DB] V3 migration error (may be already migrated):', error);
+    }
+  }
+
+  // Instruction analysis: Version 4 migration
+  if (currentVersion < 4) {
+    console.log('[DB] Running migration to version 4...');
+    try {
+      database.exec(SCHEMA_V4_MIGRATIONS);
+
+      // Update version
+      database.prepare(`UPDATE schema_version SET version = 4`).run();
+      console.log('[DB] Migration to version 4 complete');
+    } catch (error) {
+      console.warn('[DB] V4 migration error (may be already migrated):', error);
     }
   }
 

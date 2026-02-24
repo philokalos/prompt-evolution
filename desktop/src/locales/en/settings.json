@@ -16,7 +16,9 @@
       "alwaysOnTop": "Always on top",
       "alwaysOnTopDesc": "Keep analysis window above other windows",
       "showNotifications": "Show notifications",
-      "showNotificationsDesc": "Get macOS notifications for analysis completion, errors, etc."
+      "showNotificationsDesc": "Get macOS notifications for analysis completion, errors, etc.",
+      "autoContextInjection": "Auto context injection",
+      "autoContextInjectionDesc": "Automatically inject project context into prompt analysis for more relevant results"
     },
     "keyboard": {
       "title": "Keyboard Shortcuts",

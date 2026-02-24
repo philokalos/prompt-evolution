@@ -9,7 +9,7 @@ import { BrowserWindow, screen, globalShortcut, clipboard, ipcMain } from 'elect
 import * as path from 'path';
 import { fileURLToPath } from 'url';
 import type { GhostBarState, GhostBarShowPayload, ApplyResult, GhostBarSettings } from './ghost-bar-types.js';
-import { applyTextToApp } from './text-selection.js';
+import { applyTextToApp, copyAndSwitch } from './text-selection.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -317,13 +317,30 @@ async function handleApply(): Promise<ApplyResult> {
         message: 'Auto-paste failed. Press Cmd+V to paste manually.',
       };
     }
+  } else if (state.isBlockedApp && state.sourceApp) {
+    // Copy & Switch: copy to clipboard and activate blocked app
+    try {
+      const switchResult = await copyAndSwitch(state.improvedText, state.sourceApp);
+      result = {
+        success: true,
+        fallback: switchResult.appSwitched ? undefined : 'clipboard',
+        message: switchResult.appSwitched
+          ? 'Copied! Cmd+V to paste.'
+          : 'Copied to clipboard. Press Cmd+V to paste.',
+      };
+    } catch (error) {
+      console.error('[GhostBar] Copy & Switch failed:', error);
+      result = {
+        success: true,
+        fallback: 'clipboard',
+        message: 'Copied to clipboard. Press Cmd+V to paste.',
+      };
+    }
   } else {
     result = {
       success: true,
       fallback: 'clipboard',
-      message: state.isBlockedApp
-        ? 'Copied to clipboard. Press Cmd+V to paste.'
-        : 'Copied to clipboard.',
+      message: 'Copied to clipboard.',
     };
   }
 

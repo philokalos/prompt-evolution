@@ -46,6 +46,7 @@ import {
   type ProjectPatternAnalysis,
   type PromptContextRecommendations,
 } from './history-pattern-analyzer.js';
+import { computeTopFix, type TopFix } from './top-fix.js';
 
 // ESM-compatible __dirname
 const __filename = fileURLToPath(import.meta.url);
@@ -131,6 +132,8 @@ interface AnalysisResult {
     scoreDiff: number;
     improvement: string | null;
   } | null;
+  // Phase 1: Top Fix
+  topFix?: TopFix | null;
   // Error tracking
   dbSaveError?: string; // 히스토리 저장 실패 시 에러 메시지
 }
@@ -354,6 +357,16 @@ async function analyzePrompt(text: string): Promise<AnalysisResult> {
     console.log('[LearningEngine] Converting to analysis result...');
     const result = convertToAnalysisResult(evaluation, text, classification, sessionContext);
     console.log('[LearningEngine] Conversion complete');
+
+    // Phase 1: Compute Top Fix (single most impactful improvement)
+    result.topFix = computeTopFix({
+      goldenScores: result.goldenScores,
+      issues: result.issues,
+      originalText: text,
+      promptVariants: result.promptVariants,
+      overallScore: result.overallScore,
+      grade: result.grade,
+    });
 
     // Phase 3.1: Async AI loading - Add loading placeholder instead of blocking
     // AI variant will be loaded separately via get-ai-variant IPC

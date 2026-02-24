@@ -209,6 +209,14 @@ function buildTrayMenu(mainWindow: BrowserWindow): void {
       },
     },
     {
+      label: t('tray:analyzeInstructions'),
+      click: () => {
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.webContents.send('navigate', 'instructions');
+      },
+    },
+    {
       label: t('tray:help'),
       submenu: [
         {

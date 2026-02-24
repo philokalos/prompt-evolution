@@ -348,6 +348,98 @@
       "next": "Specify follow-up tasks (implement then test, document, etc.)"
     }
   },
+  "improvedPrompt": {
+    "title": "Improved Prompt",
+    "replace": "Replace",
+    "copyAndSwitch": "Copy & Switch",
+    "copied": "Copied!",
+    "pasteHint": "Cmd+V to paste",
+    "scoreChange": "{{before}} → {{after}}",
+    "pointsUp": "+{{points}} points",
+    "gradeUp": "{{before}} → {{after}}",
+    "noImprovement": "Already well-written!",
+    "contextIncluded": "Auto-included: {{context}}",
+    "contextBadge": "Context"
+  },
+  "topFix": {
+    "title": "Top Fix",
+    "badge": "Biggest Impact",
+    "before": "Before",
+    "after": "After",
+    "showMore": "Show {{count}} more issues",
+    "noIssues": "Great prompt!",
+    "noIssuesDesc": "No improvements needed — your prompt already covers all dimensions well.",
+    "dimension": "{{dimension}} dimension",
+    "impact": "+{{delta}} points potential"
+  },
+  "details": {
+    "title": "Detailed Analysis",
+    "expand": "Show details",
+    "collapse": "Hide details"
+  },
+  "copySwitch": {
+    "title": "Copy & Switch",
+    "description": "Copied to clipboard. Switching to {{app}}...",
+    "fallback": "Copied to clipboard. Paste with Cmd+V.",
+    "switchFailed": "Copied to clipboard, but could not switch to {{app}}.",
+    "toast": "Cmd+V to paste"
+  },
+  "instructions": {
+    "title": "Instruction Linter",
+    "analyzeButton": "Analyze Project Instructions",
+    "detecting": "Detecting instruction files...",
+    "noFiles": "No instruction files found",
+    "noFilesDesc": "No CLAUDE.md, .cursorrules, or copilot-instructions.md found in this project.",
+    "createSuggestion": "Create a CLAUDE.md for this project",
+    "fileFormat": {
+      "claude-md": "CLAUDE.md",
+      "cursorrules": ".cursorrules",
+      "copilot-instructions": "copilot-instructions.md"
+    },
+    "issues": {
+      "duplicate": "Duplicate instruction",
+      "conflict": "Conflicting rules",
+      "missing": "Missing section",
+      "vague": "Vague instruction",
+      "security": "Security risk",
+      "excessive": "Excessive length"
+    },
+    "suggestions": {
+      "merge": "Merge duplicates",
+      "resolve": "Resolve conflict",
+      "add-section": "Add section",
+      "specify": "Make specific",
+      "remove": "Remove risk",
+      "split": "Split content"
+    },
+    "autoFix": "Auto-fix all",
+    "history": "Analysis History",
+    "lastAnalyzed": "Last analyzed: {{date}}",
+    "goldenDimensions": {
+      "goal": "Project Purpose",
+      "output": "Code Conventions",
+      "limits": "Anti-patterns",
+      "data": "File Structure",
+      "evaluation": "Test Criteria",
+      "next": "Workflow/CI"
+    },
+    "editor": {
+      "title": "CLAUDE.md Editor",
+      "detectedStack": "Detected Stack",
+      "confidence": "Detection confidence: {{percent}}%",
+      "save": "Save to project",
+      "saving": "Saving...",
+      "saved": "Saved successfully",
+      "edit": "Edit draft"
+    },
+    "contextRot": "This file is over {{lines}} lines. Consider splitting into smaller focused files.",
+    "severity": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    }
+  },
   "learning": {
     "title": "Learning Insights",
     "predictedScore": "Predicted Next Score",
@@ -386,6 +478,61 @@
       "deployment": "Deployment",
       "data-analysis": "Data Analysis",
       "general": "General"
+    }
+  },
+  "instructionLinter": {
+    "title": "Instruction File Analysis",
+    "analyzing": "Analyzing instruction file...",
+    "noFile": "No instruction file found",
+    "selectFile": "Select an instruction file to analyze",
+    "trayMenu": "Analyze Project Instructions",
+    "score": "Quality Score",
+    "grade": "Grade",
+    "issues": "Issues",
+    "suggestions": "Suggestions",
+    "noIssues": "No issues found",
+    "autoFix": "Auto-fix",
+    "viewMode": "Instructions",
+    "dimensions": {
+      "goal": "Project Context",
+      "goalDesc": "Project description and tech stack",
+      "output": "Conventions",
+      "outputDesc": "Coding conventions and style rules",
+      "limits": "Constraints",
+      "limitsDesc": "Anti-patterns and forbidden practices",
+      "data": "Structure",
+      "dataDesc": "File structure and dependencies",
+      "evaluation": "Verification",
+      "evaluationDesc": "Test commands and quality criteria",
+      "next": "Workflow",
+      "nextDesc": "CI/CD, deployment, and processes"
+    },
+    "issueTypes": {
+      "excessive": "Excessive Length",
+      "conflict": "Conflicting Rules",
+      "duplicate": "Duplicate Instructions",
+      "missing": "Missing Section",
+      "vague": "Vague Instruction",
+      "security": "Security Risk"
+    },
+    "severity": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "fileFormats": {
+      "claude-md": "CLAUDE.md",
+      "cursorrules": ".cursorrules",
+      "copilot-instructions": "copilot-instructions.md"
+    },
+    "generator": {
+      "title": "Generate CLAUDE.md",
+      "description": "No CLAUDE.md found. Generate one based on your project?",
+      "detectedStack": "Detected Stack",
+      "generate": "Generate Draft",
+      "save": "Save",
+      "edit": "Edit Draft"
     }
   }
 }
