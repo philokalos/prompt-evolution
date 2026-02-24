@@ -1025,9 +1025,34 @@ The component should follow React best practices and be reusable across the appl
   registerInstructionHandlers({
     lintFile: (filePath: string) => lintInstructionFile(filePath),
     saveLintResult: (result) => saveInstructionAnalysis(getDatabase(), result),
-    detectFiles: (_projectPath?: string) => {
-      // Stub: Phase 9 (T051-T052) will implement full detection
-      return [];
+    detectFiles: (projectPath?: string) => {
+      if (!projectPath) return [];
+      const candidates = [
+        'CLAUDE.md',
+        '.cursorrules',
+        '.github/copilot-instructions.md',
+      ];
+      const found: Array<{ path: string; format: string; size: number; lastModified: string }> = [];
+      for (const name of candidates) {
+        const fullPath = path.join(projectPath, name);
+        try {
+          const stat = fs.statSync(fullPath);
+          if (stat.isFile()) {
+            const format = name === 'CLAUDE.md' ? 'claude-md'
+              : name === '.cursorrules' ? 'cursorrules'
+              : 'copilot-instructions';
+            found.push({
+              path: fullPath,
+              format,
+              size: stat.size,
+              lastModified: stat.mtime.toISOString(),
+            });
+          }
+        } catch {
+          // File doesn't exist, skip
+        }
+      }
+      return found;
     },
     getHistory: (opts) => getInstructionHistory(getDatabase(), opts),
     generateClaudeMd: (_projectPath: string) => {

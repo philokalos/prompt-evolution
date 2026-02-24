@@ -485,6 +485,8 @@
     "analyzing": "Analyzing instruction file...",
     "noFile": "No instruction file found",
     "selectFile": "Select an instruction file to analyze",
+    "noProject": "No active project detected",
+    "noProjectHint": "Open a project in VS Code, Cursor, or a terminal to get started",
     "trayMenu": "Analyze Project Instructions",
     "score": "Quality Score",
     "grade": "Grade",

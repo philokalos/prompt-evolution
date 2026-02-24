@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import {
   X,
   Minus,
@@ -106,6 +106,36 @@ function App() {
         return 'text-accent-error';
     }
   };
+
+  // Track last analyzed project to detect changes (ref avoids setState-in-effect)
+  const lastAnalyzedProjectRef = useRef<string | undefined>();
+
+  // Auto-detect instruction files when switching to instructions view or project changes
+  useEffect(() => {
+    if (viewMode !== 'instructions') return;
+    if (instructionLinter.isLoading) return;
+
+    const projectPath = currentProject?.projectPath;
+    if (!projectPath) return;
+
+    // Project changed → clear previous results and re-detect
+    if (projectPath !== lastAnalyzedProjectRef.current) {
+      lastAnalyzedProjectRef.current = projectPath;
+      instructionLinter.clearAnalysis();
+      instructionLinter.detectFiles(projectPath);
+      return;
+    }
+
+    // Same project, already analyzed → skip
+    if (instructionLinter.analysis) return;
+  }, [viewMode, currentProject?.projectPath, instructionLinter.analysis, instructionLinter.isLoading, instructionLinter.detectFiles, instructionLinter.clearAnalysis]);
+
+  // Auto-lint the first detected file
+  useEffect(() => {
+    if (instructionLinter.detectedFiles.length > 0 && !instructionLinter.analysis && !instructionLinter.isLoading) {
+      instructionLinter.lintFile(instructionLinter.detectedFiles[0].path);
+    }
+  }, [instructionLinter.detectedFiles, instructionLinter.analysis, instructionLinter.isLoading, instructionLinter.lintFile]);
 
   // Keyboard shortcuts: Escape to hide
   useEffect(() => {
@@ -257,19 +287,48 @@ function App() {
               }}
             />
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center px-4">
-              <FileText size={40} className="mb-4 text-indigo-400 opacity-70" />
-              <h2 className="text-base font-semibold text-gray-200 mb-2">
-                {ta('instructionLinter.title')}
-              </h2>
-              <p className="text-sm text-gray-400 mb-4">
-                {ta('instructionLinter.selectFile')}
-              </p>
-              {instructionLinter.isLoading && (
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-400"></div>
-              )}
-              {instructionLinter.error && (
-                <p className="text-xs text-red-400 mt-2">{instructionLinter.error}</p>
+            <div className="flex flex-col items-center justify-center h-full text-center px-6">
+              {instructionLinter.isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-indigo-400 border-t-transparent mb-4" />
+                  <p className="text-sm text-gray-400">{ta('instructionLinter.analyzing')}</p>
+                </>
+              ) : currentProject?.projectPath ? (
+                <>
+                  <FileText size={36} className="mb-3 text-indigo-400 opacity-70" />
+                  <h2 className="text-base font-semibold text-gray-200 mb-1">
+                    {ta('instructionLinter.noFile')}
+                  </h2>
+                  <p className="text-xs text-gray-500 mb-1 font-mono truncate max-w-full">
+                    {currentProject.projectPath}
+                  </p>
+                  <p className="text-sm text-gray-400 mb-5">
+                    {ta('instructionLinter.generator.description')}
+                  </p>
+                  <button
+                    onClick={() => instructionLinter.generateClaudeMd(currentProject.projectPath)}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium rounded-xl transition-colors"
+                  >
+                    <Sparkles size={16} />
+                    {ta('instructionLinter.generator.generate')}
+                  </button>
+                  {instructionLinter.error && (
+                    <p className="text-xs text-red-400 mt-3">{instructionLinter.error}</p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <FileText size={36} className="mb-3 text-gray-500 opacity-50" />
+                  <h2 className="text-base font-semibold text-gray-200 mb-2">
+                    {ta('instructionLinter.title')}
+                  </h2>
+                  <p className="text-sm text-gray-400 mb-1">
+                    {ta('instructionLinter.noProject')}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {ta('instructionLinter.noProjectHint')}
+                  </p>
+                </>
               )}
             </div>
           )

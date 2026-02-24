@@ -485,6 +485,8 @@
     "analyzing": "명령 파일 분석 중...",
     "noFile": "명령 파일을 찾을 수 없습니다",
     "selectFile": "분석할 명령 파일을 선택하세요",
+    "noProject": "활성 프로젝트가 감지되지 않았습니다",
+    "noProjectHint": "VS Code, Cursor 또는 터미널에서 프로젝트를 열어주세요",
     "trayMenu": "프로젝트 명령 분석",
     "score": "품질 점수",
     "grade": "등급",

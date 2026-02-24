@@ -153,6 +153,8 @@ export function useInstructionLinter() {
 
   const clearAnalysis = useCallback(() => {
     setAnalysis(null);
+    setDetectedFiles([]);
+    setGeneratedDraft(null);
     setError(null);
   }, []);
 
