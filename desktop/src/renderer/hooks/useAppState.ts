@@ -34,9 +34,17 @@ export interface AnalysisResult {
     scoreDiff: number;
     improvement: string | null;
   } | null;
+  topFix?: {
+    dimension: string;
+    scoreDelta: number;
+    issueDescription: string;
+    beforeSnippet: string;
+    afterSnippet: string;
+    totalIssueCount: number;
+  } | null;
 }
 
-export type ViewMode = 'analysis' | 'progress' | 'tips' | 'help';
+export type ViewMode = 'analysis' | 'progress' | 'tips' | 'help' | 'instructions';
 
 // --- State ---
 

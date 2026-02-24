@@ -348,6 +348,98 @@
       "next": "후속 작업을 명시하세요 (구현 후 테스트, 문서화 등)"
     }
   },
+  "improvedPrompt": {
+    "title": "개선된 프롬프트",
+    "replace": "바꾸기",
+    "copyAndSwitch": "복사 & 전환",
+    "copied": "복사됨!",
+    "pasteHint": "Cmd+V로 붙여넣기",
+    "scoreChange": "{{before}} → {{after}}",
+    "pointsUp": "+{{points}}점",
+    "gradeUp": "{{before}} → {{after}}",
+    "noImprovement": "이미 잘 작성되었어요!",
+    "contextIncluded": "자동 포함: {{context}}",
+    "contextBadge": "컨텍스트"
+  },
+  "topFix": {
+    "title": "핵심 개선",
+    "badge": "가장 큰 효과",
+    "before": "이전",
+    "after": "이후",
+    "showMore": "나머지 {{count}}개 이슈 보기",
+    "noIssues": "훌륭한 프롬프트!",
+    "noIssuesDesc": "개선할 부분이 없어요 — 모든 차원이 잘 작성되었습니다.",
+    "dimension": "{{dimension}} 차원",
+    "impact": "+{{delta}}점 개선 가능"
+  },
+  "details": {
+    "title": "상세 분석",
+    "expand": "상세 보기",
+    "collapse": "접기"
+  },
+  "copySwitch": {
+    "title": "복사 & 전환",
+    "description": "클립보드에 복사됨. {{app}}으로 전환 중...",
+    "fallback": "클립보드에 복사됨. Cmd+V로 붙여넣으세요.",
+    "switchFailed": "클립보드에 복사되었지만, {{app}}으로 전환하지 못했어요.",
+    "toast": "Cmd+V로 붙여넣기"
+  },
+  "instructions": {
+    "title": "명령 파일 린터",
+    "analyzeButton": "프로젝트 명령 파일 분석",
+    "detecting": "명령 파일 탐색 중...",
+    "noFiles": "명령 파일이 없습니다",
+    "noFilesDesc": "이 프로젝트에서 CLAUDE.md, .cursorrules, copilot-instructions.md를 찾을 수 없습니다.",
+    "createSuggestion": "이 프로젝트에 CLAUDE.md 만들기",
+    "fileFormat": {
+      "claude-md": "CLAUDE.md",
+      "cursorrules": ".cursorrules",
+      "copilot-instructions": "copilot-instructions.md"
+    },
+    "issues": {
+      "duplicate": "중복 지침",
+      "conflict": "상충 규칙",
+      "missing": "누락 섹션",
+      "vague": "모호한 지침",
+      "security": "보안 위험",
+      "excessive": "과도한 길이"
+    },
+    "suggestions": {
+      "merge": "중복 통합",
+      "resolve": "충돌 해결",
+      "add-section": "섹션 추가",
+      "specify": "구체화",
+      "remove": "위험 제거",
+      "split": "내용 분리"
+    },
+    "autoFix": "전체 자동 수정",
+    "history": "분석 히스토리",
+    "lastAnalyzed": "마지막 분석: {{date}}",
+    "goldenDimensions": {
+      "goal": "프로젝트 목적",
+      "output": "코드 컨벤션",
+      "limits": "안티패턴",
+      "data": "파일 구조",
+      "evaluation": "테스트 기준",
+      "next": "워크플로우/CI"
+    },
+    "editor": {
+      "title": "CLAUDE.md 편집기",
+      "detectedStack": "감지된 스택",
+      "confidence": "감지 신뢰도: {{percent}}%",
+      "save": "프로젝트에 저장",
+      "saving": "저장 중...",
+      "saved": "저장 완료",
+      "edit": "초안 편집"
+    },
+    "contextRot": "이 파일이 {{lines}}줄을 넘어요. 더 작은 파일로 분리하는 것을 고려하세요.",
+    "severity": {
+      "critical": "심각",
+      "high": "높음",
+      "medium": "중간",
+      "low": "낮음"
+    }
+  },
   "learning": {
     "title": "학습 인사이트",
     "predictedScore": "다음 프롬프트 예상 점수",
@@ -386,6 +478,61 @@
       "deployment": "배포",
       "data-analysis": "데이터 분석",
       "general": "일반"
+    }
+  },
+  "instructionLinter": {
+    "title": "명령 파일 분석",
+    "analyzing": "명령 파일 분석 중...",
+    "noFile": "명령 파일을 찾을 수 없습니다",
+    "selectFile": "분석할 명령 파일을 선택하세요",
+    "trayMenu": "프로젝트 명령 분석",
+    "score": "품질 점수",
+    "grade": "등급",
+    "issues": "문제점",
+    "suggestions": "개선 제안",
+    "noIssues": "문제가 없습니다",
+    "autoFix": "자동 수정",
+    "viewMode": "명령 파일",
+    "dimensions": {
+      "goal": "프로젝트 컨텍스트",
+      "goalDesc": "프로젝트 설명 및 기술 스택",
+      "output": "코딩 규칙",
+      "outputDesc": "코딩 컨벤션 및 스타일 규칙",
+      "limits": "제약 조건",
+      "limitsDesc": "안티패턴 및 금지 패턴",
+      "data": "구조 정보",
+      "dataDesc": "파일 구조 및 의존성 정보",
+      "evaluation": "검증 기준",
+      "evaluationDesc": "테스트 명령 및 품질 기준",
+      "next": "워크플로우",
+      "nextDesc": "CI/CD, 배포, 프로세스"
+    },
+    "issueTypes": {
+      "excessive": "과도한 길이",
+      "conflict": "상충하는 규칙",
+      "duplicate": "중복 지침",
+      "missing": "누락 섹션",
+      "vague": "모호한 지침",
+      "security": "보안 위험"
+    },
+    "severity": {
+      "critical": "심각",
+      "high": "높음",
+      "medium": "보통",
+      "low": "낮음"
+    },
+    "fileFormats": {
+      "claude-md": "CLAUDE.md",
+      "cursorrules": ".cursorrules",
+      "copilot-instructions": "copilot-instructions.md"
+    },
+    "generator": {
+      "title": "CLAUDE.md 생성",
+      "description": "CLAUDE.md 파일이 없습니다. 프로젝트를 기반으로 생성할까요?",
+      "detectedStack": "감지된 스택",
+      "generate": "초안 생성",
+      "save": "저장",
+      "edit": "초안 편집"
     }
   }
 }

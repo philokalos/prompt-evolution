@@ -44,6 +44,8 @@ export interface AppSettings {
   hasCompletedOnboarding: boolean;
   // Language preference
   language: UserLanguagePreference;
+  // Auto context injection
+  autoContextInjection: boolean;
   // Ghost Bar settings (simplified)
   ghostBar: {
     enabled: boolean;
@@ -71,12 +73,13 @@ export const store = new Store<AppSettings>({
     aiProvider: 'claude' as AIProvider,
     autoShowWindow: true,
     manualProjectPath: '',
+    autoContextInjection: true,
     hasSeenWelcome: false,
     hasSeenAccessibilityDialog: false,
     hasCompletedOnboarding: false,
     language: 'auto' as UserLanguagePreference,
     ghostBar: {
-      enabled: false,
+      enabled: true,
       showOnlyOnImprovement: true,
       minimumConfidence: 0.15,
     },

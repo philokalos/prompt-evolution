@@ -132,6 +132,28 @@ CREATE TABLE IF NOT EXISTS prompt_templates (
   UNIQUE(name, ide_type, category)
 );
 
+-- Instruction Analysis (CLAUDE.md 린터 분석 결과)
+CREATE TABLE IF NOT EXISTS instruction_analysis (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  file_path TEXT NOT NULL,
+  file_format TEXT NOT NULL CHECK(file_format IN ('claude-md', 'cursorrules', 'copilot-instructions')),
+  overall_score INTEGER NOT NULL,
+  grade TEXT NOT NULL CHECK(grade IN ('A', 'B', 'C', 'D', 'F')),
+  golden_goal INTEGER NOT NULL,
+  golden_output INTEGER NOT NULL,
+  golden_limits INTEGER NOT NULL,
+  golden_data INTEGER NOT NULL,
+  golden_evaluation INTEGER NOT NULL,
+  golden_next INTEGER NOT NULL,
+  issues_json TEXT,
+  suggestions_json TEXT,
+  sections_json TEXT,
+  references_json TEXT,
+  file_size INTEGER,
+  line_count INTEGER,
+  analyzed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- All indexes
 CREATE INDEX IF NOT EXISTS idx_history_score ON prompt_history(overall_score);
 CREATE INDEX IF NOT EXISTS idx_history_grade ON prompt_history(grade);
@@ -144,6 +166,9 @@ CREATE INDEX IF NOT EXISTS idx_project_settings_path ON project_settings(project
 CREATE INDEX IF NOT EXISTS idx_templates_ide ON prompt_templates(ide_type);
 CREATE INDEX IF NOT EXISTS idx_templates_category ON prompt_templates(category);
 CREATE INDEX IF NOT EXISTS idx_templates_active ON prompt_templates(is_active);
+CREATE INDEX IF NOT EXISTS idx_instruction_path ON instruction_analysis(file_path);
+CREATE INDEX IF NOT EXISTS idx_instruction_date ON instruction_analysis(analyzed_at);
+CREATE INDEX IF NOT EXISTS idx_instruction_grade ON instruction_analysis(grade);
 `;
 
 /**
@@ -196,4 +221,36 @@ CREATE INDEX IF NOT EXISTS idx_templates_category ON prompt_templates(category);
 CREATE INDEX IF NOT EXISTS idx_templates_active ON prompt_templates(is_active);
 `;
 
-export const DESKTOP_SCHEMA_VERSION = 3;
+/**
+ * V4: Instruction analysis (CLAUDE.md linter results)
+ */
+export const SCHEMA_V4_MIGRATIONS = `
+-- Instruction Analysis (CLAUDE.md 린터 분석 결과)
+CREATE TABLE IF NOT EXISTS instruction_analysis (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  file_path TEXT NOT NULL,
+  file_format TEXT NOT NULL CHECK(file_format IN ('claude-md', 'cursorrules', 'copilot-instructions')),
+  overall_score INTEGER NOT NULL,
+  grade TEXT NOT NULL CHECK(grade IN ('A', 'B', 'C', 'D', 'F')),
+  golden_goal INTEGER NOT NULL,
+  golden_output INTEGER NOT NULL,
+  golden_limits INTEGER NOT NULL,
+  golden_data INTEGER NOT NULL,
+  golden_evaluation INTEGER NOT NULL,
+  golden_next INTEGER NOT NULL,
+  issues_json TEXT,
+  suggestions_json TEXT,
+  sections_json TEXT,
+  references_json TEXT,
+  file_size INTEGER,
+  line_count INTEGER,
+  analyzed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Instruction analysis indexes
+CREATE INDEX IF NOT EXISTS idx_instruction_path ON instruction_analysis(file_path);
+CREATE INDEX IF NOT EXISTS idx_instruction_date ON instruction_analysis(analyzed_at);
+CREATE INDEX IF NOT EXISTS idx_instruction_grade ON instruction_analysis(grade);
+`;
+
+export const DESKTOP_SCHEMA_VERSION = 4;

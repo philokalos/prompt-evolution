@@ -234,6 +234,73 @@ export async function showAccessibilityPermissionDialog(): Promise<boolean> {
 }
 
 /**
+ * Result of Copy & Switch operation for blocked apps.
+ */
+export interface CopyAndSwitchResult {
+  success: boolean;
+  copiedToClipboard: boolean;
+  appSwitched: boolean;
+  message?: string;
+}
+
+/**
+ * Copy text to clipboard and switch focus to the source app.
+ * Designed for blocked apps (VS Code, Cursor, etc.) that crash
+ * with keystroke simulation. Uses `activate` only (no keystrokes).
+ *
+ * @param text - The improved text to copy
+ * @param sourceApp - Name of the app to switch focus to
+ * @returns Result with clipboard and app switch status
+ */
+export async function copyAndSwitch(
+  text: string,
+  sourceApp: string
+): Promise<CopyAndSwitchResult> {
+  // Always copy to clipboard
+  clipboard.writeText(text);
+
+  // Validate app name
+  if (!sourceApp || !/^[a-zA-Z0-9\s._-]+$/.test(sourceApp)) {
+    return {
+      success: true,
+      copiedToClipboard: true,
+      appSwitched: false,
+      message: 'Copied to clipboard',
+    };
+  }
+
+  // Skip AppleScript on non-macOS or MAS builds
+  if (process.platform !== 'darwin' || checkMASBuild()) {
+    return {
+      success: true,
+      copiedToClipboard: true,
+      appSwitched: false,
+      message: 'Copied to clipboard',
+    };
+  }
+
+  try {
+    // Only activate — no keystroke simulation (blocked apps crash with keystrokes)
+    const safeAppName = sourceApp.replace(/"/g, '\\"');
+    await execAsync(`osascript -e 'tell application "${safeAppName}" to activate'`);
+
+    return {
+      success: true,
+      copiedToClipboard: true,
+      appSwitched: true,
+    };
+  } catch (error) {
+    console.warn('[TextSelection] copyAndSwitch: app activation failed:', error);
+    return {
+      success: true,
+      copiedToClipboard: true,
+      appSwitched: false,
+      message: 'Copied to clipboard',
+    };
+  }
+}
+
+/**
  * Result of text capture with source information.
  */
 export interface TextCaptureResult {

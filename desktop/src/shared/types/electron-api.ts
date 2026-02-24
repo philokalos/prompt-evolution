@@ -188,6 +188,25 @@ export interface ElectronAPI {
   invoke?: (channel: string, ...args: unknown[]) => Promise<unknown>;
 
   // =========================================================================
+  // Copy & Switch
+  // =========================================================================
+  copyAndSwitch: (text: string, sourceApp: string) => Promise<{
+    success: boolean;
+    copiedToClipboard: boolean;
+    appSwitched: boolean;
+    message?: string;
+  }>;
+
+  // =========================================================================
+  // Instruction Linter
+  // =========================================================================
+  lintInstructionFile: (filePath: string) => Promise<unknown>;
+  detectInstructionFiles: (projectPath?: string) => Promise<unknown[]>;
+  getInstructionHistory: (filePath?: string, limit?: number) => Promise<unknown[]>;
+  generateClaudeMd: (projectPath: string) => Promise<unknown>;
+  saveInstructionFile: (filePath: string, content: string) => Promise<unknown>;
+
+  // =========================================================================
   // i18n Language Support
   // =========================================================================
   getLanguage: () => Promise<LanguageResult>;

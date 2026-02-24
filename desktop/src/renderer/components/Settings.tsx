@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, Clipboard, Ghost, Sparkles, type LucideIcon } from 'lucide-react';
+import { Settings as SettingsIcon, X, Keyboard, Eye, Bell, Clipboard, Ghost, Sparkles, Layers, type LucideIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import ProviderSettings from './ProviderSettings';
 import type { ClipboardMode } from '../../main/settings-store';
@@ -9,6 +9,7 @@ interface AppSettings {
   alwaysOnTop: boolean;
   showNotifications: boolean;
   clipboardMode: ClipboardMode;
+  autoContextInjection: boolean;
   ghostBar: {
     enabled: boolean;
     showOnlyOnImprovement: boolean;
@@ -176,6 +177,13 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                         description={t('sections.appearance.showNotificationsDesc')}
                         checked={settings.showNotifications}
                         onChange={(v) => updateSetting('showNotifications', v)}
+                      />
+                      <SettingToggle
+                        icon={Layers}
+                        label={t('sections.appearance.autoContextInjection')}
+                        description={t('sections.appearance.autoContextInjectionDesc')}
+                        checked={settings.autoContextInjection}
+                        onChange={(v) => updateSetting('autoContextInjection', v)}
                       />
                     </div>
                   </div>

@@ -11,6 +11,7 @@ import {
   Plus,
   HelpCircle,
   Sparkles,
+  FileText,
 } from 'lucide-react';
 import GoldenRadar from './components/GoldenRadar';
 import ProgressTracker from './components/ProgressTracker';
@@ -18,14 +19,20 @@ import PersonalTips from './components/PersonalTips';
 import HelpView from './components/HelpView';
 import IssueList from './components/IssueList';
 import PromptComparison from './components/PromptComparison';
+import ImprovedPromptView from './components/ImprovedPromptView';
+import TopFixCard from './components/TopFixCard';
+import CollapsibleDetails from './components/CollapsibleDetails';
 import ContextIndicator, { SessionContextInfo } from './components/ContextIndicator';
 import HistoryRecommendations from './components/HistoryRecommendations';
+import InstructionAnalysis from './components/InstructionAnalysis';
+import InstructionEditor from './components/InstructionEditor';
 import Settings from './components/Settings';
 import Onboarding from './components/Onboarding';
 import AboutDialog from './components/AboutDialog';
 import type { DetectedProject } from './electron.d';
 import { useTranslation } from 'react-i18next';
 import { useAppState } from './hooks/useAppState';
+import { useInstructionLinter } from './hooks/useInstructionLinter';
 
 /**
  * Convert DetectedProject to minimal SessionContextInfo for display
@@ -51,6 +58,7 @@ function projectToContextInfo(project: DetectedProject): SessionContextInfo {
 function App() {
   const { t } = useTranslation('common');
   const { t: te } = useTranslation('errors');
+  const { t: ta } = useTranslation('analysis');
 
   const {
     state,
@@ -67,6 +75,8 @@ function App() {
     loadAllProjects,
     handleDirectInputSubmit,
   } = useAppState(te);
+
+  const instructionLinter = useInstructionLinter();
 
   const {
     originalPrompt,
@@ -130,7 +140,9 @@ function App() {
                 ? t('navigation.progress')
                 : viewMode === 'tips'
                   ? t('navigation.tips')
-                  : t('navigation.help')}
+                  : viewMode === 'instructions'
+                    ? ta('instructionLinter.viewMode')
+                    : t('navigation.help')}
           </span>
           {viewMode === 'analysis' && analysis && (
             <span className={`grade-badge text-2xl font-bold ${getGradeColor(analysis.grade)}`}>
@@ -149,6 +161,19 @@ function App() {
               <Plus size={14} />
             </button>
           )}
+          <button
+            onClick={() =>
+              dispatch({
+                type: 'SET_VIEW_MODE',
+                mode: viewMode === 'instructions' ? 'analysis' : 'instructions',
+              })
+            }
+            className={`p-1.5 rounded-md transition-colors ${viewMode === 'instructions' ? 'bg-indigo-500/20 text-indigo-400' : 'hover:bg-dark-hover'}`}
+            title={ta('instructionLinter.viewMode')}
+            aria-label={ta('instructionLinter.viewMode')}
+          >
+            <FileText size={14} />
+          </button>
           <button
             onClick={() =>
               dispatch({
@@ -214,7 +239,41 @@ function App() {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {viewMode === 'help' ? (
+        {viewMode === 'instructions' ? (
+          instructionLinter.analysis ? (
+            <InstructionAnalysis analysis={instructionLinter.analysis} />
+          ) : instructionLinter.generatedDraft ? (
+            <InstructionEditor
+              draft={instructionLinter.generatedDraft.draft}
+              detectedStack={instructionLinter.generatedDraft.detectedStack}
+              confidence={instructionLinter.generatedDraft.confidence}
+              projectPath={currentProject?.projectPath ?? ''}
+              onSave={instructionLinter.saveInstructionFile}
+              onSaved={() => {
+                if (currentProject?.projectPath) {
+                  const filePath = `${currentProject.projectPath}/CLAUDE.md`;
+                  instructionLinter.lintFile(filePath);
+                }
+              }}
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full text-center px-4">
+              <FileText size={40} className="mb-4 text-indigo-400 opacity-70" />
+              <h2 className="text-base font-semibold text-gray-200 mb-2">
+                {ta('instructionLinter.title')}
+              </h2>
+              <p className="text-sm text-gray-400 mb-4">
+                {ta('instructionLinter.selectFile')}
+              </p>
+              {instructionLinter.isLoading && (
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-400"></div>
+              )}
+              {instructionLinter.error && (
+                <p className="text-xs text-red-400 mt-2">{instructionLinter.error}</p>
+              )}
+            </div>
+          )
+        ) : viewMode === 'help' ? (
           <HelpView />
         ) : viewMode === 'progress' ? (
           <ProgressTracker />
@@ -226,7 +285,7 @@ function App() {
           </div>
         ) : analysis ? (
           <>
-            {/* 1. Context Indicator - 기존 유지 */}
+            {/* 1. Context Indicator */}
             <ContextIndicator
               context={
                 analysis.sessionContext ||
@@ -236,76 +295,93 @@ function App() {
               onLoadProjects={loadAllProjects}
             />
 
-            {/* 2. Variants (개선 배지 포함) - 최우선 배치 */}
+            {/* 2. Improved Prompt — above fold, one-click action */}
             {analysis.promptVariants.length > 0 && (
-              <PromptComparison
-                originalPrompt={originalPrompt}
+              <ImprovedPromptView
                 variants={analysis.promptVariants}
-                onCopy={handleCopy}
+                grade={analysis.grade}
+                isSourceAppBlocked={isSourceAppBlocked}
                 onApply={isSourceAppBlocked ? undefined : handleApply}
-                onOpenSettings={() => dispatch({ type: 'OPEN_SETTINGS' })}
+                onCopy={handleCopy}
+                contextIncluded={!!analysis.sessionContext}
               />
             )}
 
-            {/* 3. Top Issues - 상위 3개만 표시 */}
-            {analysis.issues.length > 0 && (
-              <div className="space-y-2">
-                <IssueList
-                  issues={analysis.issues.slice(0, 3)}
+            {/* 3. Top Fix — single most impactful improvement */}
+            {analysis.topFix && (
+              <TopFixCard
+                topFix={analysis.topFix}
+                onShowAllIssues={
+                  analysis.issues.length > 1
+                    ? () => dispatch({ type: 'SET_VIEW_MODE', mode: 'progress' })
+                    : undefined
+                }
+              />
+            )}
+
+            {/* 4. Detailed Analysis — collapsed by default */}
+            <CollapsibleDetails>
+              {/* Variant comparison */}
+              {analysis.promptVariants.length > 0 && (
+                <PromptComparison
+                  originalPrompt={originalPrompt}
+                  variants={analysis.promptVariants}
+                  onCopy={handleCopy}
+                  onApply={isSourceAppBlocked ? undefined : handleApply}
+                  onOpenSettings={() => dispatch({ type: 'OPEN_SETTINGS' })}
                 />
-                {analysis.issues.length > 3 && (
-                  <button
-                    onClick={() => dispatch({ type: 'SET_VIEW_MODE', mode: 'progress' })}
-                    className="w-full text-xs text-gray-500 hover:text-gray-300 py-2"
-                  >
-                    View all {analysis.issues.length} issues →
-                  </button>
-                )}
-              </div>
-            )}
+              )}
 
-            {/* 4. GOLDEN Radar - 작게 표시 */}
-            <div className="bg-dark-surface rounded-lg p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-medium text-gray-400">GOLDEN Score</span>
-                <span className={`text-lg font-bold ${getGradeColor(analysis.grade)}`}>
-                  {analysis.overallScore}%
-                </span>
-                <span className={`grade-badge text-xl font-bold ${getGradeColor(analysis.grade)}`}>
-                  {analysis.grade}
-                </span>
-              </div>
-              <div className="flex justify-center">
-                <GoldenRadar scores={analysis.goldenScores} size={120} />
-              </div>
-            </div>
+              {/* Issues */}
+              {analysis.issues.length > 0 && (
+                <IssueList
+                  issues={analysis.issues}
+                />
+              )}
 
-            {/* 5. History Recommendations - 있으면 표시 */}
-            {(analysis.historyRecommendations?.length ||
-              analysis.comparisonWithHistory?.improvement) && (
-              <HistoryRecommendations
-                recommendations={analysis.historyRecommendations || []}
-                comparisonWithHistory={analysis.comparisonWithHistory}
-              />
-            )}
-
-            {/* 6. Personal Tips - 있으면 표시 */}
-            {analysis.personalTips.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
-                  <Lightbulb size={14} className="text-accent-primary" />
-                  <span>Tips</span>
+              {/* GOLDEN Radar */}
+              <div className="bg-dark-surface rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-medium text-gray-400">GOLDEN Score</span>
+                  <span className={`text-lg font-bold ${getGradeColor(analysis.grade)}`}>
+                    {analysis.overallScore}%
+                  </span>
+                  <span className={`grade-badge text-xl font-bold ${getGradeColor(analysis.grade)}`}>
+                    {analysis.grade}
+                  </span>
                 </div>
-                <div className="bg-dark-surface rounded-lg p-3 space-y-2">
-                  {analysis.personalTips.slice(0, 2).map((tip, index) => (
-                    <div key={index} className="flex items-start gap-2 text-xs">
-                      <span className="text-accent-secondary">•</span>
-                      <span className="text-gray-400">{tip}</span>
-                    </div>
-                  ))}
+                <div className="flex justify-center">
+                  <GoldenRadar scores={analysis.goldenScores} size={120} />
                 </div>
               </div>
-            )}
+
+              {/* History Recommendations */}
+              {(analysis.historyRecommendations?.length ||
+                analysis.comparisonWithHistory?.improvement) && (
+                <HistoryRecommendations
+                  recommendations={analysis.historyRecommendations || []}
+                  comparisonWithHistory={analysis.comparisonWithHistory}
+                />
+              )}
+
+              {/* Personal Tips */}
+              {analysis.personalTips.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs font-medium text-gray-400">
+                    <Lightbulb size={14} className="text-accent-primary" />
+                    <span>Tips</span>
+                  </div>
+                  <div className="bg-dark-surface rounded-lg p-3 space-y-2">
+                    {analysis.personalTips.slice(0, 2).map((tip, index) => (
+                      <div key={index} className="flex items-start gap-2 text-xs">
+                        <span className="text-accent-secondary">•</span>
+                        <span className="text-gray-400">{tip}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </CollapsibleDetails>
           </>
         ) : (
           <div className="flex flex-col h-full">

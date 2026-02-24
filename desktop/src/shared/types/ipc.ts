@@ -93,6 +93,16 @@ export const IPC_INVOKE_CHANNELS = {
   // i18n Language support
   GET_LANGUAGE: 'get-language',
   SET_LANGUAGE: 'set-language',
+
+  // Copy & Switch (Phase 1)
+  COPY_AND_SWITCH: 'copy-and-switch',
+
+  // Instruction Linter (Phase 2)
+  LINT_INSTRUCTION_FILE: 'lint-instruction-file',
+  DETECT_INSTRUCTION_FILES: 'detect-instruction-files',
+  GET_INSTRUCTION_HISTORY: 'get-instruction-history',
+  GENERATE_CLAUDE_MD: 'generate-claude-md',
+  SAVE_INSTRUCTION_FILE: 'save-instruction-file',
 } as const;
 
 /**

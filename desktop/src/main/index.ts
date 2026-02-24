@@ -1,5 +1,6 @@
 import { app, BrowserWindow, globalShortcut, clipboard, screen, session, Notification, dialog } from 'electron';
 import * as path from 'path';
+import * as fs from 'fs';
 import { fileURLToPath } from 'url';
 import Store from 'electron-store';
 import { createTray, destroyTray, clearTrayBadge, setTrayBadge, rebuildTrayMenu } from './tray.js';
@@ -27,8 +28,10 @@ import {
   type DetectedAIApp,
 } from './active-window-detector.js';
 import { initAutoUpdater, cleanupAutoUpdater } from './auto-updater.js';
-import { closeDatabase } from './db/connection.js';
+import { closeDatabase, getDatabase } from './db/connection.js';
 import { saveAnalysis } from './db/history-crud.js';
+import { saveAnalysis as saveInstructionAnalysis, getHistory as getInstructionHistory } from './db/instruction-repository.js';
+import { lintInstructionFile } from './instruction-linter/index.js';
 import {
   showAIContextButton,
   hideAIContextButton,
@@ -72,6 +75,7 @@ import {
   registerWindowHandlers,
   registerProjectHandlers,
   registerProviderHandlers,
+  registerInstructionHandlers,
 } from './ipc/index.js';
 import {
   store,
@@ -635,6 +639,37 @@ function handleProjectChange(project: DetectedProject | null): void {
       // Window may have been closed during send - ignore
     }
   }
+
+  // Check for CLAUDE.md absence (once per day per project)
+  if (project) {
+    checkClaudeMdAbsence(project.projectPath);
+  }
+}
+
+/** Track last CLAUDE.md absence notification per project (once per day) */
+const claudeMdNotifiedMap = new Map<string, number>();
+
+function checkClaudeMdAbsence(projectPath: string): void {
+  const claudeMdPath = path.join(projectPath, 'CLAUDE.md');
+  const now = Date.now();
+  const oneDayMs = 24 * 60 * 60 * 1000;
+
+  // Skip if already notified today
+  const lastNotified = claudeMdNotifiedMap.get(projectPath);
+  if (lastNotified && now - lastNotified < oneDayMs) return;
+
+  // Check if CLAUDE.md exists
+  try {
+    fs.accessSync(claudeMdPath, fs.constants.F_OK);
+  } catch {
+    // CLAUDE.md doesn't exist — notify user
+    claudeMdNotifiedMap.set(projectPath, now);
+    const projectName = path.basename(projectPath);
+    showNotification(
+      t('tray:analyzeInstructions'),
+      `${projectName}: No CLAUDE.md found. Open PromptLint to generate one.`,
+    );
+  }
 }
 
 /**
@@ -985,6 +1020,29 @@ The component should follow React best practices and be reusable across the appl
     getPrimaryProviderConfig,
     hasAnyAIProvider,
     validateProviderKey: validateProviderKeyFn,
+  });
+
+  registerInstructionHandlers({
+    lintFile: (filePath: string) => lintInstructionFile(filePath),
+    saveLintResult: (result) => saveInstructionAnalysis(getDatabase(), result),
+    detectFiles: (_projectPath?: string) => {
+      // Stub: Phase 9 (T051-T052) will implement full detection
+      return [];
+    },
+    getHistory: (opts) => getInstructionHistory(getDatabase(), opts),
+    generateClaudeMd: (_projectPath: string) => {
+      // Stub: Phase 9 (T051-T052) will implement full generation
+      return { draft: '', detectedStack: { languages: [], frameworks: [], buildTools: [], testFrameworks: [] }, confidence: 0 };
+    },
+    saveInstructionFile: (filePath: string, content: string) => {
+      try {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, content, 'utf-8');
+        return { success: true };
+      } catch (err) {
+        return { success: false, message: String(err) };
+      }
+    },
   });
 }
 

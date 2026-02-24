@@ -10,3 +10,4 @@ export { registerProjectHandlers, type ProjectHandlerDeps } from './project-hand
 export { registerProviderHandlers, type ProviderHandlerDeps } from './provider-handlers.js';
 export { registerAnalysisHandlers, type AnalysisHandlerDeps } from './analysis-handlers.js';
 export { registerHistoryHandlers, type HistoryHandlerDeps } from './history-handlers.js';
+export { registerInstructionHandlers, type InstructionHandlerDeps } from './instruction-handlers.js';

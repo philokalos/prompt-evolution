@@ -69,6 +69,32 @@ export {
   type UpdateStatusEvent,
 } from './settings.js';
 
+// Instruction linter types
+export {
+  type InstructionFileFormat,
+  type IssueSeverity,
+  type IssueType,
+  type SuggestionType,
+  type IssueLocation,
+  type InstructionIssue,
+  type InstructionSuggestion,
+  type MarkdownSection,
+  type ResolvedReference,
+  type InstructionAnalysis,
+  type TopFix,
+  type CopyAndSwitchRequest,
+  type CopyAndSwitchResult,
+  type LintInstructionRequest,
+  type DetectInstructionRequest,
+  type DetectedInstructionFile,
+  type InstructionHistoryRequest,
+  type InstructionHistoryEntry,
+  type GenerateClaudeMdRequest,
+  type GenerateClaudeMdResponse,
+  type SaveInstructionRequest,
+  type SaveInstructionResult,
+} from './instruction-linter.js';
+
 // Electron API interface
 export { type ElectronAPI } from './electron-api.js';
 

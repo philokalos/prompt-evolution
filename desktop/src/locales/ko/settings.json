@@ -16,7 +16,9 @@
       "alwaysOnTop": "항상 위에 표시",
       "alwaysOnTopDesc": "다른 창 위에 분석 창이 항상 보이도록 유지",
       "showNotifications": "알림 받기",
-      "showNotificationsDesc": "분석 완료, 오류 등을 macOS 알림으로 안내"
+      "showNotificationsDesc": "분석 완료, 오류 등을 macOS 알림으로 안내",
+      "autoContextInjection": "자동 컨텍스트 주입",
+      "autoContextInjectionDesc": "프롬프트 분석 시 프로젝트 컨텍스트를 자동으로 주입하여 더 정확한 결과 제공"
     },
     "keyboard": {
       "title": "키보드 단축키",
