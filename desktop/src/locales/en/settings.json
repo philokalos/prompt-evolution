@@ -13,6 +13,7 @@
   "sections": {
     "appearance": {
       "title": "Appearance & Behavior",
+      "description": "Control how PromptLint looks and behaves on your system.",
       "alwaysOnTop": "Always on top",
       "alwaysOnTopDesc": "Keep analysis window above other windows",
       "showNotifications": "Show notifications",
@@ -27,6 +28,7 @@
     },
     "clipboard": {
       "title": "Clipboard Integration",
+      "description": "Configure how analysis results are integrated with your clipboard.",
       "mode": "Clipboard Mode",
       "disabled": "Disabled",
       "disabledDesc": "No clipboard watching",
@@ -34,14 +36,19 @@
       "manualDesc": "Watch clipboard, trigger analysis manually",
       "autoVisible": "Auto Analysis + Stay Visible",
       "autoVisibleDesc": "Auto analyze, window stays open",
+      "auto-visible": "Auto Analysis + Stay Visible",
+      "auto-visibleDesc": "Auto analyze, window stays open",
       "autoHide": "Auto Analysis + Auto Hide",
       "autoHideDesc": "Auto analyze, window hides after",
+      "auto-hide": "Auto Analysis + Auto Hide",
+      "auto-hideDesc": "Auto analyze, window hides after",
       "ghostBar": "Enable Ghost Bar",
       "ghostBarDesc": "Show floating bar with improved prompt after copying",
       "ghostBarNote": "Ghost Bar appears near cursor after copying. Press ⌘⇧Enter to apply or Esc to dismiss. Auto-dismisses after 7 seconds."
     },
     "ai": {
-      "title": "AI Provider"
+      "title": "AI Provider",
+      "description": "Choose your AI provider for enhanced prompt analysis and improvements."
     },
     "gettingStarted": {
       "title": "Getting Started",

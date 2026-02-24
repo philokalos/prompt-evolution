@@ -32,6 +32,7 @@
   "betterThanAverage": "{{percent}}% better than your average",
   "worseThanAverage": "{{percent}}% worse than your average",
   "appName": "PromptLint",
+  "appDescription": "AI Prompt Quality Analyzer",
   "version": "Version {{version}}",
   "copyright": "© {{year}} philokalos",
   "about": {

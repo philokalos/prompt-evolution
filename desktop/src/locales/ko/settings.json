@@ -13,6 +13,7 @@
   "sections": {
     "appearance": {
       "title": "모양 및 동작",
+      "description": "PromptLint의 표시 방식과 동작을 설정합니다.",
       "alwaysOnTop": "항상 위에 표시",
       "alwaysOnTopDesc": "다른 창 위에 분석 창이 항상 보이도록 유지",
       "showNotifications": "알림 받기",
@@ -27,6 +28,7 @@
     },
     "clipboard": {
       "title": "클립보드 통합",
+      "description": "분석 결과와 클립보드 연동 방식을 설정합니다.",
       "mode": "클립보드 모드",
       "disabled": "비활성화",
       "disabledDesc": "클립보드 감시 안 함",
@@ -34,14 +36,19 @@
       "manualDesc": "클립보드 감시, 수동으로 분석 트리거",
       "autoVisible": "자동 분석 + 창 유지",
       "autoVisibleDesc": "자동 분석, 창이 열린 상태 유지",
+      "auto-visible": "자동 분석 + 창 유지",
+      "auto-visibleDesc": "자동 분석, 창이 열린 상태 유지",
       "autoHide": "자동 분석 + 자동 숨김",
       "autoHideDesc": "자동 분석, 분석 후 창 자동 숨김",
+      "auto-hide": "자동 분석 + 자동 숨김",
+      "auto-hideDesc": "자동 분석, 분석 후 창 자동 숨김",
       "ghostBar": "Ghost Bar 활성화",
       "ghostBarDesc": "복사 후 플로팅 바에 개선된 프롬프트 표시",
       "ghostBarNote": "복사 후 커서 근처에 Ghost Bar가 나타납니다. ⌘⇧Enter로 적용하거나 Esc로 닫을 수 있습니다. 7초 후 자동으로 사라집니다."
     },
     "ai": {
-      "title": "AI 프로바이더"
+      "title": "AI 프로바이더",
+      "description": "향상된 프롬프트 분석을 위한 AI 프로바이더를 선택하세요."
     },
     "gettingStarted": {
       "title": "시작하기",

@@ -32,6 +32,7 @@
   "betterThanAverage": "평균보다 {{percent}}% 높아요",
   "worseThanAverage": "평균보다 {{percent}}% 낮아요",
   "appName": "PromptLint",
+  "appDescription": "AI 프롬프트 품질 분석기",
   "version": "버전 {{version}}",
   "copyright": "© {{year}} philokalos",
   "about": {

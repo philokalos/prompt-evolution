@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import ProviderSettings from './ProviderSettings';
 import type { ClipboardMode } from '../../main/settings-store';
 
+declare const __APP_VERSION__: string;
+
 interface AppSettings {
   shortcut: string;
   alwaysOnTop: boolean;
@@ -144,7 +146,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
               ))}
             </nav>
             <div className="px-6 py-4 border-t border-dark-border mt-auto opacity-40">
-              <p className="text-[10px] text-gray-500 font-mono tracking-tighter">v0.1.0-STABLE</p>
+              <p className="text-[10px] text-gray-500 font-mono tracking-tighter">v{__APP_VERSION__}</p>
             </div>
           </aside>
 
@@ -228,7 +230,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                   <div className="space-y-6">
                     <header>
                       <h3 className="text-lg font-semibold text-gray-100 mb-1">{t('sections.clipboard.title')}</h3>
-                      <p className="text-sm text-gray-500">{t('sections.clipboard.description') || 'Configure how analysis results are integrated with your clipboard.'}</p>
+                      <p className="text-sm text-gray-500">{t('sections.clipboard.description')}</p>
                     </header>
 
                     <div className="space-y-4">
@@ -275,7 +277,7 @@ export default function Settings({ isOpen, onClose }: SettingsProps) {
                   <div className="space-y-6 max-h-full overflow-visible">
                     <header>
                       <h3 className="text-lg font-semibold text-gray-100 mb-1">{t('sections.ai.title')}</h3>
-                      <p className="text-sm text-gray-500">{t('sections.ai.description') || 'Choose your AI provider for prompt analysis and improvements.'}</p>
+                      <p className="text-sm text-gray-500">{t('sections.ai.description')}</p>
                     </header>
                     <div className="bg-dark-elevated/40 border border-dark-border rounded-2xl p-6">
                       <ProviderSettings />
