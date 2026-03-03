@@ -1,1 +1,0 @@
-../../../.claude/agents/team-researcher.md

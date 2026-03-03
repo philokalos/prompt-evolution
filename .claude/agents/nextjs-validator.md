@@ -1,1 +1,0 @@
-../../../.claude/agents/nextjs-validator.md

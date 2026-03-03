@@ -1,1 +1,0 @@
-../../../.claude/commands/speckit.deploy-validate.md

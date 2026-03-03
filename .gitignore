@@ -26,3 +26,6 @@ desktop/src/shared/*.d.ts
 # Speckit
 .specify/
 .vercel
+
+# Claude Code
+.claude/
