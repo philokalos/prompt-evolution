@@ -6,10 +6,13 @@
 
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
 import { join } from 'path';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
 
 export interface ElectronAppContext {
   app: ElectronApplication;
   mainWindow: Page;
+  _testDbDir?: string;
 }
 
 /**
@@ -19,12 +22,16 @@ export async function launchElectronApp(): Promise<ElectronAppContext> {
   // Path to the main entry point
   const mainPath = join(process.cwd(), 'dist', 'main', 'index.js');
 
+  // Create isolated temp DB directory to avoid conflicts with running app
+  const testDbDir = mkdtempSync(join(tmpdir(), 'promptlint-e2e-'));
+
   // Launch Electron with the built app
   const app = await electron.launch({
     args: [mainPath],
     env: {
       ...process.env,
       NODE_ENV: 'test',
+      PROMPTLINT_DB_DIR: testDbDir,
       // Disable auto-update checks in test
       ELECTRON_DISABLE_SECURITY_WARNINGS: 'true',
     },
@@ -36,7 +43,7 @@ export async function launchElectronApp(): Promise<ElectronAppContext> {
   // Wait for the window to be ready
   await mainWindow.waitForLoadState('domcontentloaded');
 
-  return { app, mainWindow };
+  return { app, mainWindow, _testDbDir: testDbDir };
 }
 
 /**
@@ -44,6 +51,22 @@ export async function launchElectronApp(): Promise<ElectronAppContext> {
  */
 export async function closeElectronApp(context: ElectronAppContext): Promise<void> {
   await context.app.close();
+
+  // Clean up temp DB directory
+  if (context._testDbDir) {
+    try {
+      rmSync(context._testDbDir, { recursive: true, force: true });
+    } catch {
+      // ignore cleanup errors
+    }
+  }
+}
+
+/**
+ * Simple delay utility (use when mainWindow is not available)
+ */
+export async function wait(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 /**
@@ -73,19 +96,25 @@ export async function invokeIPC<T = any>(
 ): Promise<T> {
   return await app.evaluate(
     async ({ ipcMain }, { channel, args }) => {
-      // Find the registered handler
-      const handler = (ipcMain as any)._events[channel];
-      if (!handler) {
-        throw new Error(`No IPC handler found for channel: ${channel}`);
-      }
-
       // Create a mock event object
       const mockEvent = {
         sender: { send: () => {} },
         reply: () => {},
       };
 
-      // Call the handler with mock event and args
+      // Check ipcMain.handle() registered handlers first (_invokeHandlers Map)
+      const invokeHandlers = (ipcMain as any)._invokeHandlers;
+      if (invokeHandlers && invokeHandlers.has(channel)) {
+        const handler = invokeHandlers.get(channel);
+        return await handler(mockEvent, ...args);
+      }
+
+      // Fallback to ipcMain.on() registered handlers (_events)
+      const handler = (ipcMain as any)._events[channel];
+      if (!handler) {
+        throw new Error(`No IPC handler found for channel: ${channel}`);
+      }
+
       return await handler(mockEvent, ...args);
     },
     { channel, args }
@@ -140,6 +169,13 @@ export async function getClipboard(app: ElectronApplication): Promise<string> {
   return await app.evaluate(({ clipboard }) => {
     return clipboard.readText();
   });
+}
+
+/**
+ * Wait for analysis to complete (grade badge visible in UI)
+ */
+export async function waitForAnalysis(window: Page, timeout = 10000): Promise<void> {
+  await window.waitForSelector('.grade-badge', { timeout });
 }
 
 /**
