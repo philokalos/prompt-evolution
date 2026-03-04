@@ -10,6 +10,7 @@ export interface ClipboardPayload {
     text: string;
     capturedContext: CapturedContext | null;
     isSourceAppBlocked: boolean;
+    sourceApp?: string | null;
 }
 /**
  * Empty state reason when no text is captured

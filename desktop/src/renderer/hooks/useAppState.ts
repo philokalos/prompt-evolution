@@ -56,6 +56,7 @@ export interface AppState {
   showDetails: boolean;
   emptyState: EmptyStatePayload | null;
   isSourceAppBlocked: boolean;
+  sourceApp: string | null;
   // UI
   viewMode: ViewMode;
   settingsOpen: boolean;
@@ -75,6 +76,7 @@ const initialState: AppState = {
   showDetails: false,
   emptyState: null,
   isSourceAppBlocked: false,
+  sourceApp: null,
   viewMode: 'analysis',
   settingsOpen: false,
   showDirectInput: false,
@@ -89,7 +91,7 @@ const initialState: AppState = {
 
 export type AppAction =
   // Analysis flow
-  | { type: 'RECEIVE_TEXT'; prompt: string; isSourceAppBlocked: boolean }
+  | { type: 'RECEIVE_TEXT'; prompt: string; isSourceAppBlocked: boolean; sourceApp?: string | null }
   | { type: 'RECEIVE_EMPTY_STATE'; payload: EmptyStatePayload }
   | { type: 'START_ANALYSIS' }
   | { type: 'SET_ANALYSIS'; result: AnalysisResult }
@@ -123,6 +125,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         emptyState: null,
         originalPrompt: action.prompt,
         isSourceAppBlocked: action.isSourceAppBlocked,
+        sourceApp: action.sourceApp ?? null,
       };
     case 'RECEIVE_EMPTY_STATE':
       return {
@@ -402,14 +405,14 @@ export function useAppState(te: (key: string) => string) {
     console.log('[Renderer] Setting up clipboard listener');
     window.electronAPI.onClipboardText((payload) => {
       console.log('[Renderer] >>> Clipboard text received! <<<');
-      const { text, capturedContext, isSourceAppBlocked: blocked } = payload;
+      const { text, capturedContext, isSourceAppBlocked: blocked, sourceApp } = payload;
       console.log('[Renderer] Text length:', text?.length, 'Preview:', text?.substring(0, 50));
       console.log('[Renderer] Source app blocked:', blocked);
       if (capturedContext?.project) {
         console.log('[Renderer] Captured project:', capturedContext.project.projectPath);
       }
       console.log('[Renderer] Dispatching RECEIVE_TEXT and analyzing');
-      dispatch({ type: 'RECEIVE_TEXT', prompt: text, isSourceAppBlocked: blocked });
+      dispatch({ type: 'RECEIVE_TEXT', prompt: text, isSourceAppBlocked: blocked, sourceApp });
       analyzePromptRef.current?.(text);
     });
     console.log('[Renderer] Clipboard listener registered');

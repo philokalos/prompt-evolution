@@ -16,6 +16,7 @@ export interface ClipboardPayload {
   text: string;
   capturedContext: CapturedContext | null;
   isSourceAppBlocked: boolean; // True if source app doesn't support AppleScript paste
+  sourceApp?: string | null; // Name of the source app for Copy & Switch
 }
 
 /**

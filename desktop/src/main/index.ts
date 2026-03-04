@@ -32,6 +32,7 @@ import { closeDatabase, getDatabase } from './db/connection.js';
 import { saveAnalysis } from './db/history-crud.js';
 import { saveAnalysis as saveInstructionAnalysis, getHistory as getInstructionHistory } from './db/instruction-repository.js';
 import { lintInstructionFile } from './instruction-linter/index.js';
+import { generateClaudeMdDraft } from './instruction-linter/claude-md-generator.js';
 import {
   showAIContextButton,
   hideAIContextButton,
@@ -237,7 +238,7 @@ function setCapturedContext(ctx: CapturedContext | null): void {
 function sendTextToRenderer(text: string, capturedContext: CapturedContext | null = null): void {
   // Check if source app is blocked for Apply feature
   const sourceAppBlocked = isBlockedApp(lastFrontmostApp);
-  const payload = { text, capturedContext, isSourceAppBlocked: sourceAppBlocked };
+  const payload = { text, capturedContext, isSourceAppBlocked: sourceAppBlocked, sourceApp: lastFrontmostApp };
 
   if (isRendererReady && mainWindow) {
     console.log('[Main] Sending clipboard-text IPC with payload:', {
@@ -1055,9 +1056,8 @@ The component should follow React best practices and be reusable across the appl
       return found;
     },
     getHistory: (opts) => getInstructionHistory(getDatabase(), opts),
-    generateClaudeMd: (_projectPath: string) => {
-      // Stub: Phase 9 (T051-T052) will implement full generation
-      return { draft: '', detectedStack: { languages: [], frameworks: [], buildTools: [], testFrameworks: [] }, confidence: 0 };
+    generateClaudeMd: (projectPath: string) => {
+      return generateClaudeMdDraft(projectPath);
     },
     saveInstructionFile: (filePath: string, content: string) => {
       try {

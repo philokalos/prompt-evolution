@@ -16,6 +16,7 @@ interface ClipboardPayload {
   text: string;
   capturedContext: unknown;
   isSourceAppBlocked: boolean;
+  sourceApp?: string | null;
 }
 
 /** Empty state payload when no text is captured */

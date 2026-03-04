@@ -84,6 +84,7 @@ function App() {
     isAnalyzing,
     emptyState,
     isSourceAppBlocked,
+    sourceApp,
     viewMode,
     settingsOpen,
     showDirectInput,
@@ -362,6 +363,9 @@ function App() {
                 isSourceAppBlocked={isSourceAppBlocked}
                 onApply={isSourceAppBlocked ? undefined : handleApply}
                 onCopy={handleCopy}
+                onCopyAndSwitch={isSourceAppBlocked && sourceApp ? (text) => {
+                  window.electronAPI.copyAndSwitch(text, sourceApp);
+                } : undefined}
                 contextIncluded={!!analysis.sessionContext}
               />
             )}
