@@ -114,6 +114,26 @@ export default function GuidebookPage() {
         </div>
       </div>
 
+      {/* Coaching Focus Card */}
+      {topWeaknesses.length > 0 && (
+        <section className="card bg-gradient-to-r from-accent-primary/10 to-accent-secondary/10 border-accent-primary/20">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-accent-primary/20">
+              <Target size={24} className="text-accent-primary" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold">Today's Coaching Point</h3>
+              <p className="text-sm text-gray-400 mt-0.5">
+                Focus on <b className="text-accent-primary">{topWeaknesses[0].area}</b>: {topWeaknesses[0].specificAdvice}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Current: {Math.round(topWeaknesses[0].currentScore * 100)}% | Target: {Math.round(topWeaknesses[0].targetScore * 100)}%
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Section 1: Top Weaknesses */}
       <section>
         <div className="flex items-center gap-2 mb-4">

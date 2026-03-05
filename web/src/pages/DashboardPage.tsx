@@ -117,10 +117,33 @@ export default function DashboardPage() {
             )}
           </div>
           <div className="mt-6 p-4 bg-accent-primary/5 rounded-2xl border border-accent-primary/10">
-            <h4 className="text-xs font-bold text-app-text-secondary mb-1 uppercase tracking-widest">Mastery Tip</h4>
-            <p className="text-xs text-gray-400 leading-relaxed">
-              Your <b>Limits</b> score is slightly low. Try explicitly stating what you <i>don't</i> want in your prompts.
-            </p>
+            <h4 className="text-xs font-bold text-app-text-secondary mb-1 uppercase tracking-widest">Today's Coaching Point</h4>
+            {(() => {
+              const COACHING_ADVICE: Record<string, string> = {
+                goal: 'Try starting with "My goal is to..." for clearer direction.',
+                output: 'Specify the format you want (JSON, markdown, code) for precise results.',
+                limits: 'State what you don\'t want — boundaries help AI focus.',
+                data: 'Include relevant code, errors, or context for better accuracy.',
+                evaluation: 'Add success criteria so AI knows what "done" looks like.',
+                next: 'Mention follow-up steps for forward-looking responses.',
+              };
+              const weakest = stats?.goldenScores
+                ? Object.entries(stats.goldenScores).reduce(
+                    (min, [k, v]) => (v < min[1] ? [k, v] : min),
+                    ['', 100] as [string, number]
+                  )
+                : null;
+              return weakest?.[0] ? (
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Your <b>{weakest[0].charAt(0).toUpperCase() + weakest[0].slice(1)}</b> score is at <b>{Math.round(weakest[1])}%</b>.{' '}
+                  {COACHING_ADVICE[weakest[0]]}
+                </p>
+              ) : (
+                <p className="text-xs text-gray-400 leading-relaxed">
+                  Analyze more prompts to get personalized coaching.
+                </p>
+              );
+            })()}
           </div>
         </div>
       </div>
