@@ -1,0 +1,44 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - button "뒤로" [ref=e6] [cursor=pointer]:
+        - img [ref=e7]
+      - generic [ref=e9]: 내 진행 상황
+    - generic [ref=e10]:
+      - button "명령 파일" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+      - button "기능 안내" [ref=e15] [cursor=pointer]:
+        - img [ref=e16]
+      - button "설정" [ref=e19] [cursor=pointer]:
+        - img [ref=e20]
+      - button "최소화" [active] [ref=e23] [cursor=pointer]:
+        - img [ref=e24]
+      - button "닫기" [ref=e25] [cursor=pointer]:
+        - img [ref=e26]
+  - generic [ref=e30]:
+    - generic [ref=e31]:
+      - img [ref=e32]
+      - generic [ref=e34]: 내 진행 상황
+    - generic [ref=e35]:
+      - generic [ref=e36]:
+        - generic [ref=e37]: "0"
+        - generic [ref=e38]: 총 분석
+      - generic [ref=e39]:
+        - generic [ref=e40]: 0%
+        - generic [ref=e41]: 평균 점수
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - img [ref=e44]
+          - generic [ref=e45]: 유지 중
+        - generic [ref=e46]: 최근 추세
+    - generic [ref=e47]:
+      - button "일별" [ref=e48] [cursor=pointer]
+      - button "주별" [ref=e49] [cursor=pointer]
+      - button "월별" [ref=e50] [cursor=pointer]
+    - generic [ref=e52]:
+      - img [ref=e53]
+      - generic [ref=e57]: GOLDEN 차원별 평균
+```
