@@ -1,6 +1,6 @@
 {
   "title": "분석",
-  "analyzing": "AI가 프롬프트를 분석하고 있어요...",
+  "analyzing": "코칭을 준비하고 있어요...",
   "complete": "분석 완료",
   "noPrompt": "분석할 프롬프트가 없어요",
   "captureHint": "{{shortcut}} 키를 눌러 텍스트를 캡처하세요",
@@ -34,8 +34,8 @@
     "nextDesc": "후속 작업 명시"
   },
   "issues": {
-    "title": "발견된 문제",
-    "noIssues": "모두 잘 작성되었어요!",
+    "title": "개선 포인트",
+    "noIssues": "잘했어요! 고칠 게 없어요",
     "noIssuesDesc": "문제가 발견되지 않았어요. 훌륭한 프롬프트예요!",
     "critical": "심각",
     "warning": "경고",
@@ -126,9 +126,9 @@
     "hideDetails": "상세 정보 접기"
   },
   "issues": {
-    "title": "발견된 문제",
-    "count": "발견된 문제 ({{count}})",
-    "noIssues": "모두 잘 작성되었어요!",
+    "title": "개선 포인트",
+    "count": "개선 포인트 ({{count}})",
+    "noIssues": "잘했어요! 고칠 게 없어요",
     "noIssuesDesc": "프롬프트가 명확하고 완성도 높습니다.",
     "critical": "심각",
     "warning": "경고",
@@ -349,32 +349,35 @@
     }
   },
   "improvedPrompt": {
-    "title": "개선된 프롬프트",
-    "replace": "바꾸기",
+    "title": "이렇게 바꿔보면?",
+    "replace": "적용하고 배우기",
     "copyAndSwitch": "복사 & 전환",
     "copied": "복사됨!",
     "pasteHint": "Cmd+V로 붙여넣기",
     "scoreChange": "{{before}} → {{after}}",
     "pointsUp": "+{{points}}점",
     "gradeUp": "{{before}} → {{after}}",
-    "noImprovement": "이미 잘 작성되었어요!",
+    "noImprovement": "잘했어요! 고칠 게 없어요",
     "contextIncluded": "자동 포함: {{context}}",
     "contextBadge": "컨텍스트"
   },
   "topFix": {
     "title": "핵심 개선",
-    "badge": "가장 큰 효과",
+    "badge": "지금 이것만!",
     "before": "이전",
     "after": "이후",
-    "showMore": "나머지 {{count}}개 이슈 보기",
+    "showMore": "{{count}}개 더 코칭 포인트",
     "noIssues": "훌륭한 프롬프트!",
     "noIssuesDesc": "개선할 부분이 없어요 — 모든 차원이 잘 작성되었습니다.",
     "dimension": "{{dimension}} 차원",
-    "impact": "+{{delta}}점 개선 가능"
+    "impact": "이것만 고치면 +{{delta}}점!",
+    "fixNow": "지금 고치기",
+    "fixCopy": "수정안 복사",
+    "fixed": "적용됨!"
   },
   "details": {
     "title": "상세 분석",
-    "expand": "상세 보기",
+    "expand": "전체 분석 보기",
     "collapse": "접기"
   },
   "copySwitch": {
@@ -479,6 +482,16 @@
       "data-analysis": "데이터 분석",
       "general": "일반"
     }
+  },
+  "coaching": {
+    "suggestedRewrite": "추천 수정안"
+  },
+  "gradeMessage": {
+    "A": "완벽해요!",
+    "B": "좋은 시작! 한 가지만 더",
+    "C": "거의 다 왔어요 — 핵심 하나만",
+    "D": "성장할 여지가 많아요 — 하나부터",
+    "F": "차근차근 만들어가요"
   },
   "instructionLinter": {
     "title": "명령 파일 분석",

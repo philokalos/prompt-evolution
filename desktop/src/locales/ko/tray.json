@@ -18,11 +18,11 @@
   },
   "status": {
     "ready": "준비됨",
-    "analyzing": "분석 중...",
+    "analyzing": "코칭 중...",
     "idle": "대기 중"
   },
   "tooltip": "PromptLint - {{shortcut}} 키로 분석하세요",
-  "tooltipDefault": "PromptLint - 프롬프트 교정",
+  "tooltipDefault": "PromptLint - 프롬프트 코치",
   "tooltipNewPrompt": "PromptLint - 새 프롬프트 감지됨!",
   "analyzeInstructions": "프로젝트 명령 파일 분석"
 }

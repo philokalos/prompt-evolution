@@ -9,6 +9,7 @@ import {
   launchElectronApp,
   closeElectronApp,
   waitForAppReady,
+  analyzePrompt,
   invokeIPC,
   type ElectronAppContext,
 } from './helpers/electron-app';
@@ -49,9 +50,9 @@ test.describe('Progress Tab Navigation', () => {
       await progressTab.click();
       await mainWindow.waitForTimeout(500);
 
-      // Should show some stats
-      const statsSection = mainWindow.locator('[class*="stats"], [class*="overview"]');
-      await expect(statsSection).toBeVisible({ timeout: 5000 });
+      // Should show stats text (Total Analyses, Average Score, Recent Trend)
+      const statsText = mainWindow.locator('text=/Total Analyses|Average Score|Recent Trend|총 분석|평균 점수/i');
+      await expect(statsText.first()).toBeVisible({ timeout: 5000 });
     }
   });
 });
@@ -61,10 +62,10 @@ test.describe('Score Trends', () => {
     const { app, mainWindow } = context;
 
     // Add some test analyses first
-    await invokeIPC(app, 'analyze-prompt', 'First test');
+    await analyzePrompt(app, mainWindow, 'First test');
     await mainWindow.waitForTimeout(1000);
 
-    await invokeIPC(app, 'analyze-prompt', 'Second test');
+    await analyzePrompt(app, mainWindow, 'Second test');
     await mainWindow.waitForTimeout(1000);
 
     // Navigate to progress
@@ -75,15 +76,15 @@ test.describe('Score Trends', () => {
 
       // Should show trend visualization
       const trendChart = mainWindow.locator('[class*="trend"], [class*="chart"], svg');
-      await expect(trendChart).toBeVisible({ timeout: 5000 });
+      await expect(trendChart.first()).toBeVisible({ timeout: 5000 });
     }
   });
 
   test('should show score improvement over time', async () => {
     const { app } = context;
 
-    // Get trend data via IPC
-    const trend = await invokeIPC(app, 'get-score-trend', { days: 7 });
+    // get-score-trend takes (days?: number), not an object
+    const trend = await invokeIPC(app, 'get-score-trend', 7);
 
     expect(trend).toBeDefined();
     expect(Array.isArray(trend)).toBe(true);
@@ -92,9 +93,9 @@ test.describe('Score Trends', () => {
   test('should filter trend by time period', async () => {
     const { app } = context;
 
-    // Get different time periods
-    const weekly = await invokeIPC(app, 'get-score-trend', { days: 7 });
-    const monthly = await invokeIPC(app, 'get-score-trend', { days: 30 });
+    // get-score-trend takes (days?: number)
+    const weekly = await invokeIPC(app, 'get-score-trend', 7);
+    const monthly = await invokeIPC(app, 'get-score-trend', 30);
 
     expect(weekly).toBeDefined();
     expect(monthly).toBeDefined();
@@ -106,7 +107,7 @@ test.describe('Weekly Stats', () => {
     const { app, mainWindow } = context;
 
     // Add test data
-    await invokeIPC(app, 'analyze-prompt', 'Weekly test prompt');
+    await analyzePrompt(app, mainWindow, 'Weekly test prompt');
     await mainWindow.waitForTimeout(1000);
 
     // Get weekly stats
@@ -129,6 +130,7 @@ test.describe('Weekly Stats', () => {
   test('should show average GOLDEN scores', async () => {
     const { app } = context;
 
+    // get-golden-averages takes (days?: number)
     const averages = await invokeIPC(app, 'get-golden-averages');
 
     expect(averages).toBeDefined();
@@ -144,10 +146,10 @@ test.describe('Weekly Stats', () => {
     const { app, mainWindow } = context;
 
     // Add multiple analyses
-    await invokeIPC(app, 'analyze-prompt', 'First analysis');
+    await analyzePrompt(app, mainWindow, 'First analysis');
     await mainWindow.waitForTimeout(1000);
 
-    await invokeIPC(app, 'analyze-prompt', 'Improved analysis with clear goal and expected output');
+    await analyzePrompt(app, mainWindow, 'Improved analysis with clear goal and expected output');
     await mainWindow.waitForTimeout(1000);
 
     const stats = await invokeIPC(app, 'get-stats');
@@ -172,9 +174,10 @@ test.describe('GOLDEN Dimension Analysis', () => {
     const { app, mainWindow } = context;
 
     // Add test analysis
-    await invokeIPC(app, 'analyze-prompt', 'Weak prompt');
+    await analyzePrompt(app, mainWindow, 'Weak prompt');
     await mainWindow.waitForTimeout(1000);
 
+    // get-top-weaknesses takes (limit?: number)
     const weaknesses = await invokeIPC(app, 'get-top-weaknesses');
 
     expect(weaknesses).toBeDefined();
@@ -190,9 +193,9 @@ test.describe('GOLDEN Dimension Analysis', () => {
       await progressTab.click();
       await mainWindow.waitForTimeout(500);
 
-      // Should show suggestions or tips
-      const suggestions = mainWindow.locator('text=/제안|suggestion|개선/i');
-      await expect(suggestions).toBeVisible({ timeout: 5000 });
+      // Should show GOLDEN dimension content (en: "GOLDEN Dimension", ko: "GOLDEN 차원별")
+      const goldenContent = mainWindow.locator('text=/GOLDEN|일별|주별|월별|Daily|Weekly|Monthly/i');
+      await expect(goldenContent.first()).toBeVisible({ timeout: 5000 });
     }
   });
 });
@@ -202,14 +205,14 @@ test.describe('History Visualization', () => {
     const { app, mainWindow } = context;
 
     // Add test analyses
-    await invokeIPC(app, 'analyze-prompt', 'History test 1');
+    await analyzePrompt(app, mainWindow, 'History test 1');
     await mainWindow.waitForTimeout(1000);
 
-    await invokeIPC(app, 'analyze-prompt', 'History test 2');
+    await analyzePrompt(app, mainWindow, 'History test 2');
     await mainWindow.waitForTimeout(1000);
 
-    // Get history
-    const history = await invokeIPC(app, 'get-history', { limit: 10 });
+    // get-history takes (limit?: number)
+    const history = await invokeIPC(app, 'get-history', 10);
 
     expect(history).toBeDefined();
     expect(Array.isArray(history)).toBe(true);
@@ -219,7 +222,7 @@ test.describe('History Visualization', () => {
   test('should show timestamps for each analysis', async () => {
     const { app } = context;
 
-    const history = await invokeIPC(app, 'get-history', { limit: 5 });
+    const history = await invokeIPC(app, 'get-history', 5);
 
     if (history.length > 0) {
       expect(history[0]).toHaveProperty('timestamp');
@@ -230,22 +233,22 @@ test.describe('History Visualization', () => {
   test('should show scores for each analysis', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'Score test');
+    await analyzePrompt(app, mainWindow, 'Score test');
     await mainWindow.waitForTimeout(1000);
 
-    const history = await invokeIPC(app, 'get-history', { limit: 1 });
+    const history = await invokeIPC(app, 'get-history', 1);
 
     if (history.length > 0) {
-      expect(history[0]).toHaveProperty('averageScore');
-      expect(typeof history[0].averageScore).toBe('number');
+      expect(history[0]).toHaveProperty('overallScore');
+      expect(typeof history[0].overallScore).toBe('number');
     }
   });
 
   test('should allow filtering history by project', async () => {
     const { app } = context;
 
-    // Get project-specific patterns
-    const patterns = await invokeIPC(app, 'get-project-patterns', { projectName: 'test-project' });
+    // get-project-patterns takes (projectPath: string)
+    const patterns = await invokeIPC(app, 'get-project-patterns', '/tmp/test-project');
 
     expect(patterns).toBeDefined();
   });
@@ -253,11 +256,9 @@ test.describe('History Visualization', () => {
   test('should allow pagination of history', async () => {
     const { app } = context;
 
-    // Get first page
-    const page1 = await invokeIPC(app, 'get-history', { limit: 5, offset: 0 });
-
-    // Get second page
-    const page2 = await invokeIPC(app, 'get-history', { limit: 5, offset: 5 });
+    // get-history takes (limit?: number) — no offset support
+    const page1 = await invokeIPC(app, 'get-history', 5);
+    const page2 = await invokeIPC(app, 'get-history', 10);
 
     expect(page1).toBeDefined();
     expect(page2).toBeDefined();
@@ -268,10 +269,11 @@ test.describe('Project-Specific Insights', () => {
   test('should show project patterns', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'Project-specific test');
+    await analyzePrompt(app, mainWindow, 'Project-specific test');
     await mainWindow.waitForTimeout(1000);
 
-    const patterns = await invokeIPC(app, 'get-project-patterns', { projectName: 'prompt-evolution' });
+    // get-project-patterns takes (projectPath: string)
+    const patterns = await invokeIPC(app, 'get-project-patterns', '/tmp/prompt-evolution');
 
     expect(patterns).toBeDefined();
   });
@@ -279,13 +281,16 @@ test.describe('Project-Specific Insights', () => {
   test('should show context-based recommendations', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'Context test');
+    await analyzePrompt(app, mainWindow, 'Context test');
     await mainWindow.waitForTimeout(1000);
 
-    const recommendations = await invokeIPC(app, 'get-context-recommendations', {
-      projectName: 'prompt-evolution',
-      category: 'code-generation',
-    });
+    // get-context-recommendations takes (category?: string, projectPath?: string)
+    const recommendations = await invokeIPC(
+      app,
+      'get-context-recommendations',
+      'code-generation',
+      '/tmp/prompt-evolution'
+    );
 
     expect(recommendations).toBeDefined();
   });
@@ -293,8 +298,8 @@ test.describe('Project-Specific Insights', () => {
   test('should compare with project averages', async () => {
     const { app } = context;
 
-    // Get project-specific averages
-    const patterns = await invokeIPC(app, 'get-project-patterns', { projectName: 'test-project' });
+    // get-project-patterns takes (projectPath: string)
+    const patterns = await invokeIPC(app, 'get-project-patterns', '/tmp/test-project');
 
     expect(patterns).toBeDefined();
   });
@@ -304,11 +309,11 @@ test.describe('Data Export', () => {
   test('should allow exporting history data', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'Export test');
+    await analyzePrompt(app, mainWindow, 'Export test');
     await mainWindow.waitForTimeout(1000);
 
-    // Get all history (simulates export)
-    const allHistory = await invokeIPC(app, 'get-history', { limit: 1000 });
+    // get-history takes (limit?: number)
+    const allHistory = await invokeIPC(app, 'get-history', 1000);
 
     expect(allHistory).toBeDefined();
     expect(Array.isArray(allHistory)).toBe(true);
@@ -317,14 +322,14 @@ test.describe('Data Export', () => {
   test('should export complete analysis data', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'Complete data test');
+    await analyzePrompt(app, mainWindow, 'Complete data test');
     await mainWindow.waitForTimeout(1000);
 
-    const history = await invokeIPC(app, 'get-history', { limit: 1 });
+    const history = await invokeIPC(app, 'get-history', 1);
 
     if (history.length > 0) {
       const analysis = history[0];
-      expect(analysis).toHaveProperty('originalText');
+      expect(analysis).toHaveProperty('promptText');
       expect(analysis).toHaveProperty('goldenScores');
       expect(analysis).toHaveProperty('issues');
     }
@@ -340,7 +345,7 @@ test.describe('Real-time Updates', () => {
     const initialCount = initialStats.totalAnalyses || 0;
 
     // Add new analysis
-    await invokeIPC(app, 'analyze-prompt', 'New analysis');
+    await analyzePrompt(app, mainWindow, 'New analysis');
     await mainWindow.waitForTimeout(1500);
 
     // Get updated count
@@ -353,10 +358,11 @@ test.describe('Real-time Updates', () => {
   test('should update trends in real-time', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'Trend update test');
+    await analyzePrompt(app, mainWindow, 'Trend update test');
     await mainWindow.waitForTimeout(1000);
 
-    const trend = await invokeIPC(app, 'get-score-trend', { days: 7 });
+    // get-score-trend takes (days?: number)
+    const trend = await invokeIPC(app, 'get-score-trend', 7);
 
     expect(trend).toBeDefined();
   });

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Zap, ChevronDown, ChevronRight } from 'lucide-react';
+import { Zap, ChevronDown, ChevronRight, Check, Clipboard } from 'lucide-react';
 
 interface TopFix {
   dimension: string;
@@ -14,6 +14,8 @@ interface TopFix {
 interface TopFixCardProps {
   topFix: TopFix;
   onShowAllIssues?: () => void;
+  onFixNow?: () => void;
+  isSourceAppBlocked?: boolean;
 }
 
 const DIMENSION_LABELS: Record<string, string> = {
@@ -25,9 +27,16 @@ const DIMENSION_LABELS: Record<string, string> = {
   next: 'Next',
 };
 
-export default function TopFixCard({ topFix, onShowAllIssues }: TopFixCardProps) {
+export default function TopFixCard({ topFix, onShowAllIssues, onFixNow, isSourceAppBlocked }: TopFixCardProps) {
   const { t } = useTranslation('analysis');
   const [showDiff, setShowDiff] = useState(false);
+  const [applied, setApplied] = useState(false);
+
+  const handleFixNow = () => {
+    onFixNow?.();
+    setApplied(true);
+    setTimeout(() => setApplied(false), 2000);
+  };
 
   const dimensionLabel = DIMENSION_LABELS[topFix.dimension] ?? topFix.dimension;
   const deltaPoints = Math.round(topFix.scoreDelta * 100);
@@ -57,6 +66,33 @@ export default function TopFixCard({ topFix, onShowAllIssues }: TopFixCardProps)
           {t('topFix.dimension', { dimension: dimensionLabel })}
         </span>
       </div>
+
+      {/* Fix Now action */}
+      {onFixNow && (
+        <div className="px-3 pb-2">
+          <button
+            onClick={handleFixNow}
+            className="w-full flex items-center justify-center gap-1.5 py-2 bg-accent-primary hover:bg-accent-primary/80 text-white text-sm font-medium rounded-md transition-colors"
+          >
+            {applied ? (
+              <>
+                <Check size={14} />
+                <span>{t('topFix.fixed')}</span>
+              </>
+            ) : isSourceAppBlocked ? (
+              <>
+                <Clipboard size={14} />
+                <span>{t('topFix.fixCopy')}</span>
+              </>
+            ) : (
+              <>
+                <Zap size={14} />
+                <span>{t('topFix.fixNow')}</span>
+              </>
+            )}
+          </button>
+        </div>
+      )}
 
       {/* Before/After toggle */}
       <button

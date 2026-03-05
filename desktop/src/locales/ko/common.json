@@ -28,17 +28,17 @@
   "learnMore": "자세히 보기",
   "collapse": "접기",
   "showDetails": "세부 분석",
-  "newAnalysis": "새 분석",
+  "newAnalysis": "새 코칭",
   "betterThanAverage": "평균보다 {{percent}}% 높아요",
   "worseThanAverage": "평균보다 {{percent}}% 낮아요",
   "appName": "PromptLint",
-  "appDescription": "AI 프롬프트 품질 분석기",
+  "appDescription": "AI 프롬프트 코치",
   "version": "버전 {{version}}",
   "copyright": "© {{year}} philokalos",
   "about": {
     "title": "PromptLint 정보",
     "version": "버전 {{version}}",
-    "description": "AI 기반 맞춤형 학습을 통한 실시간 프롬프트 품질 분석. 프롬프트를 위한 Grammarly.",
+    "description": "AI 기반 실시간 프롬프트 코칭. 당신만의 프롬프트 코치.",
     "github": "GitHub에서 보기"
   },
   "alwaysOnTop": "항상 위에 표시",
@@ -73,7 +73,7 @@
       "step2Desc": "누르기"
     },
     "welcome": {
-      "title": "프롬프트 품질 개선하기",
+      "title": "프롬프트 코칭 받기",
       "step1Title": "프롬프트 선택",
       "step1Desc": "개선하고 싶은 텍스트를 드래그해서 선택",
       "step2Title": "분석 실행",
@@ -94,10 +94,10 @@
     }
   },
   "directInput": {
-    "placeholder": "분석할 프롬프트를 입력하세요... (⌘+Enter로 분석)",
+    "placeholder": "코칭받을 프롬프트를 붙여넣으세요... (⌘+Enter)",
     "charCount": "{{count}}자",
-    "submitHint": "⌘+Enter로 분석",
-    "button": "분석하기",
+    "submitHint": "⌘+Enter로 코칭",
+    "button": "코칭 받기",
     "toggle": "직접 입력하기",
     "toggleBack": "단축키로 분석하기"
   },
