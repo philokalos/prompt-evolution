@@ -10,6 +10,7 @@ import {
   closeElectronApp,
   waitForAppReady,
   waitForAnalysis,
+  analyzePrompt,
   setClipboard,
   getClipboard,
   invokeIPC,
@@ -37,7 +38,7 @@ test.describe('Complete Analysis Workflow', () => {
 
     // Step 1: Capture text
     await setClipboard(app, testPrompt);
-    await invokeIPC(app, 'analyze-prompt', testPrompt);
+    await analyzePrompt(app, mainWindow, testPrompt);
 
     // Step 2: Verify analysis completes (grade badge visible)
     await waitForAnalysis(mainWindow);
@@ -76,14 +77,14 @@ test.describe('Complete Analysis Workflow', () => {
     ];
 
     for (const prompt of prompts) {
-      await invokeIPC(app, 'analyze-prompt', prompt);
+      await analyzePrompt(app, mainWindow, prompt);
 
       // Wait for analysis to complete (grade badge visible)
       await waitForAnalysis(mainWindow);
     }
 
     // History should have all analyses
-    const history = await invokeIPC(app, 'get-history', { limit: 10 });
+    const history = await invokeIPC(app, 'get-history', 10);
     expect(history.length).toBeGreaterThanOrEqual(prompts.length);
   });
 
@@ -94,10 +95,10 @@ test.describe('Complete Analysis Workflow', () => {
     const initialStats = await invokeIPC(app, 'get-stats');
 
     // Perform multiple analyses
-    await invokeIPC(app, 'analyze-prompt', 'First analysis for progress');
+    await analyzePrompt(app, mainWindow, 'First analysis for progress');
     await mainWindow.waitForTimeout(1000);
 
-    await invokeIPC(app, 'analyze-prompt', 'Second analysis with improvements');
+    await analyzePrompt(app, mainWindow, 'Second analysis with improvements');
     await mainWindow.waitForTimeout(1000);
 
     // Get updated stats
@@ -116,7 +117,7 @@ test.describe.skip('Ghost Bar Integration', () => {
     const initialWindowCount = (await getAllWindows(app)).length;
 
     // Analyze prompt
-    await invokeIPC(app, 'analyze-prompt', testPrompt);
+    await analyzePrompt(app, mainWindow, testPrompt);
     await mainWindow.waitForTimeout(2000);
 
     // Show Ghost Bar with improved variant
@@ -164,7 +165,7 @@ test.describe('Settings Integration', () => {
     const { app, mainWindow } = context;
 
     // Analyze in default language
-    await invokeIPC(app, 'analyze-prompt', 'Language test');
+    await analyzePrompt(app, mainWindow, 'Language test');
     await mainWindow.waitForTimeout(1500);
 
     // Change language to English
@@ -193,7 +194,7 @@ test.describe('Settings Integration', () => {
     await mainWindow.waitForTimeout(500);
 
     // Analyze prompt (will use rule-based variants only)
-    await invokeIPC(app, 'analyze-prompt', 'Provider test prompt');
+    await analyzePrompt(app, mainWindow, 'Provider test prompt');
     await mainWindow.waitForTimeout(2000);
 
     // Should show suggested rewrite (rule-based)
@@ -222,7 +223,7 @@ test.describe('Error Recovery', () => {
     const { app, mainWindow } = context;
 
     // Try empty prompt
-    await invokeIPC(app, 'analyze-prompt', '');
+    await analyzePrompt(app, mainWindow, '');
     await mainWindow.waitForTimeout(500);
 
     // Should show error state (ko: "분석할 프롬프트가 없어요", en: "No prompt to analyze")
@@ -230,7 +231,7 @@ test.describe('Error Recovery', () => {
     await expect(emptyState).toBeVisible();
 
     // Analyze valid prompt
-    await invokeIPC(app, 'analyze-prompt', 'Valid prompt after error');
+    await analyzePrompt(app, mainWindow, 'Valid prompt after error');
 
     // Should show analysis (grade badge visible)
     await waitForAnalysis(mainWindow);
@@ -246,7 +247,7 @@ test.describe('Error Recovery', () => {
     await mainWindow.waitForTimeout(500);
 
     // Analyze (should fall back to rule-based)
-    await invokeIPC(app, 'analyze-prompt', 'API error test');
+    await analyzePrompt(app, mainWindow, 'API error test');
     await mainWindow.waitForTimeout(2000);
 
     // Should still show analysis (rule-based variants)
@@ -257,7 +258,7 @@ test.describe('Error Recovery', () => {
     const { app, mainWindow } = context;
 
     // Analyze prompt
-    await invokeIPC(app, 'analyze-prompt', 'State persistence test');
+    await analyzePrompt(app, mainWindow, 'State persistence test');
     await waitForAnalysis(mainWindow);
 
     // Hide window
@@ -284,7 +285,7 @@ test.describe('History and Progress Integration', () => {
     const prompts = ['First', 'Second', 'Third'];
 
     for (const prompt of prompts) {
-      await invokeIPC(app, 'analyze-prompt', `${prompt} history test`);
+      await analyzePrompt(app, mainWindow, `${prompt} history test`);
       await mainWindow.waitForTimeout(1000);
     }
 
@@ -299,7 +300,7 @@ test.describe('History and Progress Integration', () => {
     }
 
     // Verify history via IPC
-    const history = await invokeIPC(app, 'get-history', { limit: 10 });
+    const history = await invokeIPC(app, 'get-history', 10);
     expect(history.length).toBeGreaterThanOrEqual(prompts.length);
   });
 
@@ -307,17 +308,17 @@ test.describe('History and Progress Integration', () => {
     const { app, mainWindow } = context;
 
     // Analyze multiple prompts
-    await invokeIPC(app, 'analyze-prompt', 'Poor prompt');
+    await analyzePrompt(app, mainWindow, 'Poor prompt');
     await mainWindow.waitForTimeout(1000);
 
-    await invokeIPC(app, 'analyze-prompt', 'Better prompt with clear goal and output');
+    await analyzePrompt(app, mainWindow, 'Better prompt with clear goal and output');
     await mainWindow.waitForTimeout(1000);
 
-    await invokeIPC(app, 'analyze-prompt', 'Excellent prompt: Create a React login component with email validation, error handling, and responsive design');
+    await analyzePrompt(app, mainWindow, 'Excellent prompt: Create a React login component with email validation, error handling, and responsive design');
     await mainWindow.waitForTimeout(1000);
 
     // Get trend data
-    const trend = await invokeIPC(app, 'get-score-trend', { days: 7 });
+    const trend = await invokeIPC(app, 'get-score-trend', 7);
 
     expect(trend).toBeDefined();
     expect(Array.isArray(trend)).toBe(true);
@@ -327,7 +328,7 @@ test.describe('History and Progress Integration', () => {
     const { app, mainWindow } = context;
 
     // Analyze with weak dimensions
-    await invokeIPC(app, 'analyze-prompt', 'do something');
+    await analyzePrompt(app, mainWindow, 'do something');
     await mainWindow.waitForTimeout(1500);
 
     // Get weaknesses
@@ -346,7 +347,7 @@ test.describe('Real-World Scenarios', () => {
     const rapidPrompts = ['One', 'Two', 'Three', 'Four', 'Five'];
 
     for (const prompt of rapidPrompts) {
-      invokeIPC(app, 'analyze-prompt', prompt); // Don't await
+      analyzePrompt(app, mainWindow, prompt); // Don't await
       await mainWindow.waitForTimeout(300);
     }
 
@@ -357,7 +358,7 @@ test.describe('Real-World Scenarios', () => {
     expect(mainWindow).toBeDefined();
 
     // At least some analyses should complete
-    const history = await invokeIPC(app, 'get-history', { limit: 10 });
+    const history = await invokeIPC(app, 'get-history', 10);
     expect(history.length).toBeGreaterThan(0);
   });
 
@@ -366,7 +367,7 @@ test.describe('Real-World Scenarios', () => {
 
     const longPrompt = 'Create a complex system that ' + 'handles multiple scenarios '.repeat(50);
 
-    await invokeIPC(app, 'analyze-prompt', longPrompt);
+    await analyzePrompt(app, mainWindow, longPrompt);
     await mainWindow.waitForTimeout(2000);
 
     // Should process without crashing
@@ -378,7 +379,7 @@ test.describe('Real-World Scenarios', () => {
 
     const specialPrompt = 'Test with special chars: @#$%^&*() "quotes" \'apostrophes\' 한글 日本語';
 
-    await invokeIPC(app, 'analyze-prompt', specialPrompt);
+    await analyzePrompt(app, mainWindow, specialPrompt);
     await mainWindow.waitForTimeout(1500);
 
     // Should handle without errors
@@ -393,7 +394,7 @@ test.describe('Real-World Scenarios', () => {
     await setClipboard(app, originalPrompt);
 
     // Step 2: Analyze
-    await invokeIPC(app, 'analyze-prompt', originalPrompt);
+    await analyzePrompt(app, mainWindow, originalPrompt);
     await waitForAnalysis(mainWindow);
 
     // Step 3: Use TopFixCard "Fix This Now" action
@@ -426,7 +427,7 @@ test.describe.skip('Multi-Window Coordination', () => {
     const initialWindowCount = (await getAllWindows(app)).length;
 
     // Analyze in main window
-    await invokeIPC(app, 'analyze-prompt', 'Multi-window test');
+    await analyzePrompt(app, mainWindow, 'Multi-window test');
     await mainWindow.waitForTimeout(1500);
 
     // Show Ghost Bar

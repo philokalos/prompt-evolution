@@ -1,6 +1,6 @@
 {
   "title": "Analysis",
-  "analyzing": "AI is analyzing your prompt...",
+  "analyzing": "Getting your coaching ready...",
   "complete": "Analysis complete",
   "noPrompt": "No prompt to analyze",
   "captureHint": "Press {{shortcut}} to capture text",
@@ -34,8 +34,8 @@
     "nextDesc": "Follow-up actions specified"
   },
   "issues": {
-    "title": "Issues Found",
-    "noIssues": "Well written!",
+    "title": "Coaching Points",
+    "noIssues": "Great job! Nothing to fix",
     "noIssuesDesc": "No issues found. Great prompt!",
     "critical": "Critical",
     "warning": "Warning",
@@ -126,9 +126,9 @@
     "hideDetails": "Hide details"
   },
   "issues": {
-    "title": "Issues Found",
-    "count": "Issues Found ({{count}})",
-    "noIssues": "Well written!",
+    "title": "Coaching Points",
+    "count": "Coaching Points ({{count}})",
+    "noIssues": "Great job! Nothing to fix",
     "noIssuesDesc": "Your prompt is clear and complete.",
     "critical": "Critical",
     "warning": "Warning",
@@ -349,32 +349,35 @@
     }
   },
   "improvedPrompt": {
-    "title": "Improved Prompt",
-    "replace": "Replace",
+    "title": "How About This?",
+    "replace": "Apply & Learn",
     "copyAndSwitch": "Copy & Switch",
     "copied": "Copied!",
     "pasteHint": "Cmd+V to paste",
     "scoreChange": "{{before}} → {{after}}",
     "pointsUp": "+{{points}} points",
     "gradeUp": "{{before}} → {{after}}",
-    "noImprovement": "Already well-written!",
+    "noImprovement": "Nailed it! Nothing to fix",
     "contextIncluded": "Auto-included: {{context}}",
     "contextBadge": "Context"
   },
   "topFix": {
     "title": "Top Fix",
-    "badge": "Biggest Impact",
+    "badge": "Fix This First",
     "before": "Before",
     "after": "After",
-    "showMore": "Show {{count}} more issues",
+    "showMore": "{{count}} more coaching points",
     "noIssues": "Great prompt!",
     "noIssuesDesc": "No improvements needed — your prompt already covers all dimensions well.",
     "dimension": "{{dimension}} dimension",
-    "impact": "+{{delta}} points potential"
+    "impact": "+{{delta}} points if you fix this",
+    "fixNow": "Fix This Now",
+    "fixCopy": "Copy Fix",
+    "fixed": "Fixed!"
   },
   "details": {
     "title": "Detailed Analysis",
-    "expand": "Show details",
+    "expand": "See full analysis",
     "collapse": "Hide details"
   },
   "copySwitch": {
@@ -479,6 +482,16 @@
       "data-analysis": "Data Analysis",
       "general": "General"
     }
+  },
+  "coaching": {
+    "suggestedRewrite": "Suggested Rewrite"
+  },
+  "gradeMessage": {
+    "A": "Nailed it!",
+    "B": "Good start! One more thing",
+    "C": "Getting there — focus on the top fix",
+    "D": "Room to grow — start with one change",
+    "F": "Let's build this up step by step"
   },
   "instructionLinter": {
     "title": "Instruction File Analysis",

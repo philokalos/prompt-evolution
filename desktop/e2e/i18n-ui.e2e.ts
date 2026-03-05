@@ -9,7 +9,9 @@ import {
   launchElectronApp,
   closeElectronApp,
   waitForAppReady,
+  analyzePrompt,
   invokeIPC,
+  wait,
   type ElectronAppContext,
 } from './helpers/electron-app';
 
@@ -30,7 +32,9 @@ test.describe('Language Detection', () => {
 
     const language = await invokeIPC(app, 'get-language');
 
-    expect(language).toMatch(/^(en|ko|auto)$/);
+    // get-language returns { preference, resolved, systemLanguage }
+    expect(language).toHaveProperty('resolved');
+    expect(['en', 'ko']).toContain(language.resolved);
   });
 
   test('should have default language set', async () => {
@@ -58,7 +62,7 @@ test.describe('Language Switching', () => {
 
     // Verify language was saved
     const language = await invokeIPC(app, 'get-language');
-    expect(language).toBe('en');
+    expect(language.preference).toBe('en');
   });
 
   test('should switch to Korean', async () => {
@@ -74,7 +78,7 @@ test.describe('Language Switching', () => {
 
     // Verify language was saved
     const language = await invokeIPC(app, 'get-language');
-    expect(language).toBe('ko');
+    expect(language.preference).toBe('ko');
   });
 
   test('should update all UI text on language change', async () => {
@@ -115,7 +119,7 @@ test.describe('Settings UI Language', () => {
   });
 
   test('should show language options', async () => {
-    const { app, mainWindow } = context;
+    const { mainWindow } = context;
 
     // Open settings
     const settingsButton = mainWindow.locator('button:has-text("설정"), button:has-text("Settings")').first();
@@ -136,12 +140,12 @@ test.describe('Settings UI Language', () => {
     const initialLanguage = await invokeIPC(app, 'get-language');
 
     // Change language via IPC (simulates settings change)
-    const newLanguage = initialLanguage === 'en' ? 'ko' : 'en';
+    const newLanguage = initialLanguage.preference === 'en' ? 'ko' : 'en';
     await invokeIPC(app, 'set-language', newLanguage);
     await mainWindow.waitForTimeout(1000);
 
     const updatedLanguage = await invokeIPC(app, 'get-language');
-    expect(updatedLanguage).toBe(newLanguage);
+    expect(updatedLanguage.preference).toBe(newLanguage);
   });
 });
 
@@ -150,7 +154,7 @@ test.describe('Component-Specific Translations', () => {
     const { app, mainWindow } = context;
 
     const testPrompt = 'Test translation prompt';
-    await invokeIPC(app, 'analyze-prompt', testPrompt);
+    await analyzePrompt(app, mainWindow, testPrompt);
     await mainWindow.waitForTimeout(1500);
 
     // English labels
@@ -164,7 +168,7 @@ test.describe('Component-Specific Translations', () => {
   test('should translate issue severity labels', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'Poor prompt');
+    await analyzePrompt(app, mainWindow, 'Poor prompt');
     await mainWindow.waitForTimeout(1500);
 
     // Switch to Korean
@@ -179,7 +183,7 @@ test.describe('Component-Specific Translations', () => {
   test('should translate button labels', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'Button test');
+    await analyzePrompt(app, mainWindow, 'Button test');
     await mainWindow.waitForTimeout(1500);
 
     // English buttons
@@ -196,39 +200,36 @@ test.describe('Component-Specific Translations', () => {
     await invokeIPC(app, 'set-language', 'ko');
     await mainWindow.waitForTimeout(1000);
 
-    // Look for help text in Korean
-    const helpText = mainWindow.locator('text=/도움말|설명/i');
-
     // Help text may or may not be visible by default
     // Just verify language was set correctly
     const language = await invokeIPC(app, 'get-language');
-    expect(language).toBe('ko');
+    expect(language.preference).toBe('ko');
   });
 });
 
 test.describe('Tray Menu Language', () => {
   test('should update tray menu on language change', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
     // Change language (triggers tray menu rebuild)
     await invokeIPC(app, 'set-language', 'en');
-    await app.waitForTimeout(500);
+    await mainWindow.waitForTimeout(500);
 
     // Tray menu should be rebuilt
     // Note: Cannot directly test tray menu in Playwright
     // Just verify language was changed
     const language = await invokeIPC(app, 'get-language');
-    expect(language).toBe('en');
+    expect(language.preference).toBe('en');
   });
 
   test('should persist tray menu language', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
     await invokeIPC(app, 'set-language', 'ko');
-    await app.waitForTimeout(500);
+    await mainWindow.waitForTimeout(500);
 
     const language = await invokeIPC(app, 'get-language');
-    expect(language).toBe('ko');
+    expect(language.preference).toBe('ko');
   });
 });
 
@@ -237,7 +238,7 @@ test.describe('Error Messages', () => {
     const { app, mainWindow } = context;
 
     // Trigger an error scenario
-    await invokeIPC(app, 'analyze-prompt', '');
+    await analyzePrompt(app, mainWindow, '');
     await mainWindow.waitForTimeout(500);
 
     // Should show error in current language
@@ -246,12 +247,12 @@ test.describe('Error Messages', () => {
   });
 
   test('should translate validation messages', async () => {
-    const { app, mainWindow } = context;
+    const { app } = context;
 
     // Try to set invalid language
     try {
       await invokeIPC(app, 'set-language', 'invalid');
-    } catch (error) {
+    } catch {
       // May throw validation error
     }
 
@@ -262,67 +263,68 @@ test.describe('Error Messages', () => {
 
 test.describe('Language Persistence', () => {
   test('should persist language selection', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
     // Set language
     await invokeIPC(app, 'set-language', 'en');
-    await app.waitForTimeout(500);
+    await mainWindow.waitForTimeout(500);
 
     // Retrieve language (simulates restart)
     const language = await invokeIPC(app, 'get-language');
 
-    expect(language).toBe('en');
+    expect(language.preference).toBe('en');
   });
 
   test('should restore language on app restart', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
     // Set language
     await invokeIPC(app, 'set-language', 'ko');
-    await app.waitForTimeout(500);
+    await mainWindow.waitForTimeout(500);
 
     // Note: Cannot actually restart app in test
     // Just verify persistence mechanism works
     const language = await invokeIPC(app, 'get-language');
-    expect(language).toBe('ko');
+    expect(language.preference).toBe('ko');
   });
 
   test('should handle missing language file gracefully', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
     // Set to supported language
     await invokeIPC(app, 'set-language', 'en');
-    await app.waitForTimeout(500);
+    await mainWindow.waitForTimeout(500);
 
     // Should work without errors
     const language = await invokeIPC(app, 'get-language');
-    expect(language).toBe('en');
+    expect(language.preference).toBe('en');
   });
 });
 
 test.describe('Auto Language Detection', () => {
   test('should use system language when set to auto', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
     // Set to auto
     await invokeIPC(app, 'set-language', 'auto');
-    await app.waitForTimeout(500);
+    await mainWindow.waitForTimeout(500);
 
     const language = await invokeIPC(app, 'get-language');
 
-    // Should be auto or resolved to a specific language
-    expect(['auto', 'en', 'ko']).toContain(language);
+    // Should resolve to a specific language
+    expect(['en', 'ko']).toContain(language.resolved);
   });
 
   test('should update when system language changes', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
     await invokeIPC(app, 'set-language', 'auto');
-    await app.waitForTimeout(500);
+    await mainWindow.waitForTimeout(500);
 
     // Auto should be set
     const language = await invokeIPC(app, 'get-language');
-    expect(['auto', 'en', 'ko']).toContain(language);
+    expect(language.preference).toBe('auto');
+    expect(['en', 'ko']).toContain(language.resolved);
   });
 });
 
@@ -330,7 +332,7 @@ test.describe('Interpolation and Formatting', () => {
   test('should handle numeric interpolation', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'Numeric test');
+    await analyzePrompt(app, mainWindow, 'Numeric test');
     await mainWindow.waitForTimeout(1500);
 
     // Should show scores with % (e.g., "85%")
@@ -341,7 +343,7 @@ test.describe('Interpolation and Formatting', () => {
   test('should handle pluralization', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'Plural test with issues');
+    await analyzePrompt(app, mainWindow, 'Plural test with issues');
     await mainWindow.waitForTimeout(1500);
 
     // Should show issue count (e.g., "3 issues" or "3개 이슈")
@@ -352,7 +354,7 @@ test.describe('Interpolation and Formatting', () => {
   test('should format dates/times correctly', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'Date test');
+    await analyzePrompt(app, mainWindow, 'Date test');
     await mainWindow.waitForTimeout(1500);
 
     // History should have timestamps

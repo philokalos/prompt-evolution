@@ -12,6 +12,7 @@ import {
   closeElectronApp,
   waitForAppReady,
   waitForAnalysis,
+  analyzePrompt,
   setClipboard,
   getClipboard,
   invokeIPC,
@@ -50,7 +51,7 @@ test.describe('Accessibility Permissions (TC-008, TC-009)', () => {
 
     if (!isAccessible) {
       await setClipboard(app, 'Clipboard fallback test prompt');
-      await invokeIPC(app, 'analyze-prompt', 'Clipboard fallback test prompt');
+      await analyzePrompt(app, mainWindow, 'Clipboard fallback test prompt');
       await waitForAnalysis(mainWindow);
 
       // Analysis should complete successfully (grade badge visible)
@@ -66,7 +67,7 @@ test.describe('Grade Verification (TC-014)', () => {
   test('TC-014: should assign low grade (D or F) for vague prompts', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'fix this bug');
+    await analyzePrompt(app, mainWindow, 'fix this bug');
     await waitForAnalysis(mainWindow);
 
     // Grade badge should show D or F
@@ -87,7 +88,7 @@ test.describe('Weakness Identification (TC-017)', () => {
   test('TC-017: should identify lowest GOLDEN dimension', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'do something');
+    await analyzePrompt(app, mainWindow, 'do something');
     await mainWindow.waitForTimeout(1500);
 
     const averages = await invokeIPC(app, 'get-golden-averages');
@@ -115,7 +116,7 @@ test.describe('Issue Details (TC-018, TC-019, TC-020)', () => {
   test('TC-018: should sort issues by severity', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'do something');
+    await analyzePrompt(app, mainWindow, 'do something');
     await waitForAnalysis(mainWindow);
 
     // TopFix card shows the highest-priority issue (ko: "지금 이것만!", en: "Fix This First")
@@ -131,7 +132,7 @@ test.describe('Issue Details (TC-018, TC-019, TC-020)', () => {
   test('TC-019: should include suggestions in each issue', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'fix it');
+    await analyzePrompt(app, mainWindow, 'fix it');
     await waitForAnalysis(mainWindow);
 
     // TopFix card contains issue description and suggested fix
@@ -146,7 +147,7 @@ test.describe('Issue Details (TC-018, TC-019, TC-020)', () => {
   test('TC-020: should display issue count', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'fix bug');
+    await analyzePrompt(app, mainWindow, 'fix bug');
     await waitForAnalysis(mainWindow);
 
     // TopFix card is the primary issue display (ko: "지금 이것만!", en: "Fix This First")
@@ -159,7 +160,7 @@ test.describe('Variant Score Order (TC-025, TC-026)', () => {
   test('TC-025: should show GOLDEN scores after analysis', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'fix bug');
+    await analyzePrompt(app, mainWindow, 'fix bug');
     await waitForAnalysis(mainWindow);
 
     // GoldenMiniBar shows scores in G:XX% format
@@ -170,7 +171,7 @@ test.describe('Variant Score Order (TC-025, TC-026)', () => {
   test('TC-026: should display suggested rewrite with details', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'fix bug');
+    await analyzePrompt(app, mainWindow, 'fix bug');
     await waitForAnalysis(mainWindow);
 
     // CollapsibleDetails "Suggested Rewrite" should be expandable
@@ -187,7 +188,7 @@ test.describe('Copy Feedback (TC-030)', () => {
   test('TC-030: should show feedback after fix action', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'create component');
+    await analyzePrompt(app, mainWindow, 'create component');
     await waitForAnalysis(mainWindow);
 
     // Use TopFixCard "Fix This Now" button
@@ -207,7 +208,7 @@ test.describe('Apply Button (TC-032, TC-033, TC-034)', () => {
   test('TC-032: should show fix button after analysis', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'create login form');
+    await analyzePrompt(app, mainWindow, 'create login form');
     await waitForAnalysis(mainWindow);
 
     // TopFixCard "Fix This Now" button (ko: "지금 고치기", en: "Fix This Now")
@@ -220,7 +221,7 @@ test.describe('Apply Button (TC-032, TC-033, TC-034)', () => {
 
     const originalPrompt = 'fix authentication';
     await setClipboard(app, originalPrompt);
-    await invokeIPC(app, 'analyze-prompt', originalPrompt);
+    await analyzePrompt(app, mainWindow, originalPrompt);
     await waitForAnalysis(mainWindow);
 
     const fixButton = mainWindow.locator('button:has-text("지금 고치기"), button:has-text("Fix This Now")').first();
@@ -238,7 +239,7 @@ test.describe('Apply Button (TC-032, TC-033, TC-034)', () => {
   test('TC-034: should handle fix failure gracefully (clipboard fallback)', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'test apply fallback');
+    await analyzePrompt(app, mainWindow, 'test apply fallback');
     await waitForAnalysis(mainWindow);
 
     const fixButton = mainWindow.locator('button:has-text("지금 고치기"), button:has-text("Fix This Now")').first();
@@ -255,7 +256,7 @@ test.describe('Block App Detection (TC-035, TC-036, TC-037)', () => {
   test('TC-035: should detect blocked apps and show alternative button', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'Block app detection test');
+    await analyzePrompt(app, mainWindow, 'Block app detection test');
     await waitForAnalysis(mainWindow);
 
     // TopFixCard shows "Fix This Now" or "Copy Fix" depending on blocked status
@@ -268,7 +269,7 @@ test.describe('Block App Detection (TC-035, TC-036, TC-037)', () => {
   test('TC-036: should copy to clipboard on fix action', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'copy and switch test');
+    await analyzePrompt(app, mainWindow, 'copy and switch test');
     await waitForAnalysis(mainWindow);
 
     const fixButton = mainWindow.locator('button:has-text("지금 고치기"), button:has-text("Fix This Now")').first();
@@ -286,7 +287,7 @@ test.describe('Block App Detection (TC-035, TC-036, TC-037)', () => {
   test('TC-037: should show feedback after fix action', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'toast notification test');
+    await analyzePrompt(app, mainWindow, 'toast notification test');
     await waitForAnalysis(mainWindow);
 
     const fixButton = mainWindow.locator('button:has-text("지금 고치기"), button:has-text("Fix This Now")').first();
@@ -303,7 +304,7 @@ test.describe('Block App Detection (TC-035, TC-036, TC-037)', () => {
 
 test.describe('Ghost Bar Conditional Display (TC-043)', () => {
   test('TC-043: should not show Ghost Bar for A-grade prompts', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
     const initialWindowCount = (await getAllWindows(app)).length;
 
@@ -316,8 +317,8 @@ test.describe('Ghost Bar Conditional Display (TC-043)', () => {
       '- Unit tests using Vitest and React Testing Library\n' +
       '- Output as a single LoginForm.tsx component with TypeScript props interface';
 
-    await invokeIPC(app, 'analyze-prompt', highQualityPrompt);
-    await app.waitForTimeout(2000);
+    await analyzePrompt(app, mainWindow, highQualityPrompt);
+    await mainWindow.waitForTimeout(2000);
 
     const finalWindowCount = (await getAllWindows(app)).length;
     expect(finalWindowCount).toBe(initialWindowCount);
@@ -332,7 +333,7 @@ test.describe('Ghost Bar History Save (TC-047)', () => {
     const initialHistory = await invokeIPC(app, 'get-history', 100);
     const initialCount = Array.isArray(initialHistory) ? initialHistory.length : 0;
 
-    await invokeIPC(app, 'analyze-prompt', 'Ghost bar history test prompt');
+    await analyzePrompt(app, mainWindow, 'Ghost bar history test prompt');
     await app.waitForTimeout(1500);
 
     const initialWindowCount = (await getAllWindows(app)).length;
@@ -376,7 +377,7 @@ test.describe('Ghost Bar Detail Transition (TC-050, TC-051)', () => {
   test.skip('TC-051: should use cached results without re-analysis', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'Cache test prompt for ghost bar');
+    await analyzePrompt(app, mainWindow, 'Cache test prompt for ghost bar');
     await mainWindow.waitForTimeout(1500);
 
     const history1 = await invokeIPC(app, 'get-history', 1);
@@ -435,7 +436,7 @@ test.describe('AI Variant Display (TC-059, TC-060)', () => {
     ]);
     await mainWindow.waitForTimeout(500);
 
-    await invokeIPC(app, 'analyze-prompt', 'AI badge test prompt');
+    await analyzePrompt(app, mainWindow, 'AI badge test prompt');
     await waitForAnalysis(mainWindow);
 
     // Suggested Rewrite section should be visible
@@ -450,7 +451,7 @@ test.describe('AI Variant Display (TC-059, TC-060)', () => {
   test('TC-060: should display suggested rewrite section', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'AI explanation test');
+    await analyzePrompt(app, mainWindow, 'AI explanation test');
     await waitForAnalysis(mainWindow);
 
     const suggestedRewrite = mainWindow.locator('button:has-text("추천 수정안"), button:has-text("Suggested Rewrite")');
@@ -467,7 +468,7 @@ test.describe('Error Non-Exposure (TC-062)', () => {
     ]);
     await mainWindow.waitForTimeout(500);
 
-    await invokeIPC(app, 'analyze-prompt', 'Error non-exposure test');
+    await analyzePrompt(app, mainWindow, 'Error non-exposure test');
     await waitForAnalysis(mainWindow);
 
     const errorDialog = mainWindow.locator('[role="dialog"]:has-text("error"), [role="alertdialog"]');
@@ -499,7 +500,7 @@ test.describe('Project-Specific Feedback (TC-076)', () => {
     ];
 
     for (const prompt of prompts) {
-      await invokeIPC(app, 'analyze-prompt', prompt);
+      await analyzePrompt(app, mainWindow, prompt);
       await mainWindow.waitForTimeout(800);
     }
 
@@ -531,7 +532,7 @@ test.describe('Session Context (TC-094, TC-095, TC-096)', () => {
   test('TC-096: should inject context into comprehensive variant', async () => {
     const { app, mainWindow } = context;
 
-    await invokeIPC(app, 'analyze-prompt', 'create a new API endpoint');
+    await analyzePrompt(app, mainWindow, 'create a new API endpoint');
     await waitForAnalysis(mainWindow);
 
     // Suggested Rewrite section should be visible (contains comprehensive variant)

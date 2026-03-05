@@ -91,7 +91,7 @@ test.describe('Language Settings', () => {
 
     // Check for English text (case-insensitive)
     const englishText = mainWindow.locator('text=/analysis|settings|prompt/i');
-    await expect(englishText).toBeVisible({ timeout: 3000 });
+    await expect(englishText.first()).toBeVisible({ timeout: 3000 });
   });
 
   test('should change language to Korean', async () => {
@@ -103,19 +103,19 @@ test.describe('Language Settings', () => {
 
     // Check for Korean text
     const koreanText = mainWindow.locator('text=/분석|설정|프롬프트/');
-    await expect(koreanText).toBeVisible({ timeout: 3000 });
+    await expect(koreanText.first()).toBeVisible({ timeout: 3000 });
   });
 
   test('should persist language setting', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
     // Set language
     await invokeIPC(app, 'set-language', 'en');
-    await app.waitForTimeout(500);
+    await mainWindow.waitForTimeout(500);
 
-    // Get language
+    // Get language — returns { preference, resolved, systemLanguage }
     const language = await invokeIPC(app, 'get-language');
-    expect(language).toBe('en');
+    expect(language.preference).toBe('en');
   });
 });
 
@@ -227,20 +227,18 @@ test.describe('AI Provider Settings', () => {
   });
 
   test('should configure AI provider via IPC', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
-    const providerConfig = {
-      provider: 'claude',
-      apiKey: 'sk-test-key-123',
-      enabled: true,
-    };
+    const providerConfig = [
+      { type: 'claude', apiKey: 'sk-test-key-123', enabled: true },
+    ];
 
     // Set provider config
-    await invokeIPC(app, 'set-ai-provider', providerConfig);
-    await app.waitForTimeout(500);
+    await invokeIPC(app, 'set-providers', providerConfig);
+    await mainWindow.waitForTimeout(500);
 
     // Get provider list
-    const providers = await invokeIPC(app, 'get-ai-providers');
+    const providers = await invokeIPC(app, 'get-providers');
 
     expect(providers).toBeDefined();
     expect(Array.isArray(providers)).toBe(true);
@@ -249,38 +247,38 @@ test.describe('AI Provider Settings', () => {
 
 test.describe('Settings Persistence', () => {
   test('should save settings on change', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
     // Change a setting
     await invokeIPC(app, 'set-language', 'en');
-    await app.waitForTimeout(500);
+    await mainWindow.waitForTimeout(500);
 
-    // Retrieve setting
+    // Retrieve setting — returns { preference, resolved, systemLanguage }
     const language = await invokeIPC(app, 'get-language');
 
-    expect(language).toBe('en');
+    expect(language.preference).toBe('en');
   });
 
   test('should restore settings on app restart', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
     // Note: Testing actual restart is complex
     // This test just verifies settings are persisted
 
     // Set a setting
     await invokeIPC(app, 'set-language', 'ko');
-    await app.waitForTimeout(500);
+    await mainWindow.waitForTimeout(500);
 
     // Get setting (simulates restart read)
     const language = await invokeIPC(app, 'get-language');
 
-    expect(language).toBe('ko');
+    expect(language.preference).toBe('ko');
   });
 });
 
 test.describe('Settings Validation', () => {
   test('should validate hotkey format', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
     // Try to set invalid hotkey
     // Note: Actual validation depends on implementation
@@ -288,8 +286,8 @@ test.describe('Settings Validation', () => {
 
     try {
       await invokeIPC(app, 'set-hotkey', 'invalid-key');
-      await app.waitForTimeout(500);
-    } catch (error) {
+      await mainWindow.waitForTimeout(500);
+    } catch {
       // May throw validation error
     }
 
@@ -297,17 +295,15 @@ test.describe('Settings Validation', () => {
   });
 
   test('should validate API key format', async () => {
-    const { app } = context;
+    const { app, mainWindow } = context;
 
     // Try to set invalid API key
     try {
-      await invokeIPC(app, 'set-ai-provider', {
-        provider: 'claude',
-        apiKey: 'invalid',
-        enabled: true,
-      });
-      await app.waitForTimeout(500);
-    } catch (error) {
+      await invokeIPC(app, 'set-providers', [
+        { type: 'claude', apiKey: 'invalid', enabled: true },
+      ]);
+      await mainWindow.waitForTimeout(500);
+    } catch {
       // May throw validation error
     }
 

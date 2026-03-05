@@ -9,6 +9,8 @@ import {
   launchElectronApp,
   closeElectronApp,
   waitForAppReady,
+  waitForAnalysis,
+  analyzePrompt,
   setClipboard,
   invokeIPC,
   type ElectronAppContext,
@@ -35,27 +37,27 @@ test.describe('Text Capture', () => {
     await setClipboard(app, testPrompt);
 
     // Trigger analysis via IPC (simulating hotkey capture)
-    await invokeIPC(app, 'analyze-prompt', testPrompt);
+    await analyzePrompt(app, mainWindow, testPrompt);
 
-    // Wait for analysis to complete
-    await mainWindow.waitForTimeout(1000);
+    // Wait for analysis to complete (grade badge visible)
+    await waitForAnalysis(mainWindow);
 
-    // Should display the analyzed prompt
-    const promptText = mainWindow.locator(`text=${testPrompt}`);
-    await expect(promptText).toBeVisible({ timeout: 5000 });
+    // Grade badge should be visible
+    const gradeBadge = mainWindow.locator('.grade-badge');
+    await expect(gradeBadge).toBeVisible();
   });
 
   test('should handle empty text', async () => {
     const { app, mainWindow } = context;
 
     // Try to analyze empty text
-    await invokeIPC(app, 'analyze-prompt', '');
+    await analyzePrompt(app, mainWindow, '');
 
     await mainWindow.waitForTimeout(500);
 
-    // Should show empty state or error
-    const emptyState = mainWindow.locator('text=/분석할 프롬프트|no prompt/i');
-    await expect(emptyState).toBeVisible();
+    // Should show empty state or error (ko: "분석할 프롬프트가 없어요", en: "No prompt to analyze")
+    const emptyState = mainWindow.locator('text=/분석할 프롬프트|No prompt to analyze/i');
+    await expect(emptyState).toBeVisible({ timeout: 3000 });
   });
 
   test('should handle very long text', async () => {
@@ -63,7 +65,7 @@ test.describe('Text Capture', () => {
 
     const longPrompt = 'A'.repeat(5000);
 
-    await invokeIPC(app, 'analyze-prompt', longPrompt);
+    await analyzePrompt(app, mainWindow, longPrompt);
 
     await mainWindow.waitForTimeout(2000);
 
@@ -79,13 +81,14 @@ test.describe('Analysis Results', () => {
 
     const testPrompt = 'Fix authentication bug in login.ts file';
 
-    await invokeIPC(app, 'analyze-prompt', testPrompt);
+    await analyzePrompt(app, mainWindow, testPrompt);
 
-    await mainWindow.waitForTimeout(1500);
+    // Wait for analysis to complete (grade badge visible)
+    await waitForAnalysis(mainWindow);
 
-    // Should show GOLDEN radar chart or scores
-    const radar = mainWindow.locator('[class*="radar"], [aria-label*="GOLDEN"]');
-    await expect(radar).toBeVisible({ timeout: 5000 });
+    // GoldenMiniBar shows scores in G:XX% format
+    const goldenScore = mainWindow.locator('text=/G:\\d+%/');
+    await expect(goldenScore).toBeVisible({ timeout: 5000 });
   });
 
   test('should display issues list', async () => {
@@ -93,13 +96,14 @@ test.describe('Analysis Results', () => {
 
     const poorPrompt = 'fix it';
 
-    await invokeIPC(app, 'analyze-prompt', poorPrompt);
+    await analyzePrompt(app, mainWindow, poorPrompt);
 
-    await mainWindow.waitForTimeout(1500);
+    // Wait for analysis to complete
+    await waitForAnalysis(mainWindow);
 
-    // Should show issues
-    const issuesList = mainWindow.locator('text=/이슈|issue|문제/i');
-    await expect(issuesList).toBeVisible({ timeout: 5000 });
+    // TopFix card shows coaching content (ko: "지금 이것만!", en: "Fix This First")
+    const topFix = mainWindow.locator('text=/지금 이것만|Fix This First/i');
+    await expect(topFix).toBeVisible({ timeout: 5000 });
   });
 
   test('should display quality grade', async () => {
@@ -107,13 +111,16 @@ test.describe('Analysis Results', () => {
 
     const testPrompt = 'Refactor the authentication module to use JWT tokens';
 
-    await invokeIPC(app, 'analyze-prompt', testPrompt);
+    await analyzePrompt(app, mainWindow, testPrompt);
 
-    await mainWindow.waitForTimeout(1500);
+    // Wait for analysis to complete
+    await waitForAnalysis(mainWindow);
 
-    // Should show grade (A, B, C, D, F)
-    const grade = mainWindow.locator('text=/[ABCDF]/');
-    await expect(grade).toBeVisible({ timeout: 5000 });
+    // Grade badge should be visible with a letter grade
+    const gradeBadge = mainWindow.locator('.grade-badge');
+    await expect(gradeBadge).toBeVisible({ timeout: 5000 });
+    const gradeText = await gradeBadge.textContent();
+    expect(gradeText).toMatch(/[ABCDF]/);
   });
 });
 
@@ -124,10 +131,9 @@ test.describe('Analysis State', () => {
     const testPrompt = 'Create a React component for user profile';
 
     // Start analysis
-    const analysisPromise = invokeIPC(app, 'analyze-prompt', testPrompt);
+    const analysisPromise = analyzePrompt(app, mainWindow, testPrompt);
 
     // Should show loading indicator (briefly)
-    // Note: This is timing-sensitive and may be flaky
     const loading = mainWindow.locator('text=/분석|analyzing|loading/i');
 
     // Wait a bit for the promise to complete
@@ -143,8 +149,8 @@ test.describe('Analysis State', () => {
 
     const testPrompt = 'Add error handling to API calls';
 
-    await invokeIPC(app, 'analyze-prompt', testPrompt);
-    await mainWindow.waitForTimeout(1500);
+    await analyzePrompt(app, mainWindow, testPrompt);
+    await waitForAnalysis(mainWindow);
 
     // Hide window
     await invokeIPC(app, 'hide-window');
@@ -156,9 +162,9 @@ test.describe('Analysis State', () => {
       window.dispatchEvent(new Event('focus'));
     });
 
-    // Analysis results should still be visible
-    const promptText = mainWindow.locator(`text=${testPrompt}`);
-    await expect(promptText).toBeVisible();
+    // Grade badge should still be visible
+    const gradeBadge = mainWindow.locator('.grade-badge');
+    await expect(gradeBadge).toBeVisible();
   });
 });
 
@@ -169,13 +175,13 @@ test.describe('Multiple Analyses', () => {
     const prompts = ['First prompt', 'Second prompt', 'Third prompt'];
 
     for (const prompt of prompts) {
-      await invokeIPC(app, 'analyze-prompt', prompt);
+      await analyzePrompt(app, mainWindow, prompt);
       await mainWindow.waitForTimeout(1000);
     }
 
-    // Should show the last prompt
-    const lastPrompt = mainWindow.locator(`text=${prompts[prompts.length - 1]}`);
-    await expect(lastPrompt).toBeVisible();
+    // Grade badge should be visible for the last analysis
+    const gradeBadge = mainWindow.locator('.grade-badge');
+    await expect(gradeBadge).toBeVisible();
   });
 
   test('should maintain history of analyses', async () => {
@@ -183,7 +189,7 @@ test.describe('Multiple Analyses', () => {
 
     const testPrompt = 'Test prompt for history';
 
-    await invokeIPC(app, 'analyze-prompt', testPrompt);
+    await analyzePrompt(app, mainWindow, testPrompt);
     await mainWindow.waitForTimeout(1500);
 
     // Navigate to history/progress tab

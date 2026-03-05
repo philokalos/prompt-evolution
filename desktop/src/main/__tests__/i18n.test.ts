@@ -4,6 +4,8 @@
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
 
 // Mock electron
 const mockGetLocale = vi.fn(() => 'en-US');
@@ -326,5 +328,58 @@ describe('i18n System', () => {
         systemLanguage: 'ko-KR',
       });
     });
+  });
+
+  describe('Translation parity (en/ko)', () => {
+    /**
+     * Extract all keys from a nested object recursively
+     */
+    function extractKeys(obj: Record<string, unknown>, prefix = ''): string[] {
+      const keys: string[] = [];
+      for (const [key, value] of Object.entries(obj)) {
+        const fullKey = prefix ? `${prefix}.${key}` : key;
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          keys.push(...extractKeys(value as Record<string, unknown>, fullKey));
+        } else {
+          keys.push(fullKey);
+        }
+      }
+      return keys.sort();
+    }
+
+    const __testFilename = fileURLToPath(import.meta.url);
+    const __testDirname = path.dirname(__testFilename);
+    const localesDir = path.join(__testDirname, '..', '..', 'locales');
+    const namespaces = ['common', 'settings', 'analysis', 'help', 'errors', 'tray'];
+
+    for (const ns of namespaces) {
+      it(`should have identical keys in en/${ns}.json and ko/${ns}.json`, () => {
+        const enPath = path.join(localesDir, 'en', `${ns}.json`);
+        const koPath = path.join(localesDir, 'ko', `${ns}.json`);
+
+        // Skip if files don't exist (CI might not have them)
+        if (!fs.existsSync(enPath) || !fs.existsSync(koPath)) {
+          return;
+        }
+
+        const enData = JSON.parse(fs.readFileSync(enPath, 'utf-8'));
+        const koData = JSON.parse(fs.readFileSync(koPath, 'utf-8'));
+
+        const enKeys = extractKeys(enData);
+        const koKeys = extractKeys(koData);
+
+        const missingInKo = enKeys.filter(k => !koKeys.includes(k));
+        const missingInEn = koKeys.filter(k => !enKeys.includes(k));
+
+        if (missingInKo.length > 0) {
+          throw new Error(`Keys in en/${ns}.json missing from ko/${ns}.json:\n  ${missingInKo.join('\n  ')}`);
+        }
+        if (missingInEn.length > 0) {
+          throw new Error(`Keys in ko/${ns}.json missing from en/${ns}.json:\n  ${missingInEn.join('\n  ')}`);
+        }
+
+        expect(enKeys).toEqual(koKeys);
+      });
+    }
   });
 });

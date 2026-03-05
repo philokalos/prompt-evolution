@@ -84,32 +84,56 @@ export async function waitForText(window: Page, text: string, timeout = 5000): P
 }
 
 /**
- * Simulate IPC call from renderer to main process
+ * Call an IPC handler through the renderer's electronAPI.
+ * This uses the real IPC mechanism (ipcRenderer.invoke → ipcMain.handle),
+ * which ensures native modules like better-sqlite3 are properly available.
  *
- * Note: This directly invokes the IPC handler, bypassing the actual IPC mechanism.
- * Use this when you need to test main process logic without simulating user actions.
+ * Playwright's app.evaluate() runs in a UtilityScript context where native
+ * Node.js addons can't be loaded, so direct handler invocation fails for
+ * DB-accessing handlers. Going through the renderer avoids this issue.
  */
 export async function invokeIPC<T = any>(
   app: ElectronApplication,
   channel: string,
   ...args: any[]
 ): Promise<T> {
+  const mainWindow = app.windows()[0];
+
+  if (mainWindow) {
+    // Convert kebab-case channel to camelCase method name
+    // e.g., 'get-history' → 'getHistory', 'set-language' → 'setLanguage'
+    const methodName = channel.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+
+    // Special case: renderer-ready → signalReady (preload uses different name)
+    const apiMethod = methodName === 'rendererReady' ? 'signalReady' : methodName;
+
+    return await mainWindow.evaluate(
+      async ({ method, args }: { method: string; args: unknown[] }) => {
+        const api = (window as any).electronAPI;
+        if (api && typeof api[method] === 'function') {
+          return await api[method](...args);
+        }
+        throw new Error(`electronAPI.${method} not found`);
+      },
+      { method: apiMethod, args }
+    );
+  }
+
+  // Fallback: direct handler invocation via app.evaluate
+  // (only when no renderer window is available)
   return await app.evaluate(
     async ({ ipcMain }, { channel, args }) => {
-      // Create a mock event object
       const mockEvent = {
         sender: { send: () => {} },
         reply: () => {},
       };
 
-      // Check ipcMain.handle() registered handlers first (_invokeHandlers Map)
       const invokeHandlers = (ipcMain as any)._invokeHandlers;
       if (invokeHandlers && invokeHandlers.has(channel)) {
         const handler = invokeHandlers.get(channel);
         return await handler(mockEvent, ...args);
       }
 
-      // Fallback to ipcMain.on() registered handlers (_events)
       const handler = (ipcMain as any)._events[channel];
       if (!handler) {
         throw new Error(`No IPC handler found for channel: ${channel}`);
@@ -169,6 +193,50 @@ export async function getClipboard(app: ElectronApplication): Promise<string> {
   return await app.evaluate(({ clipboard }) => {
     return clipboard.readText();
   });
+}
+
+/**
+ * Trigger prompt analysis through the renderer's clipboard-text listener.
+ * This is the correct way to test analysis because it simulates the real flow:
+ * main sends 'clipboard-text' → renderer dispatches RECEIVE_TEXT + calls analyzePrompt
+ * → ipcRenderer.invoke('analyze-prompt') → main handler → result → React state update → UI.
+ *
+ * Using `invokeIPC(app, 'analyze-prompt', ...)` only runs the handler in the
+ * main process — the result never reaches the renderer.
+ */
+export async function analyzePrompt(
+  app: ElectronApplication,
+  mainWindow: Page,
+  text: string
+): Promise<void> {
+  if (!text) {
+    // Empty text triggers empty-state via a different channel
+    await app.evaluate(
+      ({ BrowserWindow }, payload) => {
+        const windows = BrowserWindow.getAllWindows();
+        if (windows.length > 0) {
+          windows[0].webContents.send('empty-state', payload);
+        }
+      },
+      { reason: 'empty-clipboard', appName: null, capturedContext: null }
+    );
+    return;
+  }
+
+  await app.evaluate(
+    ({ BrowserWindow }, payload) => {
+      const windows = BrowserWindow.getAllWindows();
+      if (windows.length > 0) {
+        windows[0].webContents.send('clipboard-text', payload);
+      }
+    },
+    {
+      text,
+      capturedContext: null,
+      isSourceAppBlocked: false,
+      sourceApp: 'test',
+    }
+  );
 }
 
 /**

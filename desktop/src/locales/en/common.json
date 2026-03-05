@@ -28,17 +28,17 @@
   "learnMore": "Learn more",
   "collapse": "Collapse",
   "showDetails": "Show details",
-  "newAnalysis": "New analysis",
+  "newAnalysis": "New coaching",
   "betterThanAverage": "{{percent}}% better than your average",
   "worseThanAverage": "{{percent}}% worse than your average",
   "appName": "PromptLint",
-  "appDescription": "AI Prompt Quality Analyzer",
+  "appDescription": "AI Prompt Coach",
   "version": "Version {{version}}",
   "copyright": "© {{year}} philokalos",
   "about": {
     "title": "About PromptLint",
     "version": "Version {{version}}",
-    "description": "Real-time prompt quality analysis with AI-powered personalized learning. Like Grammarly for prompts.",
+    "description": "Real-time prompt coaching with AI-powered personalized learning. Your personal prompt coach.",
     "github": "View on GitHub"
   },
   "alwaysOnTop": "Always on top",
@@ -73,7 +73,7 @@
       "step2Desc": "Press"
     },
     "welcome": {
-      "title": "Improve prompt quality",
+      "title": "Get instant prompt coaching",
       "step1Title": "Select prompt",
       "step1Desc": "Drag to select the text you want to improve",
       "step2Title": "Run analysis",
@@ -94,10 +94,10 @@
     }
   },
   "directInput": {
-    "placeholder": "Enter the prompt to analyze... (Cmd+Enter to analyze)",
+    "placeholder": "Paste your prompt for coaching... (Cmd+Enter)",
     "charCount": "{{count}} characters",
-    "submitHint": "Cmd+Enter to analyze",
-    "button": "Analyze",
+    "submitHint": "Cmd+Enter for coaching",
+    "button": "Get Coaching",
     "toggle": "Direct input",
     "toggleBack": "Use shortcut"
   },

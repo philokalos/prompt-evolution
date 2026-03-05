@@ -18,11 +18,11 @@
   },
   "status": {
     "ready": "Ready",
-    "analyzing": "Analyzing...",
+    "analyzing": "Coaching...",
     "idle": "Idle"
   },
   "tooltip": "PromptLint - Press {{shortcut}} to analyze",
-  "tooltipDefault": "PromptLint - Prompt correction",
+  "tooltipDefault": "PromptLint - Prompt Coach",
   "tooltipNewPrompt": "PromptLint - New prompt detected!",
   "analyzeInstructions": "Analyze Project Instructions"
 }

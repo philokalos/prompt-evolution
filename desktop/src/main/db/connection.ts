@@ -17,7 +17,8 @@ import {
 } from './schema.js';
 
 // Database locations (primary and fallback)
-const DB_DIR_PRIMARY = join(homedir(), '.promptlint');
+// Allow override via environment variable for E2E test isolation
+const DB_DIR_PRIMARY = process.env.PROMPTLINT_DB_DIR || join(homedir(), '.promptlint');
 
 // Get fallback directory safely (handles test environment where app may not be fully initialized)
 function getFallbackDir(): string {
@@ -166,7 +167,8 @@ export function getDatabase(): Database.Database {
         '데이터베이스를 열 수 없습니다. ' +
         (isCorruption
           ? '데이터베이스 파일이 손상되었습니다. 백업 후 새로 생성됩니다.'
-          : '다른 프로그램이 사용 중이거나 권한 문제일 수 있습니다.')
+          : '다른 프로그램이 사용 중이거나 권한 문제일 수 있습니다.') +
+        ` [path: ${dbPath}] [original: ${String(error)}]`
       );
     }
   }

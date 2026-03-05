@@ -14,6 +14,7 @@ import {
   FileText,
 } from 'lucide-react';
 import GoldenRadar from './components/GoldenRadar';
+import GoldenMiniBar from './components/GoldenMiniBar';
 import ProgressTracker from './components/ProgressTracker';
 import PersonalTips from './components/PersonalTips';
 import HelpView from './components/HelpView';
@@ -176,9 +177,14 @@ function App() {
                     : t('navigation.help')}
           </span>
           {viewMode === 'analysis' && analysis && (
-            <span className={`grade-badge text-2xl font-bold ${getGradeColor(analysis.grade)}`}>
-              {analysis.grade}
-            </span>
+            <>
+              <span className={`grade-badge text-2xl font-bold ${getGradeColor(analysis.grade)}`}>
+                {analysis.grade}
+              </span>
+              <span className="text-[10px] text-gray-400 ml-1.5 truncate max-w-[160px]">
+                {ta('gradeMessage.' + analysis.grade)}
+              </span>
+            </>
           )}
         </div>
         <div className="flex items-center gap-1">
@@ -355,25 +361,22 @@ function App() {
               onLoadProjects={loadAllProjects}
             />
 
-            {/* 2. Improved Prompt — above fold, one-click action */}
-            {analysis.promptVariants.length > 0 && (
-              <ImprovedPromptView
-                variants={analysis.promptVariants}
-                grade={analysis.grade}
-                isSourceAppBlocked={isSourceAppBlocked}
-                onApply={isSourceAppBlocked ? undefined : handleApply}
-                onCopy={handleCopy}
-                onCopyAndSwitch={isSourceAppBlocked && sourceApp ? (text) => {
-                  window.electronAPI.copyAndSwitch(text, sourceApp);
-                } : undefined}
-                contextIncluded={!!analysis.sessionContext}
-              />
-            )}
-
-            {/* 3. Top Fix — single most impactful improvement */}
+            {/* 2. Top Fix — single most impactful coaching point */}
             {analysis.topFix && (
               <TopFixCard
                 topFix={analysis.topFix}
+                isSourceAppBlocked={isSourceAppBlocked}
+                onFixNow={() => {
+                  const fixVariant = analysis.promptVariants.find(v => v.variant === 'conservative')
+                    || analysis.promptVariants[0];
+                  if (fixVariant?.rewrittenPrompt) {
+                    if (isSourceAppBlocked) {
+                      handleCopy(fixVariant.rewrittenPrompt);
+                    } else {
+                      handleApply(fixVariant.rewrittenPrompt);
+                    }
+                  }
+                }}
                 onShowAllIssues={
                   analysis.issues.length > 1
                     ? () => dispatch({ type: 'SET_VIEW_MODE', mode: 'progress' })
@@ -382,7 +385,27 @@ function App() {
               />
             )}
 
-            {/* 4. Detailed Analysis — collapsed by default */}
+            {/* 3. GOLDEN Mini Bar — compact score overview */}
+            <GoldenMiniBar scores={analysis.goldenScores} grade={analysis.grade} />
+
+            {/* 4. Suggested Rewrite — collapsed by default */}
+            {analysis.promptVariants.length > 0 && (
+              <CollapsibleDetails label={ta('coaching.suggestedRewrite')}>
+                <ImprovedPromptView
+                  variants={analysis.promptVariants}
+                  grade={analysis.grade}
+                  isSourceAppBlocked={isSourceAppBlocked}
+                  onApply={isSourceAppBlocked ? undefined : handleApply}
+                  onCopy={handleCopy}
+                  onCopyAndSwitch={isSourceAppBlocked && sourceApp ? (text) => {
+                    window.electronAPI.copyAndSwitch(text, sourceApp);
+                  } : undefined}
+                  contextIncluded={!!analysis.sessionContext}
+                />
+              </CollapsibleDetails>
+            )}
+
+            {/* 5. Detailed Analysis — collapsed by default */}
             <CollapsibleDetails>
               {/* Variant comparison */}
               {analysis.promptVariants.length > 0 && (
