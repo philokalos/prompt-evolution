@@ -50,9 +50,9 @@ test.describe('Progress Tab Navigation', () => {
       await progressTab.click();
       await mainWindow.waitForTimeout(500);
 
-      // Should show some stats
-      const statsSection = mainWindow.locator('[class*="stats"], [class*="overview"], [class*="progress"]');
-      await expect(statsSection.first()).toBeVisible({ timeout: 5000 });
+      // Should show stats text (Total Analyses, Average Score, Recent Trend)
+      const statsText = mainWindow.locator('text=/Total Analyses|Average Score|Recent Trend|총 분석|평균 점수/i');
+      await expect(statsText.first()).toBeVisible({ timeout: 5000 });
     }
   });
 });
@@ -193,9 +193,9 @@ test.describe('GOLDEN Dimension Analysis', () => {
       await progressTab.click();
       await mainWindow.waitForTimeout(500);
 
-      // Should show suggestions or tips
-      const suggestions = mainWindow.locator('text=/제안|suggestion|개선|tip/i');
-      await expect(suggestions.first()).toBeVisible({ timeout: 5000 });
+      // Should show GOLDEN dimension content (en: "GOLDEN Dimension", ko: "GOLDEN 차원별")
+      const goldenContent = mainWindow.locator('text=/GOLDEN|일별|주별|월별|Daily|Weekly|Monthly/i');
+      await expect(goldenContent.first()).toBeVisible({ timeout: 5000 });
     }
   });
 });

@@ -88,9 +88,9 @@ test.describe('Tray Context Menu', () => {
     await analyzePrompt(app, mainWindow, testPrompt);
     await mainWindow.waitForTimeout(1500);
 
-    // Should show analysis
-    const promptText = mainWindow.locator(`text=${testPrompt}`);
-    await expect(promptText).toBeVisible({ timeout: 5000 });
+    // Should show analysis UI (coaching view with grade badge)
+    const gradeBadge = mainWindow.locator('.grade-badge');
+    await expect(gradeBadge).toBeVisible({ timeout: 5000 });
   });
 
   test('should have settings menu item', async () => {

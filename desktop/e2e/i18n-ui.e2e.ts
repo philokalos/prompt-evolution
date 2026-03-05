@@ -171,13 +171,12 @@ test.describe('Component-Specific Translations', () => {
     await analyzePrompt(app, mainWindow, 'Poor prompt');
     await mainWindow.waitForTimeout(1500);
 
-    // Switch to Korean
+    // Switch to Korean - coaching UX shows "지금 이것만!" and "지금 고치기"
     await invokeIPC(app, 'set-language', 'ko');
     await mainWindow.waitForTimeout(800);
 
-    // Should show Korean severity labels
-    const koreanSeverity = mainWindow.locator('text=/높음|중간|낮음/');
-    await expect(koreanSeverity.first()).toBeVisible({ timeout: 5000 });
+    const koreanCoaching = mainWindow.locator('text=/지금 이것만|지금 고치기|코칭 포인트/');
+    await expect(koreanCoaching.first()).toBeVisible({ timeout: 5000 });
   });
 
   test('should translate button labels', async () => {
@@ -186,11 +185,11 @@ test.describe('Component-Specific Translations', () => {
     await analyzePrompt(app, mainWindow, 'Button test');
     await mainWindow.waitForTimeout(1500);
 
-    // English buttons
+    // English buttons - coaching UX has "Fix This Now", "Before / After", "Suggested Rewrite"
     await invokeIPC(app, 'set-language', 'en');
     await mainWindow.waitForTimeout(800);
 
-    const englishButton = mainWindow.locator('button:has-text("Copy"), button:has-text("Apply")');
+    const englishButton = mainWindow.locator('button:has-text("Fix This Now"), button:has-text("Suggested Rewrite")');
     await expect(englishButton.first()).toBeVisible({ timeout: 5000 });
   });
 
