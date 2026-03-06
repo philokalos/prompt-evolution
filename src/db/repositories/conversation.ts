@@ -156,6 +156,34 @@ export function getProjectStats(): Array<{ project: string; project_path: string
 }
 
 /**
+ * Get last active time for a project
+ */
+export function getProjectLastActive(project: string): string | null {
+  const db = getDatabase();
+  const result = db
+    .prepare('SELECT MAX(started_at) as lastActive FROM conversations WHERE project = ?')
+    .get(project) as { lastActive: string | null };
+  return result.lastActive;
+}
+
+/**
+ * Get average effectiveness score for a project
+ */
+export function getProjectAvgEffectiveness(project: string): number {
+  const db = getDatabase();
+  const result = db
+    .prepare(`
+      SELECT AVG(CAST(qs.value AS REAL)) as avgEffectiveness
+      FROM quality_signals qs
+      JOIN turns t ON qs.turn_id = t.id
+      JOIN conversations c ON t.conversation_id = c.id
+      WHERE c.project = ? AND qs.signal_type = 'effectiveness'
+    `)
+    .get(project) as { avgEffectiveness: number | null };
+  return Math.round((result.avgEffectiveness ?? 0) * 100) / 100;
+}
+
+/**
  * Get conversations in date range
  */
 export function getConversationsInRange(startDate: Date, endDate: Date): ConversationRow[] {

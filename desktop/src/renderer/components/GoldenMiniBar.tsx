@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
 
 interface GoldenScores {
@@ -38,7 +39,7 @@ function getGradeColor(grade: string): string {
   }
 }
 
-export default function GoldenMiniBar({ scores, grade }: GoldenMiniBarProps) {
+function GoldenMiniBarInner({ scores, grade }: GoldenMiniBarProps) {
   const { t } = useTranslation('analysis');
 
   return (
@@ -62,3 +63,6 @@ export default function GoldenMiniBar({ scores, grade }: GoldenMiniBarProps) {
     </div>
   );
 }
+
+const GoldenMiniBar = memo(GoldenMiniBarInner);
+export default GoldenMiniBar;

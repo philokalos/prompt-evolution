@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { HelpCircle, X } from 'lucide-react';
 
@@ -26,7 +26,7 @@ const GOLDEN_LABELS = [
 
 const GRID_LEVELS = [20, 40, 60, 80, 100] as const;
 
-export default function GoldenRadar({ scores, size = 200, dimensionLabels }: GoldenRadarProps) {
+function GoldenRadarInner({ scores, size = 200, dimensionLabels }: GoldenRadarProps) {
   const { t } = useTranslation(['analysis', 'help']);
   const center = size / 2;
   const maxRadius = size / 2 - 30;
@@ -343,3 +343,6 @@ export default function GoldenRadar({ scores, size = 200, dimensionLabels }: Gol
     </div>
   );
 }
+
+const GoldenRadar = memo(GoldenRadarInner);
+export default GoldenRadar;

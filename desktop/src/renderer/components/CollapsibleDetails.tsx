@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, memo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
@@ -8,7 +8,7 @@ interface CollapsibleDetailsProps {
   label?: string;
 }
 
-export default function CollapsibleDetails({ children, defaultOpen = false, label }: CollapsibleDetailsProps) {
+function CollapsibleDetailsInner({ children, defaultOpen = false, label }: CollapsibleDetailsProps) {
   const { t } = useTranslation('analysis');
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -25,3 +25,6 @@ export default function CollapsibleDetails({ children, defaultOpen = false, labe
     </div>
   );
 }
+
+const CollapsibleDetails = memo(CollapsibleDetailsInner);
+export default CollapsibleDetails;

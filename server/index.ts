@@ -68,13 +68,13 @@ app.get('*', (req, res, next) => {
 // Error handling
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+app.listen(Number(PORT), '127.0.0.1', () => {
   console.log(`
   ┌─────────────────────────────────────────┐
   │  Prompt Evolution Dashboard Server      │
   │                                         │
-  │  API:       http://localhost:${PORT}/api   │
-  │  Dashboard: http://localhost:${PORT}       │
+  │  API:       http://127.0.0.1:${PORT}/api   │
+  │  Dashboard: http://127.0.0.1:${PORT}       │
   └─────────────────────────────────────────┘
   `);
 

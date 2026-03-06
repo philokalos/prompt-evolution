@@ -26,6 +26,8 @@ vi.mock('../../src/index.js', () => ({
     { project: 'test-project', project_path: '-Users-test-project', count: 10 },
     { project: 'other-project', project_path: '-Users-other-project', count: 5 },
   ]),
+  getProjectLastActive: vi.fn(() => '2026-03-04'),
+  getProjectAvgEffectiveness: vi.fn(() => 0.75),
   getAllConversations: vi.fn(() => [
     { id: 'conv-1', project: 'test-project', started_at: '2026-01-01T00:00:00Z' },
     { id: 'conv-2', project: 'test-project', started_at: '2026-01-02T00:00:00Z' },

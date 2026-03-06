@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import { AlertTriangle, ChevronDown, ChevronRight, Lightbulb, CheckCircle2 } from 'lucide-react';
 
@@ -35,7 +35,7 @@ const SEVERITY_CONFIG = {
   },
 };
 
-export default function IssueList({ issues, onApplySuggestion }: IssueListProps) {
+function IssueListInner({ issues, onApplySuggestion }: IssueListProps) {
   const { t } = useTranslation('analysis');
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [appliedIndices, setAppliedIndices] = useState<Set<number>>(new Set());
@@ -192,3 +192,6 @@ export default function IssueList({ issues, onApplySuggestion }: IssueListProps)
     </div>
   );
 }
+
+const IssueList = memo(IssueListInner);
+export default IssueList;
