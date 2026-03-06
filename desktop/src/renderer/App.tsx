@@ -78,6 +78,14 @@ function App() {
   } = useAppState(te);
 
   const instructionLinter = useInstructionLinter();
+  const {
+    isLoading: linterIsLoading,
+    analysis: linterAnalysis,
+    detectedFiles: linterDetectedFiles,
+    clearAnalysis: linterClearAnalysis,
+    detectFiles: linterDetectFiles,
+    lintFile: linterLintFile,
+  } = instructionLinter;
 
   const {
     originalPrompt,
@@ -115,7 +123,7 @@ function App() {
   // Auto-detect instruction files when switching to instructions view or project changes
   useEffect(() => {
     if (viewMode !== 'instructions') return;
-    if (instructionLinter.isLoading) return;
+    if (linterIsLoading) return;
 
     const projectPath = currentProject?.projectPath;
     if (!projectPath) return;
@@ -123,21 +131,21 @@ function App() {
     // Project changed → clear previous results and re-detect
     if (projectPath !== lastAnalyzedProjectRef.current) {
       lastAnalyzedProjectRef.current = projectPath;
-      instructionLinter.clearAnalysis();
-      instructionLinter.detectFiles(projectPath);
+      linterClearAnalysis();
+      linterDetectFiles(projectPath);
       return;
     }
 
     // Same project, already analyzed → skip
-    if (instructionLinter.analysis) return;
-  }, [viewMode, currentProject?.projectPath, instructionLinter.analysis, instructionLinter.isLoading, instructionLinter.detectFiles, instructionLinter.clearAnalysis]);
+    if (linterAnalysis) return;
+  }, [viewMode, currentProject?.projectPath, linterAnalysis, linterIsLoading, linterDetectFiles, linterClearAnalysis]);
 
   // Auto-lint the first detected file
   useEffect(() => {
-    if (instructionLinter.detectedFiles.length > 0 && !instructionLinter.analysis && !instructionLinter.isLoading) {
-      instructionLinter.lintFile(instructionLinter.detectedFiles[0].path);
+    if (linterDetectedFiles.length > 0 && !linterAnalysis && !linterIsLoading) {
+      linterLintFile(linterDetectedFiles[0].path);
     }
-  }, [instructionLinter.detectedFiles, instructionLinter.analysis, instructionLinter.isLoading, instructionLinter.lintFile]);
+  }, [linterDetectedFiles, linterAnalysis, linterIsLoading, linterLintFile]);
 
   // Keyboard shortcuts: Escape to hide
   useEffect(() => {

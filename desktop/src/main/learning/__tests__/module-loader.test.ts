@@ -2,7 +2,7 @@
  * Module Loader Unit Tests
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mock electron app before import
 vi.mock('electron', () => ({

@@ -2,7 +2,7 @@
  * History Handlers Unit Tests
  */
 
-import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { HistoryHandlerDeps } from '../history-handlers.js';
 
 // Mock Electron modules

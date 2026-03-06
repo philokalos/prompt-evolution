@@ -194,14 +194,14 @@ export function getToolUsageTrend(
   const baseQuery = `
     SELECT DATE(timestamp) as date, COUNT(*) as count
     FROM tool_usages
-    WHERE timestamp >= DATE('now', '-${days} days')
+    WHERE timestamp >= DATE('now', '-' || ? || ' days')
     ${toolName ? 'AND tool_name = ?' : ''}
     GROUP BY DATE(timestamp)
     ORDER BY date ASC
   `;
 
   const stmt = db.prepare(baseQuery);
-  return (toolName ? stmt.all(toolName) : stmt.all()) as Array<{
+  return (toolName ? stmt.all(days, toolName) : stmt.all(days)) as Array<{
     date: string;
     count: number;
   }>;

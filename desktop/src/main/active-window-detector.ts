@@ -502,41 +502,17 @@ export function parseWindowTitle(windowInfo: ActiveWindowInfo): DetectedProject 
  * 현재 활성 IDE의 프로젝트 감지 (메인 함수)
  */
 export async function detectActiveProject(): Promise<DetectedProject | null> {
-  // Write to file for debugging
-  const fs = await import('fs');
-  const logPath = '/tmp/promptlint-debug.log';
-  const log = (msg: string) => {
-    const timestamp = new Date().toISOString();
-    fs.appendFileSync(logPath, `[${timestamp}] ${msg}\n`);
-    console.log(msg);
-  };
-
-  log('[ActiveWindow] detectActiveProject called');
-
   const windowInfo = await getActiveWindowInfo();
 
   if (!windowInfo) {
-    log('[ActiveWindow] No active window info');
     return null;
   }
-
-  log(`[ActiveWindow] Active: ${windowInfo.appName} | ${windowInfo.windowTitle}`);
-  log(`[ActiveWindow] isIDE: ${windowInfo.isIDE}, ideName: ${windowInfo.ideName}`);
 
   if (!windowInfo.isIDE) {
-    log('[ActiveWindow] Not a supported IDE');
     return null;
   }
 
-  const project = parseWindowTitle(windowInfo);
-
-  if (project) {
-    log(`[ActiveWindow] Detected project: ${project.projectPath} (${project.confidence})`);
-  } else {
-    log('[ActiveWindow] Could not parse project from window title');
-  }
-
-  return project;
+  return parseWindowTitle(windowInfo);
 }
 
 // 폴링 기반 창 전환 감지 (옵션)

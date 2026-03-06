@@ -38,8 +38,25 @@ interface CacheEntry {
   sessionMtime: number;
 }
 
-// In-memory cache for session context
+// In-memory cache for session context (max 50 entries, LRU eviction)
+const SESSION_CACHE_MAX = 50;
 const sessionCache: Map<string, CacheEntry> = new Map();
+
+function sessionCacheSet(key: string, entry: CacheEntry): void {
+  // Evict oldest entries when cache is full
+  if (sessionCache.size >= SESSION_CACHE_MAX && !sessionCache.has(key)) {
+    let oldestKey: string | undefined;
+    let oldestTime = Infinity;
+    for (const [k, v] of sessionCache) {
+      if (v.timestamp < oldestTime) {
+        oldestTime = v.timestamp;
+        oldestKey = k;
+      }
+    }
+    if (oldestKey) sessionCache.delete(oldestKey);
+  }
+  sessionCache.set(key, entry);
+}
 
 /**
  * Last exchange context - the most recent user-assistant pair
@@ -663,7 +680,7 @@ export function extractSessionContext(projectId: string, sessionFile: string): S
 
     if (records.length === 0) {
       // Cache null result too
-      sessionCache.set(cacheKey, { context: null, timestamp: now, sessionMtime });
+      sessionCacheSet(cacheKey, { context: null, timestamp: now, sessionMtime });
       return null;
     }
 
@@ -696,7 +713,7 @@ export function extractSessionContext(projectId: string, sessionFile: string): S
     };
 
     // Update cache
-    sessionCache.set(cacheKey, { context, timestamp: now, sessionMtime });
+    sessionCacheSet(cacheKey, { context, timestamp: now, sessionMtime });
 
     return context;
   } catch (error) {

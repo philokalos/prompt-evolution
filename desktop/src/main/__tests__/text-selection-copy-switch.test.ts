@@ -53,7 +53,7 @@ vi.mock('electron', () => ({
 }));
 
 // Patch process.platform
-const originalPlatform = process.platform;
+const _originalPlatform = process.platform;
 beforeEach(() => {
   Object.defineProperty(process, 'platform', { value: mockState.platform });
   mockState.clipboardText = '';
